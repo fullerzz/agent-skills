@@ -98,7 +98,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
         "allowed-tools",
     }
     unsupported = re.compile(
-        r"\.cursor/|cursor-team-kit|zstack-models\.mdc|run_in_background|cloud_base_branch|subagent_type|grok-4|claude-opus-5-5|gpt-5\.6-sol|/loop\b|/goal\b"
+        r"\.cursor/|cursor-team-kit|(?:pstack|zstack)-models\.mdc|run_in_background|cloud_base_branch|subagent_type|grok-4|claude-opus-5-5|gpt-5\.6-sol|/loop\b|/goal\b"
     )
     for file in walk(root):
         relative = file.relative_to(root).as_posix()

@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Forced skill replacement <Badge type="info" text="2026-10-02" />
 
+PR #5 review repairs retain rejection of both `pstack-models.mdc` and `zstack-models.mdc` in active Markdown instructions. Regression fixtures cover skills, Claude agents, and guides. The legacy migration fixture now removes the renamed agent and its receipt entry before migration, checks a read-only `create` preview, and verifies the installed agent contents. Structural validation passed (46 skills, zero problems), all 12 Node tests and four Python tests passed. These are isolated local checks; native host discovery was not rerun.
+
 The installer accepts `--force` to replace conflicting skills, with `--apply` still required for writes. Isolated both-host fixtures verified directory, file, foreign symlink, and dangling symlink replacement; preview preservation; agent collision preflight; reruns; symlink destination preservation; and unchanged uninstall ownership rules.
 
 Structural validation passed with 46 skills and zero problems, all 12 Node tests and three Python tests passed, and `git diff --check` passed. Commands used a temporary `MISE_CACHE_DIR` after the default mise shim failed with a sandbox permission error. No personal configuration was changed and no native host discovery was exercised.

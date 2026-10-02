@@ -87,6 +87,25 @@ class ValidateTests(unittest.TestCase):
         self.assertTrue(any(failure.startswith("broken.yaml:") for failure in failures))
         self.assertFalse(any("not-real.txt" in failure for failure in failures))
 
+    def test_rejects_legacy_and_renamed_model_markers_in_active_markdown(self):
+        for marker in ("pstack-models.mdc", "zstack-models.mdc"):
+            for relative in (
+                "skills/example/reference.md",
+                "agents/claude/reviewer.md",
+                "docs/guide/setup.md",
+            ):
+                with self.subTest(marker=marker, file=relative):
+                    file = self.write(
+                        relative,
+                        "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n"
+                        f"Use {marker} for model routing.\n",
+                    )
+                    self.assertIn(
+                        f"{relative}: Active unsupported host instruction",
+                        validate(self.root)[1],
+                    )
+                    file.unlink()
+
     def test_bad_metadata_missing_entrypoints_and_helpers_are_failures(self):
         file = self.write(
             "skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n"

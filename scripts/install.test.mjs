@@ -210,6 +210,9 @@ test('legacy installs migrate owned receipts and names while preserving modified
     const receipt = join(native, 'zstack-install.json');
     const oldReceipt = join(native, 'pstack-install.json');
     const saved = JSON.parse(readFileSync(receipt, 'utf8'));
+    const newAgent = join(native, 'agents/z-agent.toml');
+    unlinkSync(newAgent);
+    delete saved.agents['z-agent.toml'];
     const oldAgent = join(native, 'agents/poteto-agent.toml');
     writeFileSync(oldAgent, 'old owned agent\n');
     saved.agents['poteto-agent.toml'] = createHash('sha256').update(readFileSync(oldAgent)).digest('hex');
@@ -222,6 +225,8 @@ test('legacy installs migrate owned receipts and names while preserving modified
     const preview = run(args);
     assert.equal(preview.status, 0, preview.stderr);
     assert.ok(preview.stdout.includes(`remove\t${oldAgent}\t`));
+    assert.ok(preview.stdout.includes(`create\t${newAgent}\t`));
+    assert.equal(existsSync(newAgent), false);
     assert.equal(existsSync(oldReceipt), true);
     assert.equal(readlinkSync(oldSkill), join(root, 'skills/poteto-mode'));
     assert.equal(run([...args, '--apply']).status, 0);
@@ -230,7 +235,7 @@ test('legacy installs migrate owned receipts and names while preserving modified
     assert.throws(() => readlinkSync(oldSkill), /ENOENT/);
     assert.throws(() => readlinkSync(oldSetup), /ENOENT/);
     assert.equal(realpathSync(join(home, '.agents/skills/z-mode')), join(root, 'skills/z-mode'));
-    assert.equal(existsSync(join(native, 'agents/z-agent.toml')), true);
+    assert.equal(readFileSync(newAgent, 'utf8'), readFileSync(join(root, 'agents/codex/z-agent.toml'), 'utf8'));
     const migrated = JSON.parse(readFileSync(receipt, 'utf8'));
     writeFileSync(oldAgent, 'user override\n');
     migrated.agents['poteto-agent.toml'] = saved.agents['poteto-agent.toml'];
