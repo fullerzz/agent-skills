@@ -66,4 +66,12 @@ bun run test
 bun run typecheck
 ```
 
+The documentation site in `docs/` uses VitePress, managed with pnpm:
+
+```sh
+pnpm install
+pnpm docs:dev
+pnpm docs:build
+```
+
 The [adaptation plan](docs/adaptation-plan.md) records the approved scope and oracle findings. [Provenance](docs/provenance.md) records the copied version and retired content. The [MIT license](LICENSE) retains Lauren Tan's copyright.

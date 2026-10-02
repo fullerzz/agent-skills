@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 *.log
 __pycache__/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
