@@ -11,7 +11,6 @@ import stat
 import sys
 import tomllib
 from pathlib import Path
-from typing import ClassVar
 from urllib.parse import unquote
 
 import yaml
@@ -19,15 +18,16 @@ from rich.console import Console
 
 
 class YamlLoader(yaml.SafeLoader):
-    # YAML 1.2 booleans match Bun; names such as "on" remain strings.
-    yaml_implicit_resolvers: ClassVar[dict] = {
-        key: [
-            (tag, pattern)
-            for tag, pattern in resolvers
-            if tag != "tag:yaml.org,2002:bool"
-        ]
-        for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
-    }
+    pass
+
+
+# YAML 1.2 booleans match Bun; names such as "on" remain strings.
+YamlLoader.yaml_implicit_resolvers = {
+    key: [
+        (tag, pattern) for tag, pattern in resolvers if tag != "tag:yaml.org,2002:bool"
+    ]
+    for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
 
 
 YamlLoader.add_implicit_resolver(

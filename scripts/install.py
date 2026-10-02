@@ -12,6 +12,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Never, NotRequired, TypedDict
 
 from rich.console import Console
 from rich.segment import Segment, Segments
@@ -19,6 +20,25 @@ from rich.segment import Segment, Segments
 ROOT = Path(__file__).resolve().parent.parent
 console = Console(soft_wrap=True, highlight=False, markup=False)
 errors = Console(stderr=True, soft_wrap=True, highlight=False, markup=False)
+
+
+class Receipt(TypedDict):
+    source: str
+    agents: dict[str, str | list[str]]
+
+
+class Entry(TypedDict):
+    source: Path
+    target: Path
+    kind: str
+    name: NotRequired[str]
+    op: NotRequired[str]
+
+
+class Plan(TypedDict):
+    receipt: Path
+    saved: Receipt
+    entries: list[Entry]
 
 
 def digest(path: Path) -> str:
@@ -50,13 +70,13 @@ def atomic_write(target: Path, contents: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def save(plan: dict) -> None:
+def save(plan: Plan) -> None:
     plan["receipt"].parent.mkdir(parents=True, exist_ok=True)
     atomic_write(plan["receipt"], (json.dumps(plan["saved"], indent=2) + "\n").encode())
 
 
 class Parser(argparse.ArgumentParser):
-    def error(self, message: str) -> None:
+    def error(self, message: str) -> Never:
         raise ValueError(message)
 
 
@@ -87,7 +107,7 @@ def main() -> None:
     home = Path(os.path.abspath(args.home)) if args.home else Path.home()
     project = Path(args.project).resolve(strict=True) if args.project else None
     hosts = ["codex", "claude"] if args.host == "both" else [args.host]
-    plans = []
+    plans: list[Plan] = []
     for host in hosts:
         base = project or home
         configured = os.environ.get(
@@ -102,7 +122,7 @@ def main() -> None:
         receipt = native / "pstack-install.json"
         if present(receipt) and (receipt.is_symlink() or not receipt.is_file()):
             raise ValueError(f"Receipt is not a regular file: {receipt}")
-        saved = (
+        saved: Receipt = (
             json.loads(receipt.read_text())
             if receipt.exists()
             else {"source": str(ROOT), "agents": {}}
@@ -125,7 +145,7 @@ def main() -> None:
             raise ValueError(
                 f"Receipt belongs to another checkout or is invalid: {receipt}"
             )
-        entries = [
+        entries: list[Entry] = [
             {"source": skill, "target": skills / skill.name, "kind": "link"}
             for skill in sorted((ROOT / "skills").iterdir())
             if skill.is_dir()
@@ -144,15 +164,15 @@ def main() -> None:
         for entry in entries:
             target, source = entry["target"], entry["source"]
             exists = present(target)
-            hashes = saved["agents"].get(entry.get("name"))
-            hashes = hashes if isinstance(hashes, list) else [hashes]
+            hashes = saved["agents"].get(source.name)
+            owned_hashes = hashes if isinstance(hashes, list) else [hashes]
             owned = (
                 owns_link(target, source)
                 if entry["kind"] == "link"
                 else exists
                 and target.is_file()
                 and not target.is_symlink()
-                and digest(target) in hashes
+                and digest(target) in owned_hashes
             )
             if args.action == "install":
                 entry["op"] = (
@@ -197,9 +217,11 @@ def main() -> None:
                     # An interrupted update may leave either the old or the new owned copy.
                     next_hash = digest(source)
                     old = plan["saved"]["agents"].get(entry["name"])
-                    old = old if isinstance(old, list) else [old]
+                    old_hashes = old if isinstance(old, list) else [old]
                     plan["saved"]["agents"][entry["name"]] = list(
-                        dict.fromkeys(value for value in [*old, next_hash] if value)
+                        dict.fromkeys(
+                            value for value in [*old_hashes, next_hash] if value
+                        )
                     )
                     save(plan)
                     if entry["op"] == "create":
