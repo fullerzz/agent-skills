@@ -50,7 +50,7 @@ export default defineConfig({
             const [file, hash] = href.split('#')
             const target = path.resolve(path.dirname(state.env.path), file)
             if (target.startsWith(docsDir + path.sep)) continue
-            const relative = path.relative(repoRoot, target)
+            const relative = path.relative(repoRoot, target).split(path.sep).join('/')
             const skill = !hash && relative.match(/^skills\/([^/]+)\/SKILL\.md$/)
             const playbook = !hash && relative.match(/^skills\/poteto-mode\/playbooks\/([^/]+)\.md$/)
             child.attrSet(

@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 
 export const repo = 'https://github.com/fullerzz/agent-skills'
-export const repoRoot = path.resolve(import.meta.dirname, '../..')
+export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 export interface Entry {
   id: string

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "docs:dev": "NODE_ENV=development vitepress dev docs",
+    "docs:dev": "node scripts/docs-dev.mjs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },

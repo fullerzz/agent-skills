@@ -4,6 +4,12 @@ outline: [2, 3]
 
 # Validation
 
+## PR portability and reference checks <Badge type="info" text="2026-10-02" />
+
+PR #3 review corrections replace `import.meta.dirname` with `fileURLToPath(import.meta.url)` and normalize filesystem separators before routing source links or emitting URLs. The dev command uses a Node launcher to set `NODE_ENV=development` before importing the VitePress CLI, preserving forwarded options without shell-specific assignment syntax. The override remains necessary for the previously observed inherited production environment. The writing guide distinguishes technical-writing from unslop. Dark-mode button backgrounds now follow the teal palette with dark foreground text.
+
+On Node 24.21.0, the production build, ten Node tests, three Python tests, structural validation (46 skills, zero problems), and whitespace checks passed. Reference coverage now checks IDs on rendered Markdown headings, with a regression excluding prose and fenced examples. Camofox rendered the home page through `docs:dev` launched with inherited `NODE_ENV=production` and forwarded host/port flags; light and dark appearances were inspected. The browser tab and server were closed. Full Windows and Node 20.0 execution were not performed; native agent behavior and deployed Pages remain outside these checks.
+
 ## User documentation review remediation <Badge type="info" text="2026-10-01" />
 
 Expanded first-time installation, scope selection, discovery checks, updates, collision handling, removal, and checkout relocation against `scripts/install.py`. Added user references for all 23 workflow skills, 23 playbooks, and 23 principles, based on their current instructions. Catalog cards now link to those references; source instructions remain supporting links.

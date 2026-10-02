@@ -19,6 +19,11 @@
   --vp-c-brand-2: #14b8a6;
   --vp-c-brand-3: #0d9488;
   --vp-c-brand-soft: rgba(45, 212, 191, 0.16);
+
+  --vp-button-brand-bg: #14b8a6;
+  --vp-button-brand-hover-bg: #2dd4bf;
+  --vp-button-brand-active-bg: #0d9488;
+  --vp-button-brand-text: #042f2e;
 }
 
 @media (min-width: 640px) {

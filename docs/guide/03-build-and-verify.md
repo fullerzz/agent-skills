@@ -30,7 +30,7 @@ $poteto-mode fix duplicate output; reproduce first; keep changes local
 | [tdd](../../skills/tdd/SKILL.md) | Add cheap, meaningful regressions. |
 | [no-comments](../../skills/no-comments/SKILL.md) | Run a reporting-only comment reviewer; the parent applies only authorized accepted edits. |
 | [unslop](../../skills/unslop/SKILL.md) | Keep the explanation readable. |
-| [technical-writing](../../skills/technical-writing/SKILL.md) | Keep the explanation readable. |
+| [technical-writing](../../skills/technical-writing/SKILL.md) | Apply the layered writing standard to docs, RFCs, PRs, and commit messages. |
 
 ## Verify before publication
 
