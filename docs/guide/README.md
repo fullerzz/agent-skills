@@ -2,6 +2,16 @@
 
 Start with a concrete goal and an observable done condition. Examples show both hosts: Claude Code uses slash syntax, such as `/how`, and Codex uses a dollar sign, such as `$how`.
 
+## How the library works
+
+A skill is a set of instructions that your coding agent reads, together with any referenced prompts or helper scripts. Invoking a skill gives the agent a process for your request. The host supplies the model, tools, permissions, and any subagents; installing the library does not configure those capabilities.
+
+Use a named skill for a specific job, such as `$how` to trace behavior. Use `$poteto-mode` for an engineering task: it selects a playbook for the kind of work and reads relevant principles as decisions arise. Playbooks describe workflows; principles guide decisions within those workflows. They are not background services. The mode can work directly or delegate where the selected workflow and host allow it.
+
+The [workflow skill reference](../reference/workflow-skills.md) explains each skill's inputs, process, and results. The [playbook reference](../reference/playbooks.md) gives task examples, and the [principle reference](../reference/principles.md) shows the decisions each principle affects.
+
+## Choose a workflow
+
 <Workflow />
 
 | Step | Page | Key skills |

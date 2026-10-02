@@ -39,7 +39,14 @@ features:
 
 ## Quick install
 
-Preview first, then apply. Start a new host session afterward.
+Install Git, uv, and your chosen host first; uv resolves Python 3.14+ and the installer's dependencies. Clone to a stable location because installed skills link back to it:
+
+```sh
+git clone https://github.com/fullerzz/agent-skills.git "$HOME/Code/agent-skills"
+cd "$HOME/Code/agent-skills"
+```
+
+Preview first, resolve any collisions, then apply. Start a new host session afterward.
 
 ::: code-group
 
@@ -54,6 +61,8 @@ uv run scripts/install.py --host codex --apply
 ```
 
 :::
+
+Use `--host both` for both hosts, or add `--project "/absolute/path/to/project"` for an existing project. Check discovery with `$how` in Codex or `/how` in Claude Code. See [first-time setup, updates, and safe removal](./guide/01-setup.md) before moving the checkout.
 
 ## Workflow
 

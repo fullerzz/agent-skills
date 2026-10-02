@@ -10,6 +10,7 @@ export interface Entry {
   name: string
   description: string
   source: string
+  guide: string
   modelInvocable: boolean
 }
 
@@ -36,6 +37,7 @@ export function loadCatalog(): Catalog {
         name: id.replace(/^principle-/, ''),
         description: meta.description,
         source: `${repo}/blob/main/skills/${id}/SKILL.md`,
+        guide: `/reference/${id.startsWith('principle-') ? 'principles' : 'workflow-skills'}#${id}`,
         modelInvocable: meta['disable-model-invocation'] !== true,
       }
     })
@@ -53,6 +55,7 @@ export function loadCatalog(): Catalog {
         name: lines[0].replace(/^#\s+/, ''),
         description: plain(lines.find((line, i) => i > 0 && line.trim() && !line.startsWith('#')) ?? ''),
         source: `${repo}/blob/main/skills/poteto-mode/playbooks/${file}`,
+        guide: `/reference/playbooks#playbook-${slug}`,
         modelInvocable: false,
       }
     })

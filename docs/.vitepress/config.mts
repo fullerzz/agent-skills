@@ -96,6 +96,9 @@ export default defineConfig({
         text: 'Reference',
         items: [
           { text: 'Skill catalog', link: '/skills' },
+          { text: 'Workflow skills', link: '/reference/workflow-skills' },
+          { text: 'Playbooks', link: '/reference/playbooks' },
+          { text: 'Principles', link: '/reference/principles' },
           { text: 'Claude Code', link: '/hosts/claude-code' },
           { text: 'Codex', link: '/hosts/codex' },
         ],
