@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Zach's agent skills
+  name: zstack
   text: Engineering workflows for Codex and Claude Code
   tagline: A personal skill library adapted from Lauren Tan's pstack. One shared source, native agents on each host.
   image:

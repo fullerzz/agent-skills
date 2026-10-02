@@ -2,23 +2,23 @@
 
 ## Build a scoped change
 
-The [poteto-mode router](../../skills/poteto-mode/SKILL.md#routing) picks the matching playbook. Each one needs a different starting point.
+The [z-mode router](../../skills/z-mode/SKILL.md#routing) picks the matching playbook. Each one needs a different starting point.
 
 | Work | Needs | Playbook |
 | --- | --- | --- |
-| Bug | A repro and root cause | [bug-fix](../../skills/poteto-mode/playbooks/bug-fix.md) |
-| Feature | Observable acceptance | [feature](../../skills/poteto-mode/playbooks/feature.md) |
-| Refactor | A held behavior contract | [refactoring](../../skills/poteto-mode/playbooks/refactoring.md) |
-| Performance | A repeatable baseline | [perf-issue](../../skills/poteto-mode/playbooks/perf-issue.md) |
+| Bug | A repro and root cause | [bug-fix](../../skills/z-mode/playbooks/bug-fix.md) |
+| Feature | Observable acceptance | [feature](../../skills/z-mode/playbooks/feature.md) |
+| Refactor | A held behavior contract | [refactoring](../../skills/z-mode/playbooks/refactoring.md) |
+| Performance | A repeatable baseline | [perf-issue](../../skills/z-mode/playbooks/perf-issue.md) |
 
 ::: code-group
 
 ```text [Claude Code]
-/poteto-mode fix duplicate output; reproduce first; keep changes local
+/z-mode fix duplicate output; reproduce first; keep changes local
 ```
 
 ```text [Codex]
-$poteto-mode fix duplicate output; reproduce first; keep changes local
+$z-mode fix duplicate output; reproduce first; keep changes local
 ```
 
 :::
@@ -47,6 +47,6 @@ Local edits, commit, push, PR, merge, and deployment are separate requested acti
 
 | Playbook | Runs when |
 | --- | --- |
-| [Opening a PR](../../skills/poteto-mode/playbooks/opening-a-pr.md) | Publication is part of the request. |
-| [Babysit](../../skills/poteto-mode/playbooks/babysit.md) | You ask about status; status questions stay read-only. |
-| [Shipping](../../skills/poteto-mode/playbooks/shipping.md) | You grant explicit landing authority; it needs current-head evidence. |
+| [Opening a PR](../../skills/z-mode/playbooks/opening-a-pr.md) | Publication is part of the request. |
+| [Babysit](../../skills/z-mode/playbooks/babysit.md) | You ask about status; status questions stay read-only. |
+| [Shipping](../../skills/z-mode/playbooks/shipping.md) | You grant explicit landing authority; it needs current-head evidence. |

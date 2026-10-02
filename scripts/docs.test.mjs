@@ -25,7 +25,7 @@ test('every installed skill and routed playbook has a user reference anchor', ()
     const page = entry.name.startsWith('principle-') ? principles : workflow;
     assert.ok(page.has(entry.name), `Missing skill reference: ${entry.name}`);
   }
-  for (const file of readdirSync(fileURLToPath(new URL('skills/poteto-mode/playbooks/', root)))) {
+  for (const file of readdirSync(fileURLToPath(new URL('skills/z-mode/playbooks/', root)))) {
     if (!file.endsWith('.md')) continue;
     const id = `playbook-${file.slice(0, -3)}`;
     assert.ok(playbooks.has(id), `Missing playbook reference: ${id}`);

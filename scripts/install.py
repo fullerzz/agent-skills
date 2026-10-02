@@ -37,6 +37,7 @@ class Entry(TypedDict):
 
 class Plan(TypedDict):
     receipt: Path
+    legacy_receipt: NotRequired[Path]
     saved: Receipt
     entries: list[Entry]
 
@@ -119,7 +120,14 @@ def main() -> None:
             else base / f".{host}"
         )
         skills = base / ".agents/skills" if host == "codex" else native / "skills"
-        receipt = native / "pstack-install.json"
+        receipt = native / "zstack-install.json"
+        legacy_receipt = native / "pstack-install.json"
+        if present(legacy_receipt):
+            if present(receipt):
+                raise ValueError(
+                    f"Both current and legacy receipts exist: {receipt}, {legacy_receipt}"
+                )
+            receipt = legacy_receipt
         if present(receipt) and (receipt.is_symlink() or not receipt.is_file()):
             raise ValueError(f"Receipt is not a regular file: {receipt}")
         saved: Receipt = (
@@ -161,6 +169,25 @@ def main() -> None:
             }
             for agent in sorted((ROOT / "agents" / host).iterdir())
         ]
+        # Retire only links and copies whose ownership still matches this checkout.
+        retired: list[Entry] = [
+            {
+                "source": ROOT / "skills" / name,
+                "target": skills / name,
+                "kind": "link",
+            }
+            for name in ("poteto-mode", "setup-pstack")
+        ]
+        old_agent = "poteto-agent.toml" if host == "codex" else "poteto-agent.md"
+        retired.append(
+            {
+                "source": ROOT / "agents" / host / old_agent,
+                "target": native / "agents" / old_agent,
+                "kind": "copy",
+                "name": old_agent,
+            }
+        )
+        entries += retired
         for entry in entries:
             target, source = entry["target"], entry["source"]
             exists = present(target)
@@ -174,7 +201,7 @@ def main() -> None:
                 and not target.is_symlink()
                 and digest(target) in owned_hashes
             )
-            if args.action == "install":
+            if args.action == "install" and entry not in retired:
                 entry["op"] = (
                     (
                         "update"
@@ -190,7 +217,14 @@ def main() -> None:
                 entry["op"] = (
                     ("remove" if owned else "preserve") if exists else "absent"
                 )
-        plans.append({"receipt": receipt, "saved": saved, "entries": entries})
+        plan: Plan = {
+            "receipt": native / "zstack-install.json",
+            "saved": saved,
+            "entries": entries,
+        }
+        if receipt == legacy_receipt:
+            plan["legacy_receipt"] = legacy_receipt
+        plans.append(plan)
     for plan in plans:
         for entry in plan["entries"]:
             console.print(
@@ -207,6 +241,8 @@ def main() -> None:
         console.print("Preview only. Add --apply to perform these operations.")
         return
     for plan in plans:
+        if "legacy_receipt" in plan:
+            plan["legacy_receipt"].replace(plan["receipt"])
         for entry in plan["entries"]:
             target, source = entry["target"], entry["source"]
             if entry["op"] in ("create", "update"):
@@ -240,7 +276,7 @@ def main() -> None:
             save(plan)
         elif present(plan["receipt"]):
             plan["receipt"].unlink()
-    if args.action == "uninstall" and any(
+    if any(
         entry["op"] == "preserve" for plan in plans for entry in plan["entries"]
     ):
         console.print(

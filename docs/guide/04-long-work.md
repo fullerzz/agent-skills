@@ -2,17 +2,17 @@
 
 ## Run long work
 
-Give [autonomous-run](../../skills/poteto-mode/playbooks/autonomous-run.md) a checkable predicate, scope, and budget. It works while the session is alive.
+Give [autonomous-run](../../skills/z-mode/playbooks/autonomous-run.md) a checkable predicate, scope, and budget. It works while the session is alive.
 
 ::: info No replacement daemon
 Native background or scheduling features can be used when verified and requested; this library supplies no replacement daemon.
 :::
 
-[Orchestrate](../../skills/poteto-mode/playbooks/orchestrate.md) scales native workers around owned task state. [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
+[Orchestrate](../../skills/z-mode/playbooks/orchestrate.md) scales native workers around owned task state. [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
 
 ## Save a handoff
 
-If durable execution is unavailable, [pause safely](../../skills/poteto-mode/playbooks/pause-safely.md) saves:
+If durable execution is unavailable, [pause safely](../../skills/z-mode/playbooks/pause-safely.md) saves:
 
 - Branch and SHAs
 - Dirty files
@@ -23,11 +23,11 @@ If durable execution is unavailable, [pause safely](../../skills/poteto-mode/pla
 ::: code-group
 
 ```text [Claude Code]
-/poteto-mode pause; record the exact resume action
+/z-mode pause; record the exact resume action
 ```
 
 ```text [Codex]
-$poteto-mode pause; record the exact resume action
+$z-mode pause; record the exact resume action
 ```
 
 :::

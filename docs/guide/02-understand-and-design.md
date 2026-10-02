@@ -8,7 +8,7 @@
 | [why](../../skills/why/SKILL.md) | Investigate motivation from source records, retaining uncertainty. |
 | [teach](../../skills/teach/SKILL.md) | Combine findings into an explanation. |
 | [recall](../../skills/recall/SKILL.md) | Reconstruct only scoped history. |
-| [session pickup](../../skills/poteto-mode/playbooks/session-pickup.md) | Resume a specific prior session. |
+| [session pickup](../../skills/z-mode/playbooks/session-pickup.md) | Resume a specific prior session. |
 
 ::: code-group
 

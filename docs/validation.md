@@ -4,6 +4,16 @@ outline: [2, 3]
 
 # Validation
 
+Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
+
+## zstack naming migration <Badge type="info" text="2026-10-02" />
+
+Migrated active skill, agent, package, helper, installer, and documentation names to `zstack`, `z-mode`, `setup-zstack`, and `z-agent`. Upstream attribution and historical evidence retain their original names. The installer recognizes the legacy receipt and retires only owned old links and unchanged agent copies; customized and foreign files remain preserved. Both receipt names present is an explicit preflight error.
+
+Structural validation passed with 46 skills and zero problems. All 11 Node tests and three Python tests passed, including isolated legacy-install migration, read-only preview, and customized-copy preservation. The bundled tools passed frozen installation, 58 Bun tests (226 assertions), and strict typechecking using Bun 1.2.20 and Node 24.21.0. The VitePress production build and whitespace checks passed. Runtime commands used a temporary mise cache or installed binaries because the default mise shim encountered a sandbox permission error.
+
+These are local structural, fixture, and build checks. No personal installation was modified, and fresh native Codex/Claude discovery or behavior under the renamed identifiers was not exercised.
+
 ## PR portability and reference checks <Badge type="info" text="2026-10-02" />
 
 PR #3 review corrections replace `import.meta.dirname` with `fileURLToPath(import.meta.url)` and normalize filesystem separators before routing source links or emitting URLs. The dev command uses a Node launcher to set `NODE_ENV=development` before importing the VitePress CLI, preserving forwarded options without shell-specific assignment syntax. The override remains necessary for the previously observed inherited production environment. The writing guide distinguishes technical-writing from unslop. Dark-mode button backgrounds now follow the teal palette with dark foreground text.
@@ -42,7 +52,7 @@ Run from this checkout:
 uv run scripts/validate.py
 node --test scripts/*.test.mjs
 uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
-cd skills/poteto-mode/scripts
+cd skills/z-mode/scripts
 bun install --frozen-lockfile
 bun run test
 bun run typecheck
@@ -73,7 +83,7 @@ The documented project installer was applied to a separate temporary Git reposit
 | Explicit-only selection sample | A natural-language Codex question about calc.mjs read the product source directly without loading the explicit-only how or poteto-mode skills. This is one observed non-selection sample, separate from the explicit-mode runs. | <Badge type="warning" text="sample" /> |
 | Direct fix through mode router | Codex read the mode and bug-fix playbook, changed only greeting.mjs from helo to hello, and exercised the real function. The assertion failed before and passed after; no delegation, commit, or publication. | <Badge type="tip" text="pass" /> |
 
-Native smoke tests used bounded CLI print/exec runs with JSON output. For a reproduction, install into a fresh small Git fixture, start a new host session, select poteto-mode explicitly, and ask for a read-only investigation by poteto-agent plus a reporting-only comment-sicko review. Wait for terminal results and inspect file contents and actual command exits. Follow with a one-file fix and a saved-session resume. Use native settings to resolve duplicate skill sources rather than changing the user's existing installation.
+Native smoke tests used bounded CLI print/exec runs with JSON output. For a reproduction, install into a fresh small Git fixture, start a new host session, select z-mode explicitly, and ask for a read-only investigation by z-agent plus a reporting-only comment-sicko review. Wait for terminal results and inspect file contents and actual command exits. Follow with a one-file fix and a saved-session resume. Use native settings to resolve duplicate skill sources rather than changing the user's existing installation.
 
 ## Limits and environment findings
 

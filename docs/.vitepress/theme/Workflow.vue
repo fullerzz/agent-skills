@@ -4,7 +4,7 @@ import { withBase } from 'vitepress'
 const steps = [
   { title: 'Understand', skills: 'how · why · teach', link: '/guide/02-understand-and-design#understand-before-changing' },
   { title: 'Design', skills: 'architect · arena · interrogate', link: '/guide/02-understand-and-design#design-and-review' },
-  { title: 'Build', skills: 'poteto-mode · tdd', link: '/guide/03-build-and-verify#build-a-scoped-change' },
+  { title: 'Build', skills: 'z-mode · tdd', link: '/guide/03-build-and-verify#build-a-scoped-change' },
   { title: 'Verify', skills: 'create-verification-skill', link: '/guide/03-build-and-verify#verify-before-publication' },
   { title: 'Publish', skills: 'opening-a-pr · shipping', link: '/guide/03-build-and-verify#publish-on-request' },
 ]

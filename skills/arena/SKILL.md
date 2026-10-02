@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Arena
 
-Produce independent candidates, choose a base, adapt useful ideas, and verify. Use the [native contract](../poteto-mode/references/native-hosts.md).
+Produce independent candidates, choose a base, adapt useful ideas, and verify. Use the [native contract](../z-mode/references/native-hosts.md).
 
 1. Define the artifact and 3-6 success criteria. Choose 2-3 native candidates unless the user specifies another useful count. Inherit models; report actual identities if exposed.
 2. Give each the same task/grounding, exclusive output or worktree, and artifact plus rationale. Queue within native limits.
