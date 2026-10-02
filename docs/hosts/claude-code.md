@@ -33,7 +33,7 @@ Skills are links; native agents are copies. Explicit `--home` uses that root's `
 
 ## Invoke
 
-Start a new session in the target project. Confirm `how` appears in the command list, then invoke `/how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Invoke `/poteto-mode` when ready to route broader work. Explicit-only skills retain `disable-model-invocation: true`. When the selected mode needs a companion, it reads that installed skill's instructions deliberately.
+Start a new session in the target project. Confirm `how` appears in the command list, then invoke `/how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Invoke `/z-mode` when ready to route broader work. Explicit-only skills retain `disable-model-invocation: true`. When the selected mode needs a companion, it reads that installed skill's instructions deliberately.
 
 ::: warning
 Do not assume an explicit-only skill can be silently auto-selected.
@@ -47,7 +47,7 @@ To remove, preview `uv run scripts/install.py uninstall --host claude`, then rep
 
 ## Agents
 
-Agent roles are `poteto-agent` and `comment-sicko`, with Markdown frontmatter and `model: inherit`. A native role or tool missing from the session gets a disclosed fallback. Queue work within actual nesting and concurrency limits.
+Agent roles are `z-agent` and `comment-sicko`, with Markdown frontmatter and `model: inherit`. A native role or tool missing from the session gets a disclosed fallback. Queue work within actual nesting and concurrency limits.
 
 ::: warning Not a complete sandbox
 The comment reviewer excludes Write and Edit and is instructed to avoid all writes, including Bash and MCP. Those exclusions alone are not a complete sandbox.

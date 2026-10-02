@@ -1,6 +1,6 @@
-# Zach's agent skills
+# zstack
 
-A personal engineering skill library for Codex and Claude Code, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
+Zach's updated personal engineering skill library for Codex and Claude Code, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
 Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 46 skills, 23 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
@@ -22,9 +22,9 @@ uv run scripts/install.py --host claude --apply
 
 Use `--host both` for both hosts. For an explicit project installation, add `--project "/absolute/path/to/project"`. For isolated checks, `--home "/temporary/home"` targets a different personal root. Explicit `--home` and `--project` paths must be nonempty; an empty shell variable is rejected before any installation or removal.
 
-Skills are individual folder links. Agents are native owned copies, so you can customize model settings without editing this library. The installer previews all files, refuses collisions before writing, updates only unchanged owned agent copies, and never changes model or permission configuration. Existing pstack skills in your personal directories may collide; inspect the preview rather than overwriting them.
+Skills are individual folder links. Agents are native owned copies, so you can customize model settings without editing this library. The installer previews all files, refuses collisions by default, updates only unchanged owned agent copies, and never changes model or permission configuration. Add `--force` to preview replacement of conflicting skills and `--force --apply` to perform it. This deletes conflicting skill files or directories; symlink destinations are preserved. Back up custom skills first. Agent and receipt conflicts still block installation.
 
-Start a new host session after installation. Invoke `$poteto-mode` or `$how` in Codex, and `/poteto-mode` or `/how` in Claude Code. A small first request:
+Start a new host session after installation. Invoke `$z-mode` or `$how` in Codex, and `/z-mode` or `/how` in Claude Code. A small first request:
 
 ```text
 Explain how this command parses arguments. Keep this read-only and cite the source.
@@ -47,7 +47,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 
 - Understand with how, why, teach, recall, and blast-radius.
 - Design and review with architect, arena, swarm, interrogate, and no-comments.
-- Build with poteto-mode's bug, feature, refactoring, performance, and prototype playbooks.
+- Build with z-mode's bug, feature, refactoring, performance, and prototype playbooks.
 - Verify with project harnesses and create-verification-skill.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Publish or merge only when the user's request authorizes those actions.
@@ -60,7 +60,7 @@ Cross-provider orchestration, marketplace packaging, and the old automation runt
 uv run scripts/validate.py
 node --test scripts/*.test.mjs
 uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
-cd skills/poteto-mode/scripts
+cd skills/z-mode/scripts
 bun install --frozen-lockfile
 bun run test
 bun run typecheck

@@ -33,7 +33,7 @@ Skills are links; native agents are copies. An explicit `--home` uses that root'
 
 ## Invoke
 
-Start a new session in the target project. Confirm `how` appears in the skill picker, then invoke `$how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Select `$poteto-mode` when ready to route broader work. Explicit-only skills have `agents/openai.yaml` with `policy.allow_implicit_invocation: false`.
+Start a new session in the target project. Confirm `how` appears in the skill picker, then invoke `$how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Select `$z-mode` when ready to route broader work. Explicit-only skills have `agents/openai.yaml` with `policy.allow_implicit_invocation: false`.
 
 ## Update and remove
 
@@ -43,7 +43,7 @@ To remove, preview `uv run scripts/install.py uninstall --host codex`, then repe
 
 ## Agents
 
-Native roles are `poteto-agent` and `comment-sicko`. They use standalone TOML with name, description, and developer_instructions. Model overrides are omitted to inherit native defaults. The comment reviewer uses read-only sandboxing. If custom agents or delegation are disabled, use the disclosed built-in or direct fallback.
+Native roles are `z-agent` and `comment-sicko`. They use standalone TOML with name, description, and developer_instructions. Model overrides are omitted to inherit native defaults. The comment reviewer uses read-only sandboxing. If custom agents or delegation are disabled, use the disclosed built-in or direct fallback.
 
 ::: warning Installation does not grant trust
 Project agent discovery requires a trusted project and enabled native agents. Confirm those settings through Codex's native trust flow.

@@ -1,8 +1,8 @@
-# Poteto-mode principles
+# Z-mode principles
 
-Principles are decision leaves, not a checklist to load in bulk. After selecting a [playbook](playbooks.md), poteto-mode reads a principle only when it changes a concrete decision: where to fix a defect, whether to add an abstraction, how to represent state, or what counts as proof. The mode’s explicit invocation reads these companions as instructions; it does not change their explicit-only invocation policy.
+Principles are decision leaves, not a checklist to load in bulk. After selecting a [playbook](playbooks.md), z-mode reads a principle only when it changes a concrete decision: where to fix a defect, whether to add an abstraction, how to represent state, or what counts as proof. The mode’s explicit invocation reads these companions as instructions; it does not change their explicit-only invocation policy.
 
-Use `$poteto-mode Fix the restart crash; trace its root cause.` in Codex or `/poteto-mode Fix the restart crash; trace its root cause.` in Claude Code. The request selects bug-fix; evidence may then select fix-root-causes or make-operations-idempotent. Leaves preserve task scope, permissions and action authority. See the [routing source](https://github.com/fullerzz/agent-skills/blob/main/skills/poteto-mode/SKILL.md).
+Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode Fix the restart crash; trace its root cause.` in Claude Code. The request selects bug-fix; evidence may then select fix-root-causes or make-operations-idempotent. Leaves preserve task scope, permissions and action authority. See the [routing source](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md).
 
 ## Attack the premise {#principle-attack-the-premise}
 

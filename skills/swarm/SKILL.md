@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Swarm
 
-Partition coverage, race identical briefs, or mix both. Declare the done predicate and selection rule before spawning. Follow the [native contract](../poteto-mode/references/native-hosts.md).
+Partition coverage, race identical briefs, or mix both. Declare the done predicate and selection rule before spawning. Follow the [native contract](../z-mode/references/native-hosts.md).
 
 Use the smallest useful count. Each brief names slice, read/write scope, exclusive output, checks, and PASS / ISSUES / BLOCKED report with evidence. Measurement/commit checks name exact SHAs, workload, samples, and method.
 

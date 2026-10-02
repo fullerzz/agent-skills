@@ -1,4 +1,6 @@
-# Adapt pstack for Codex and Claude Code
+# Adapt upstream pstack for Codex and Claude Code
+
+This records the original port. Current usage examples use the updated zstack names; the upstream baseline and original naming decision are retained as history. The personal rename now uses `z-mode`, `z-agent`, and `setup-zstack`.
 
 Status: implementation committed as `270ef2348dc92b993297fff8e9c465c3fb435ad5` after scope approval and plan-level oracle review. Both oracle findings are addressed in code and focused checks. Representative native scenarios, subsequent implementation review, and review corrections are recorded in [validation](validation.md). No personal installation, push, or publication was performed.
 
@@ -40,8 +42,8 @@ For the first version, install individual skill-folder symlinks from this checko
 
 | Host | Personal skills | Project skills | Invocation |
 | --- | --- | --- | --- |
-| Codex | `~/.agents/skills/<name>` | `.agents/skills/<name>` | `$poteto-mode`, `$how`, or skill selection |
-| Claude Code | `~/.claude/skills/<name>` | `.claude/skills/<name>` | `/poteto-mode`, `/how` |
+| Codex | `~/.agents/skills/<name>` | `.agents/skills/<name>` | `$z-mode`, `$how`, or skill selection |
+| Claude Code | `~/.claude/skills/<name>` | `.claude/skills/<name>` | `/z-mode`, `/how` |
 
 Both hosts document support for symlinked skill folders. This allows edits in this repository to remain the source of truth. Codex discovers repository skills under `.agents/skills`; Claude Code uses `.claude/skills`. See [Codex skills](https://learn.chatgpt.com/docs/build-skills) and [Claude Code skills](https://code.claude.com/docs/en/skills).
 
@@ -56,7 +58,7 @@ Use Codex TOML agent definitions and Claude Code Markdown agent definitions. Ins
 
 Include these agent files in the installer's preview, collision checks, rerun handling, and uninstall ownership checks. Verify file-link discovery in both hosts before using links for agents; if a host requires copies, remove only installer-owned copies whose contents have not been changed. Never overwrite an existing agent definition. Their native formats and discovery locations are documented in [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) and [Claude Code subagents](https://code.claude.com/docs/en/sub-agents). Keep common behavioral instructions referenced from the shared skills where practical.
 
-Resolve bundled scripts and references from the actual installed skill location, independently of the target repository's working directory. Derive absolute script paths from the resolved `SKILL.md` location, quote paths, and keep the target repository as the command's cwd or pass its path explicitly. Do not change into this skills repository to make a relative script command work. Cross-skill references must resolve through installed skill locations, without assuming the target repository contains a `pstack/` checkout.
+Resolve bundled scripts and references from the actual installed skill location, independently of the target repository's working directory. Derive absolute script paths from the resolved `SKILL.md` location, quote paths, and keep the target repository as the command's cwd or pass its path explicitly. Do not change into this skills repository to make a relative script command work. Cross-skill references must resolve through installed skill locations, without assuming the target repository contains a `zstack/` checkout.
 
 Plugin distribution can come later. Claude Code plugins use `.claude-plugin/plugin.json` and namespaced skill commands, so a manifest cannot simply be renamed from the Cursor version. See [Claude Code plugin manifest](https://code.claude.com/docs/en/plugins-reference). Local discovery is sufficient for this first personal library.
 
@@ -76,8 +78,8 @@ Done when both hosts discover a small representative skill from an isolated inst
 
 - Normalize skill names to their directory identifiers, including `Poteto Mode` to `poteto-mode`. Remove Cursor-only presentation and reminder fields.
 - Preserve existing invocation intent. Map Claude's `disable-model-invocation` policy to Codex's `agents/openai.yaml` invocation policy where needed; verify actual loader behavior rather than assuming the fields are equivalent.
-- Rewrite `setup-pstack` around native configuration, defaulting to parent-model inheritance. Keep model IDs and reasoning effort separate; never infer entitlement from a fabricated model-name suffix.
-- Prefer native configuration over introducing a parallel pstack configuration system. Add role overrides only where a host supports them and an actual workflow needs them.
+- Rewrite `setup-zstack` around native configuration, defaulting to parent-model inheritance. Keep model IDs and reasoning effort separate; never infer entitlement from a fabricated model-name suffix.
+- Prefer native configuration over introducing a parallel zstack configuration system. Add role overrides only where a host supports them and an actual workflow needs them.
 - Adapt the two agent roles to native formats, with the comment reviewer constrained to reporting. The parent decides and applies accepted edits.
 - Replace literal Cursor agent calls in every skill, reference prompt, and playbook with native capability instructions. Handle concurrency and nesting limits explicitly; wait for terminal results and identify missing coverage.
 - Remove default cloud placement. Native local agents share local resources; writable workers need exclusive file ownership or isolated worktrees.
@@ -86,7 +88,7 @@ Done when the documented clean installation makes both named agent roles discove
 
 ### 3. Port the main router and reusable workflows
 
-- Adapt `poteto-mode` first, then `how`, `why`, `architect`, `arena`, `swarm`, `interrogate`, `teach`, and `blast-radius`.
+- Adapt `z-mode` first, then `how`, `why`, `architect`, `arena`, `swarm`, `interrogate`, `teach`, and `blast-radius`.
 - Preserve grounding, isolated candidates, independent review, synthesis, and evidence requirements. Replace claims of guaranteed model diversity with the models actually used.
 - Let simple work run directly. Keep deliberate fan-out for explicitly selected workflows and tasks that benefit from it; remove universal delegation triggered by every function boundary.
 - Replace unavailable companion-skill dependencies with existing host tools or project harnesses. Report a real missing capability when it prevents required proof.

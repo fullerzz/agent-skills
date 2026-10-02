@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Rebuild context across recent in-scope sessions. A specific-session resume belongs to session-pickup; habit mining belongs to automate-me.
 
-Follow [scoped session evidence](../poteto-mode/references/history.md). Pin workspace/topic/window before reading; use a supplied capsule directly when sufficient. Many independent sessions may be delegated under the [native contract](../poteto-mode/references/native-hosts.md).
+Follow [scoped session evidence](../z-mode/references/history.md). Pin workspace/topic/window before reading; use a supplied capsule directly when sufficient. Many independent sessions may be delegated under the [native contract](../z-mode/references/native-hosts.md).
 
 Extract goals, decisions, open threads, corrections, and artifact pointers. Search relevant shared evidence using why's source playbooks where it affects current state. Verify branch, SHA, dirty work, and PR status before relying on historical claims.
 

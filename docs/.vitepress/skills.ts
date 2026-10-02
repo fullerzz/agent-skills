@@ -43,7 +43,7 @@ export function loadCatalog(): Catalog {
       }
     })
 
-  const playbookDir = path.join(skillsDir, 'poteto-mode/playbooks')
+  const playbookDir = path.join(skillsDir, 'z-mode/playbooks')
   const playbooks = fs
     .readdirSync(playbookDir)
     .filter((file) => file.endsWith('.md'))
@@ -55,7 +55,7 @@ export function loadCatalog(): Catalog {
         id: `playbook-${slug}`,
         name: lines[0].replace(/^#\s+/, ''),
         description: plain(lines.find((line, i) => i > 0 && line.trim() && !line.startsWith('#')) ?? ''),
-        source: `${repo}/blob/main/skills/poteto-mode/playbooks/${file}`,
+        source: `${repo}/blob/main/skills/z-mode/playbooks/${file}`,
         guide: `/reference/playbooks#playbook-${slug}`,
         modelInvocable: false,
       }

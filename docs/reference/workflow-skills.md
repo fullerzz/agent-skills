@@ -2,7 +2,7 @@
 
 These entries describe the 23 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. Replace the task details with your own files, feature, or repository.
 
-Most workflow skills require explicit invocation. `setup-pstack` permits implicit invocation through its host metadata. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
+Most workflow skills require explicit invocation. `setup-zstack` permits implicit invocation through its host metadata. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
 Delegated workflows use native host agents, inherited models, bounded concurrency, and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
 
@@ -163,7 +163,7 @@ The designed playbook, rigor rationale, decision-trail path, verified outcomes, 
 
 ### Dependencies and limits
 
-Starts from poteto-mode principles. Uses architect for consequential unresolved designs and native workers only across isolated seams. Explicit planning checkpoints remain binding. INCONCLUSIVE is not a passing result. Trail publication requires authorization.
+Starts from z-mode principles. Uses architect for consequential unresolved designs and native workers only across isolated seams. Explicit planning checkpoints remain binding. INCONCLUSIVE is not a passing result. Trail publication requires authorization.
 
 [Full figure-it-out instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/figure-it-out/SKILL.md)
 
@@ -259,14 +259,14 @@ Protects legal headers, public contracts, external constraints, and necessary su
 
 [Full no-comments instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/no-comments/SKILL.md)
 
-## Poteto mode {#poteto-mode}
+## Z mode {#z-mode}
 
 You want evidence-driven engineering for the current conversation.
 
 | Host | Example invocation |
 | --- | --- |
-| Codex | `$poteto-mode Fix the reconnect bug using the project’s existing harness.` |
-| Claude Code | `/poteto-mode Fix the reconnect bug using the project’s existing harness.` |
+| Codex | `$z-mode Fix the reconnect bug using the project’s existing harness.` |
+| Claude Code | `/z-mode Fix the reconnect bug using the project’s existing harness.` |
 
 ### How it works
 
@@ -278,9 +278,9 @@ Task-sized changes or a scoped investigation, with actual evidence, meaningful t
 
 ### Dependencies and limits
 
-Persists until you say stop poteto-mode or choose another style, subject to retained conversation context. Plan-only requests remain read-only. Commits, pushes, messages, merges, and deployments remain separate requested actions. Optional plugins are not assumed.
+Persists until you say stop z-mode or choose another style, subject to retained conversation context. Plan-only requests remain read-only. Commits, pushes, messages, merges, and deployments remain separate requested actions. Optional plugins are not assumed.
 
-[Full poteto-mode instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/poteto-mode/SKILL.md)
+[Full z-mode instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md)
 
 ## Recall {#recall}
 
@@ -328,14 +328,14 @@ Applying edits requires approval or an existing explicit request that covers the
 
 [Full reflect instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/reflect/SKILL.md)
 
-## Setup pstack {#setup-pstack}
+## Setup zstack {#setup-zstack}
 
-You need to inspect pstack discovery or configure requested native agent models.
+You need to inspect zstack discovery or configure requested native agent models.
 
 | Host | Example invocation |
 | --- | --- |
-| Codex | `$setup-pstack Inspect Codex pstack discovery and report installed versus loaded agents without changing settings.` |
-| Claude Code | `/setup-pstack Inspect Claude Code pstack discovery and report installed versus loaded agents without changing settings.` |
+| Codex | `$setup-zstack Inspect Codex zstack discovery and report installed versus loaded agents without changing settings.` |
+| Claude Code | `/setup-zstack Inspect Claude Code zstack discovery and report installed versus loaded agents without changing settings.` |
 
 ### How it works
 
@@ -347,9 +347,9 @@ An installed-versus-loaded report, requested configuration changes, collision re
 
 ### Dependencies and limits
 
-Defaults to native model inheritance. Bundled roles are poteto-agent and comment-sicko. Modified agent copies survive installer reruns. Model entitlement, unsupported identifiers, and effort-suffixed IDs are never inferred. Delegation may be unavailable.
+Defaults to native model inheritance. Bundled roles are z-agent and comment-sicko. Modified agent copies survive installer reruns. Model entitlement, unsupported identifiers, and effort-suffixed IDs are never inferred. Delegation may be unavailable.
 
-[Full setup-pstack instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/setup-pstack/SKILL.md)
+[Full setup-zstack instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/setup-zstack/SKILL.md)
 
 ## Show me your work {#show-me-your-work}
 

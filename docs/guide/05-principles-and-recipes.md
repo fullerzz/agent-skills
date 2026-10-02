@@ -2,7 +2,7 @@
 
 ## Use principles when they change a decision
 
-The [router's principle index](../../skills/poteto-mode/SKILL.md#principles) lists all 23 leaves; the [skill catalog](../skills.md#principles) describes each one. Read the relevant leaf instead of reciting every principle for each task.
+The [router's principle index](../../skills/z-mode/SKILL.md#principles) lists all 23 leaves; the [skill catalog](../skills.md#principles) describes each one. Read the relevant leaf instead of reciting every principle for each task.
 
 | Principle | Pushes toward |
 | --- | --- |
@@ -22,16 +22,16 @@ No principle expands scope, overrides a read-only request, or authorizes publica
 /how trace argument parsing; read-only
 /interrogate this diff; findings only
 /swarm check these three packages; one owned report per package
-/poteto-mode fix duplicate output; reproduce first; keep changes local
-/poteto-mode pause; record the exact resume action
+/z-mode fix duplicate output; reproduce first; keep changes local
+/z-mode pause; record the exact resume action
 ```
 
 ```text [Codex]
 $how trace argument parsing; read-only
 $interrogate this diff; findings only
 $swarm check these three packages; one owned report per package
-$poteto-mode fix duplicate output; reproduce first; keep changes local
-$poteto-mode pause; record the exact resume action
+$z-mode fix duplicate output; reproduce first; keep changes local
+$z-mode pause; record the exact resume action
 ```
 
 :::

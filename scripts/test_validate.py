@@ -11,11 +11,11 @@ class ValidateTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         for relative in (
-            "skills/poteto-mode/scripts/check-plan.mjs",
-            "skills/poteto-mode/scripts/worktree-audit.sh",
-            "skills/poteto-mode/scripts/worktree-audit.mjs",
-            "skills/poteto-mode/scripts/watch-pr/watch-pr",
-            "skills/poteto-mode/scripts/orch/orch.ts",
+            "skills/z-mode/scripts/check-plan.mjs",
+            "skills/z-mode/scripts/worktree-audit.sh",
+            "skills/z-mode/scripts/worktree-audit.mjs",
+            "skills/z-mode/scripts/watch-pr/watch-pr",
+            "skills/z-mode/scripts/orch/orch.ts",
             "skills/show-me-your-work/scripts/log.sh",
         ):
             self.write(relative, "").chmod(0o755)
@@ -87,6 +87,25 @@ class ValidateTests(unittest.TestCase):
         self.assertTrue(any(failure.startswith("broken.yaml:") for failure in failures))
         self.assertFalse(any("not-real.txt" in failure for failure in failures))
 
+    def test_rejects_legacy_and_renamed_model_markers_in_active_markdown(self):
+        for marker in ("pstack-models.mdc", "zstack-models.mdc"):
+            for relative in (
+                "skills/example/reference.md",
+                "agents/claude/reviewer.md",
+                "docs/guide/setup.md",
+            ):
+                with self.subTest(marker=marker, file=relative):
+                    file = self.write(
+                        relative,
+                        "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n"
+                        f"Use {marker} for model routing.\n",
+                    )
+                    self.assertIn(
+                        f"{relative}: Active unsupported host instruction",
+                        validate(self.root)[1],
+                    )
+                    file.unlink()
+
     def test_bad_metadata_missing_entrypoints_and_helpers_are_failures(self):
         file = self.write(
             "skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n"
@@ -94,7 +113,7 @@ class ValidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid identifier"):
             frontmatter(file)
         file.write_text("No frontmatter\n")
-        (self.root / "skills/poteto-mode/scripts/check-plan.mjs").unlink()
+        (self.root / "skills/z-mode/scripts/check-plan.mjs").unlink()
         (self.root / "skills/show-me-your-work/scripts/log.sh").unlink()
         count, failures = validate(self.root)
         self.assertEqual(count, 0)

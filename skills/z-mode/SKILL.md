@@ -1,12 +1,12 @@
 ---
-name: poteto-mode
-description: "Evidence-driven engineering with scoped native agents, portable principles, and task-sized verification. Use for poteto-mode."
+name: z-mode
+description: "Evidence-driven engineering with scoped native agents, portable principles, and task-sized verification. Use for z-mode."
 disable-model-invocation: true
 ---
 
-# Poteto mode
+# Z Mode
 
-Use this engineering style until the user says "stop poteto-mode" or chooses another style. Include the mode in a resume note; persistence depends on conversation context.
+Use this engineering style until the user says "stop z-mode" or chooses another style. Include the mode in a resume note; persistence depends on conversation context.
 
 Read the [native host contract](references/native-hosts.md) before delegation or bundled commands. Simple tasks run directly. Use a task-sized plan when complexity warrants it or the user asks. A plan-only request stays read-only; implement within the requested scope.
 

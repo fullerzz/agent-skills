@@ -32,7 +32,7 @@ function catalogSearchHtml() {
 }
 
 export default defineConfig({
-  title: "Zach's agent skills",
+  title: "zstack",
   description: 'A personal engineering skill library for Codex and Claude Code.',
   cleanUrls: true,
   lastUpdated: true,
@@ -52,7 +52,7 @@ export default defineConfig({
             if (target.startsWith(docsDir + path.sep)) continue
             const relative = path.relative(repoRoot, target).split(path.sep).join('/')
             const skill = !hash && relative.match(/^skills\/([^/]+)\/SKILL\.md$/)
-            const playbook = !hash && relative.match(/^skills\/poteto-mode\/playbooks\/([^/]+)\.md$/)
+            const playbook = !hash && relative.match(/^skills\/z-mode\/playbooks\/([^/]+)\.md$/)
             child.attrSet(
               'href',
               skill

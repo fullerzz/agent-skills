@@ -8,7 +8,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 test('installed resources inspect a separate repo with spaces and protect unknown history/files', () => {
-  const scratch = mkdtempSync(join(tmpdir(), 'pstack fixture '));
+  const scratch = mkdtempSync(join(tmpdir(), 'zstack fixture '));
   const repo = join(scratch, 'target repo'); mkdirSync(repo);
   try {
     const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
@@ -26,7 +26,7 @@ test('installed resources inspect a separate repo with spaces and protect unknow
     git('worktree', 'add', '--detach', locked); git('worktree', 'lock', locked);
     git('worktree', 'add', '--detach', missing); rmSync(missing, { recursive: true });
     assert.equal(spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), '--project', repo, '--apply']).status, 0);
-    const skill = dirname(realpathSync(join(repo, '.agents/skills/poteto-mode/SKILL.md')));
+    const skill = dirname(realpathSync(join(repo, '.agents/skills/z-mode/SKILL.md')));
     assert.equal(realpathSync(join(skill, '../how/SKILL.md')), join(root, 'skills/how/SKILL.md'));
     const audit = spawnSync('bash', [join(skill, 'scripts/worktree-audit.sh'), repo], { cwd: repo, encoding: 'utf8' });
     assert.equal(audit.status, 0, audit.stderr);
@@ -47,12 +47,12 @@ test('installed resources inspect a separate repo with spaces and protect unknow
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 test('plan validator accepts task-sized proof and rejects missing phase checks', () => {
-  const scratch = mkdtempSync(join(tmpdir(), 'pstack plan '));
+  const scratch = mkdtempSync(join(tmpdir(), 'zstack plan '));
   try {
     const file = join(scratch, 'plan.md');
     const plan = '# Small migration\n\n## Outcome\nNew path works\n## Scope\nOne module\n## Phases\n### Move\n- Depends on: None\n- Files: parser.ts\n- Acceptance: Same output\n- Verification: Run the fixture command\n## Risks\nNone identified\n## Handoff\nLocal edits only\n';
     writeFileSync(file, plan);
-    const run = () => spawnSync(process.execPath, [join(root, 'skills/poteto-mode/scripts/check-plan.mjs'), file], { encoding: 'utf8' });
+    const run = () => spawnSync(process.execPath, [join(root, 'skills/z-mode/scripts/check-plan.mjs'), file], { encoding: 'utf8' });
     assert.equal(run().status, 0);
     for (const field of ['Depends on', 'Files', 'Acceptance', 'Verification']) {
       writeFileSync(file, plan.replace(new RegExp('(- ' + field + ':)[^\\n]*'), '$1'));

@@ -30,4 +30,4 @@ When authorized, fill the sketch and verify caller behavior. Deviations are evid
 
 Repeated workarounds, casts, synchronization, or caller knowledge of internals can refute a design. Re-ground and simplify around observed constraints.
 
-Follow the [native contract](../poteto-mode/references/native-hosts.md) for delegated candidates.
+Follow the [native contract](../z-mode/references/native-hosts.md) for delegated candidates.

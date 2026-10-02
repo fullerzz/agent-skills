@@ -54,7 +54,7 @@ Commit it only when the user's request authorizes a commit and a reviewer needs 
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Follow [scoped session evidence](../poteto-mode/references/history.md). Read only this run's verified transcript or explicitly label a digest-based audit. Walk this run's rows against what actually happened. Each stretch of them begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run:
+At the end of the run, before handing back, check the log told the truth. Follow [scoped session evidence](../z-mode/references/history.md). Read only this run's verified transcript or explicitly label a digest-based audit. Walk this run's rows against what actually happened. Each stretch of them begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run:
 
 - Check that every row maps to a real decision or action.
 - Check that each row's evidence resolves and shows what the row claims.
@@ -64,7 +64,7 @@ Correct the log, not the story. The audit never edits or removes a row, even an 
 
 ## Independent review of the trail
 
-Before handing back, use a fresh native read-only reviewer under the [native contract](../poteto-mode/references/native-hosts.md). Record the actual identity if exposed, without claiming provider diversity. If unavailable, label the audit parent-only. The reviewer reads the audit trail and available scoped session evidence, then flags what the user should pay attention to. Not a redo of the work, a scan for what's suboptimal or risky.
+Before handing back, use a fresh native read-only reviewer under the [native contract](../z-mode/references/native-hosts.md). Record the actual identity if exposed, without claiming provider diversity. If unavailable, label the audit parent-only. The reviewer reads the audit trail and available scoped session evidence, then flags what the user should pay attention to. Not a redo of the work, a scan for what's suboptimal or risky.
 
 - Decisions logged with weak or absent evidence.
 - Verification steps skipped or claimed without proof in the transcript.

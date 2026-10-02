@@ -35,7 +35,7 @@ Step 4 is usually one small script that imports the same library the app ships a
 3. Look where grep stops. Read the source of the library you call, and check its pinned version and any local patch. Work out when things run: microtasks, unmount and teardown, Solid versus React. Follow what a symbol search misses: the JSON an API returns, a DB column, a wire format, another language reading the same bytes, a feature flag, code three hops downstream.
 4. Be honest about each risk. Give it a real chance of happening and a real cost if it does. Keep the risks you confirmed. List the ones you checked and cleared separately. Same rules as `why`. Cite a real `file:line`, a search that finds nothing is still an answer, and never make up a caller or an API.
 5. Prove the one fact. Run an existing relevant check, or when permitted write a small check against real code and run it. A read-only request must not create files; report missing execution permissions as a gap.
-6. For a big or wide change, run it as an `arena`. Use independent native read-only reviewers under the [native contract](../poteto-mode/references/native-hosts.md), then verify and merge their findings. Report actual identities and gaps without claiming provider diversity.
+6. For a big or wide change, run it as an `arena`. Use independent native read-only reviewers under the [native contract](../z-mode/references/native-hosts.md), then verify and merge their findings. Report actual identities and gaps without claiming provider diversity.
 
 ## What to hand back
 
