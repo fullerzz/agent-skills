@@ -191,3 +191,9 @@ Addressed both findings from the subsequent delegated review. Review-thread read
 The shared polling loop caps normal and retry sleeps to the remaining deadline and returns the appropriate timeout without another query after that sleep. Injected-clock regressions cover simple and queued modes, including query time consumed before sleeping. A 10-second timeout with a 3600-second interval and a 2-second query sleeps only 8 seconds. This does not cancel an already-running GitHub command.
 
 Validation: 58 bundled Bun tests (226 assertions), strict typecheck, structural validation, six Node tests, and whitespace checks pass. These are deterministic local checks; no live GitHub calls or external mutations were used for remediation.
+
+## Docker docs image <Badge type="info" text="2026-10-02" />
+
+`docker compose up -d --build` (Docker 29.4.0) built the VitePress site in `node:26-alpine` and served it from `nginx:1.31-alpine`. The build stage installs Git because `lastUpdated` reads commit timestamps; `.git` is part of the build context. The image healthcheck (`wget --spider` on `/`) reported `healthy`. GET `/`, `/guide/`, `/guide/01-setup`, and `/skills` returned 200 through the `cleanUrls` `try_files` rule; an unknown path returned 404.
+
+Hardened `docs/nginx.conf` for a TLS-terminating reverse proxy. Against the rebuilt image, `/guide` redirected to the relative `/guide/`; pages and 404s returned `Cache-Control: no-cache`, hashed assets returned `immutable`, and all responses carried gzip, CSP, `nosniff`, and `Referrer-Policy`. In headless Chromium via playwright-cli, local search returned results, the inline VitePress scripts ran, and the console reported no CSP errors. Not tested behind Pangolin itself.

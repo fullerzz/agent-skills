@@ -74,4 +74,12 @@ pnpm docs:dev
 pnpm docs:build
 ```
 
+To build and serve the static site from nginx on http://localhost:8080:
+
+```sh
+docker compose up -d --build
+```
+
+Set `DOCS_PORT` to use a different host port, for example `DOCS_PORT=3000 docker compose up -d`.
+
 The [adaptation plan](docs/adaptation-plan.md) records the approved scope and oracle findings. [Provenance](docs/provenance.md) records the copied version and retired content. The [MIT license](LICENSE) retains Lauren Tan's copyright.

@@ -1,0 +1,6 @@
+services:
+  docs:
+    build: .
+    ports:
+      - "${DOCS_PORT:-8080}:80"
+    restart: unless-stopped
