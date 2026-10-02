@@ -22,7 +22,7 @@ uv run scripts/install.py --host claude --apply
 
 Use `--host both` for both hosts. For an explicit project installation, add `--project "/absolute/path/to/project"`. For isolated checks, `--home "/temporary/home"` targets a different personal root. Explicit `--home` and `--project` paths must be nonempty; an empty shell variable is rejected before any installation or removal.
 
-Skills are individual folder links. Agents are native owned copies, so you can customize model settings without editing this library. The installer previews all files, refuses collisions before writing, updates only unchanged owned agent copies, and never changes model or permission configuration. Existing zstack skills in your personal directories may collide; inspect the preview rather than overwriting them.
+Skills are individual folder links. Agents are native owned copies, so you can customize model settings without editing this library. The installer previews all files, refuses collisions by default, updates only unchanged owned agent copies, and never changes model or permission configuration. Add `--force` to preview replacement of conflicting skills and `--force --apply` to perform it. This deletes conflicting skill files or directories; symlink destinations are preserved. Back up custom skills first. Agent and receipt conflicts still block installation.
 
 Start a new host session after installation. Invoke `$z-mode` or `$how` in Codex, and `/z-mode` or `/how` in Claude Code. A small first request:
 

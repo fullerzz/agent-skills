@@ -42,7 +42,16 @@ uv run scripts/install.py --host both --project "/absolute/path/to/project" --ap
 
 Replace `both` with `codex` or `claude` for one host. `--home "/temporary/home"` selects an isolated personal root; it cannot be combined with `--project`. Empty scope values are rejected before writes.
 
-The preview reports `create`, `keep`, `update`, or `collision`. Any collision stops the entire installation before writes, including when installing both hosts. Existing zstack folders, links to another checkout, and locally modified agent copies can collide. Inspect the named path, back up custom work, then choose another scope or resolve only that conflict. There is no force-overwrite option. A receipt from another checkout is rejected rather than adopted.
+The preview reports `create`, `keep`, `update`, or `collision`. Any collision stops the entire installation before writes, including when installing both hosts. Existing zstack folders, links to another checkout, and locally modified agent copies can collide. Inspect the named path, back up custom work, then choose another scope or resolve only that conflict. A receipt from another checkout is rejected rather than adopted.
+
+To replace conflicting skills, such as a previous pstack installation, add `--force`. Preview first, then apply with the same scope:
+
+```sh
+uv run scripts/install.py --host both --force
+uv run scripts/install.py --host both --force --apply
+```
+
+The preview marks these skills as `replace`. Applying deletes conflicting skill files or directories (including their contents) and replaces them with links to this checkout. Existing symlinks are replaced without deleting their destinations. Back up custom skills first. `--force` does not override agent or receipt conflicts, affect other installation locations, or change uninstall behavior; without `--apply`, it writes nothing.
 
 ## Check discovery
 

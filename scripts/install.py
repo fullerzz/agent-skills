@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -88,11 +89,12 @@ def main() -> None:
     parser.add_argument("--home")
     parser.add_argument("--project")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--force", action="store_true")
     parser.add_argument("--help", action="store_true")
     args = parser.parse_args()
     if args.help:
         console.print(
-            "uv run scripts/install.py [install|uninstall] --host codex|claude|both [--project PATH | --home PATH] [--apply]\nPreview by default. Skills are links; agents are owned copies. No model or permission settings are changed."
+            "uv run scripts/install.py [install|uninstall] --host codex|claude|both [--project PATH | --home PATH] [--force] [--apply]\nPreview by default. --force replaces conflicting skills on install; --apply is still required. Skills are links; agents are owned copies. No model or permission settings are changed."
         )
         return
     if args.action not in ("install", "uninstall") or args.host not in (
@@ -209,6 +211,8 @@ def main() -> None:
                         else "keep"
                     )
                     if exists and owned
+                    else "replace"
+                    if exists and args.force and entry["kind"] == "link"
                     else "collision"
                     if exists
                     else "create"
@@ -245,9 +249,14 @@ def main() -> None:
             plan["legacy_receipt"].replace(plan["receipt"])
         for entry in plan["entries"]:
             target, source = entry["target"], entry["source"]
-            if entry["op"] in ("create", "update"):
+            if entry["op"] in ("create", "update", "replace"):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if entry["kind"] == "link":
+                    if entry["op"] == "replace":
+                        if target.is_symlink() or not target.is_dir():
+                            target.unlink()
+                        else:
+                            shutil.rmtree(target)
                     target.symlink_to(source, target_is_directory=True)
                 else:
                     # An interrupted update may leave either the old or the new owned copy.

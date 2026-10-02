@@ -100,6 +100,50 @@ test('preflight collisions do not partially install; project scope is explicit',
     assert.equal(existsSync(join(project, '.codex/agents/comment-sicko.toml')), false);
   } finally { rmSync(project, { recursive: true, force: true }); }
 });
+test('force replaces conflicting skills only when applied and preserves symlink destinations', () => {
+  const home = mkdtempSync(join(tmpdir(), 'zstack force '));
+  try {
+    const args = ['--home', home, '--host', 'both', '--force'];
+    const foreign = join(home, 'foreign');
+    mkdirSync(foreign);
+    writeFileSync(join(foreign, 'SKILL.md'), 'foreign skill');
+    const targets = [];
+    for (const native of ['.agents', '.claude']) {
+      const skills = join(home, native, 'skills');
+      mkdirSync(join(skills, 'how'), { recursive: true });
+      writeFileSync(join(skills, 'how/SKILL.md'), 'old skill');
+      writeFileSync(join(skills, 'why'), 'old file');
+      symlinkSync(foreign, join(skills, 'teach'));
+      symlinkSync(join(home, 'missing'), join(skills, 'recall'));
+      targets.push(...['how', 'why', 'teach', 'recall'].map(name => [join(skills, name), name]));
+    }
+    const preview = run(args);
+    assert.equal(preview.status, 0, preview.stderr);
+    for (const [target] of targets) assert.ok(preview.stdout.includes(`replace\t${target}\t`));
+    assert.equal(readFileSync(join(home, '.agents/skills/how/SKILL.md'), 'utf8'), 'old skill');
+    assert.equal(readFileSync(join(home, '.claude/skills/why'), 'utf8'), 'old file');
+    assert.equal(readlinkSync(join(home, '.agents/skills/recall')), join(home, 'missing'));
+    assert.equal(existsSync(join(home, '.codex')), false);
+    const agent = join(home, '.claude/agents/z-agent.md');
+    mkdirSync(dirname(agent), { recursive: true });
+    writeFileSync(agent, 'custom agent');
+    const blocked = run([...args, '--apply']);
+    assert.equal(blocked.status, 1);
+    assert.match(blocked.stderr, /Existing files conflict/);
+    assert.equal(readFileSync(agent, 'utf8'), 'custom agent');
+    assert.equal(readFileSync(join(home, '.agents/skills/how/SKILL.md'), 'utf8'), 'old skill');
+    unlinkSync(agent);
+    const applied = run([...args, '--apply']);
+    assert.equal(applied.status, 0, applied.stderr);
+    for (const [target, name] of targets) assert.equal(realpathSync(target), join(root, 'skills', name));
+    assert.equal(readFileSync(join(foreign, 'SKILL.md'), 'utf8'), 'foreign skill');
+    assert.equal(run([...args, '--apply']).status, 0);
+    unlinkSync(join(home, '.agents/skills/teach'));
+    symlinkSync(foreign, join(home, '.agents/skills/teach'));
+    assert.equal(run(['uninstall', ...args, '--apply']).status, 0);
+    assert.equal(readlinkSync(join(home, '.agents/skills/teach')), foreign);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
 test('rerun updates unchanged owned agent copies and preserves edited copies', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'zstack update '));
   try {
