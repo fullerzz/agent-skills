@@ -8,13 +8,30 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const run = args => spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), ...args], { encoding: 'utf8' });
+const run = args => spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), ...args], { encoding: 'utf8' });
+test('empty explicit scopes fail before touching personal configuration', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'pstack empty scope '));
+  try {
+    const home = join(scratch, 'home');
+    const codex = join(scratch, 'codex'), claude = join(scratch, 'claude');
+    const env = { ...process.env, HOME: home, CODEX_HOME: codex, CLAUDE_CONFIG_DIR: claude };
+    for (const scope of ['--home', '--project']) {
+      for (const action of ['install', 'uninstall']) {
+        const result = spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), action, scope, '', '--apply'], { encoding: 'utf8', env });
+        assert.equal(result.status, 1, result.stderr);
+        assert.match(result.stderr, /must not be empty/);
+        assert.equal(result.stdout, '');
+        for (const target of [join(home, '.agents'), codex, claude]) assert.equal(existsSync(target), false);
+      }
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
 test('native personal roots are honored; explicit home and project remain isolated', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'pstack native roots '));
   try {
     const codex = join(scratch, 'codex config'), claude = join(scratch, 'claude config');
     const env = { ...process.env, CODEX_HOME: codex, CLAUDE_CONFIG_DIR: claude };
-    const invoke = args => spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), ...args], { encoding: 'utf8', env });
+    const invoke = args => spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), ...args], { encoding: 'utf8', env });
     const preview = invoke(['--host', 'claude']);
     assert.equal(preview.status, 0);
     assert.ok(invoke(['--host', 'codex']).stdout.includes(`create\t${join(codex, 'agents/poteto-agent.toml')}\t`));
@@ -88,11 +105,11 @@ test('rerun updates unchanged owned agent copies and preserves edited copies', (
   try {
     const source = join(scratch, 'checkout'), home = join(scratch, 'home');
     for (const dir of ['scripts', 'skills/fixture', 'agents/codex', 'agents/claude']) mkdirSync(join(source, dir), { recursive: true });
-    copyFileSync(join(root, 'scripts/install.mjs'), join(source, 'scripts/install.mjs'));
+    copyFileSync(join(root, 'scripts/install.py'), join(source, 'scripts/install.py'));
     writeFileSync(join(source, 'skills/fixture/SKILL.md'), '---\nname: fixture\ndescription: fixture\n---\n');
     const agent = join(source, 'agents/codex/fixture.toml');
     writeFileSync(agent, 'original agent\n');
-    const invoke = () => spawnSync(process.execPath, [join(source, 'scripts/install.mjs'), '--home', home, '--host', 'codex', '--apply'], { encoding: 'utf8' });
+    const invoke = () => spawnSync('uv', ['run', '--script', join(source, 'scripts/install.py'), '--home', home, '--host', 'codex', '--apply'], { encoding: 'utf8' });
     assert.equal(invoke().status, 0);
     writeFileSync(agent, 'updated agent\n');
     const receipt = join(home, '.codex/pstack-install.json');
@@ -107,4 +124,35 @@ test('rerun updates unchanged owned agent copies and preserves edited copies', (
     assert.equal(invoke().status, 1);
     assert.equal(readFileSync(installed, 'utf8'), 'user override\n');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+test('receipts reject symlinks and invalid ownership; agent symlinks remain unowned', () => {
+  const home = mkdtempSync(join(tmpdir(), 'pstack receipts '));
+  try {
+    const args = ['--home', home, '--host', 'codex', '--apply'];
+    const native = join(home, '.codex');
+    mkdirSync(native);
+    const receipt = join(native, 'pstack-install.json');
+    const foreign = join(home, 'foreign receipt.json');
+    writeFileSync(foreign, 'user receipt\n');
+    symlinkSync(foreign, receipt);
+    assert.equal(run(args).status, 1);
+    assert.equal(readFileSync(foreign, 'utf8'), 'user receipt\n');
+    assert.equal(existsSync(join(home, '.agents')), false);
+    unlinkSync(receipt);
+    for (const contents of ['{invalid json', 'null', JSON.stringify({ source: root, agents: [] }), JSON.stringify({ source: root, agents: { 'poteto-agent.toml': {} } }), JSON.stringify({ source: '/other-checkout', agents: {} })]) {
+      writeFileSync(receipt, contents);
+      assert.equal(run(args).status, 1);
+      assert.equal(readFileSync(receipt, 'utf8'), contents);
+      assert.equal(existsSync(join(home, '.agents')), false);
+    }
+    unlinkSync(receipt);
+    assert.equal(run(args).status, 0);
+    const installed = join(native, 'agents/poteto-agent.toml');
+    unlinkSync(installed);
+    const source = join(root, 'agents/codex/poteto-agent.toml');
+    symlinkSync(source, installed);
+    assert.equal(run(args).status, 1);
+    assert.equal(run(['uninstall', ...args]).status, 0);
+    assert.equal(readlinkSync(installed), source);
+  } finally { rmSync(home, { recursive: true, force: true }); }
 });

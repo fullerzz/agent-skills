@@ -6,21 +6,21 @@ Shared instructions live in `skills/`. Each host uses its own native agents and 
 
 ## Install
 
-Keep this checkout where its links can remain valid. Node.js 20+ runs the installer; Bun runs the optional orchestration and PR tools and structural validator. Install missing tools with mise or brew.
+Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the helper tests; Bun runs the optional orchestration and PR tools. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
 
 ```sh
-node scripts/install.mjs --host codex
-node scripts/install.mjs --host codex --apply
+uv run scripts/install.py --host codex
+uv run scripts/install.py --host codex --apply
 ```
 
 ```sh
-node scripts/install.mjs --host claude
-node scripts/install.mjs --host claude --apply
+uv run scripts/install.py --host claude
+uv run scripts/install.py --host claude --apply
 ```
 
-Use `--host both` for both hosts. For an explicit project installation, add `--project "/absolute/path/to/project"`. For isolated checks, `--home "/temporary/home"` targets a different personal root.
+Use `--host both` for both hosts. For an explicit project installation, add `--project "/absolute/path/to/project"`. For isolated checks, `--home "/temporary/home"` targets a different personal root. Explicit `--home` and `--project` paths must be nonempty; an empty shell variable is rejected before any installation or removal.
 
 Skills are individual folder links. Agents are native owned copies, so you can customize model settings without editing this library. The installer previews all files, refuses collisions before writing, updates only unchanged owned agent copies, and never changes model or permission configuration. Existing pstack skills in your personal directories may collide; inspect the preview rather than overwriting them.
 
@@ -37,8 +37,8 @@ See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-co
 ## Remove
 
 ```sh
-node scripts/install.mjs uninstall --host both
-node scripts/install.mjs uninstall --host both --apply
+uv run scripts/install.py uninstall --host both
+uv run scripts/install.py uninstall --host both --apply
 ```
 
 Repeat the original `--project` or `--home` scope if used. Removal unlinks only this checkout's skill links and removes only unchanged owned agent copies. Modified or unowned files stay. Keep the checkout path stable; a moved checkout needs its original links uninstalled first.
@@ -57,8 +57,9 @@ Cross-provider orchestration, marketplace packaging, and the old automation runt
 ## Maintain
 
 ```sh
-bun scripts/validate.mjs
+uv run scripts/validate.py
 node --test scripts/*.test.mjs
+uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
 cd skills/poteto-mode/scripts
 bun install --frozen-lockfile
 bun run test
