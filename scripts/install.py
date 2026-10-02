@@ -9,9 +9,9 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import sys
 import uuid
+from pathlib import Path
 
 from rich.console import Console
 from rich.segment import Segment, Segments
@@ -34,7 +34,10 @@ def present(path: Path) -> bool:
 
 
 def owns_link(path: Path, source: Path) -> bool:
-    return path.is_symlink() and Path(os.path.abspath(path.parent / path.readlink())) == source
+    return (
+        path.is_symlink()
+        and Path(os.path.abspath(path.parent / path.readlink())) == source
+    )
 
 
 def atomic_write(target: Path, contents: bytes) -> None:
@@ -67,9 +70,15 @@ def main() -> None:
     parser.add_argument("--help", action="store_true")
     args = parser.parse_args()
     if args.help:
-        console.print("uv run scripts/install.py [install|uninstall] --host codex|claude|both [--project PATH | --home PATH] [--apply]\nPreview by default. Skills are links; agents are owned copies. No model or permission settings are changed.")
+        console.print(
+            "uv run scripts/install.py [install|uninstall] --host codex|claude|both [--project PATH | --home PATH] [--apply]\nPreview by default. Skills are links; agents are owned copies. No model or permission settings are changed."
+        )
         return
-    if args.action not in ("install", "uninstall") or args.host not in ("both", "codex", "claude"):
+    if args.action not in ("install", "uninstall") or args.host not in (
+        "both",
+        "codex",
+        "claude",
+    ):
         raise ValueError("Invalid action or host. See --help.")
     if args.home == "" or args.project == "":
         raise ValueError("--home and --project paths must not be empty.")
@@ -81,39 +90,99 @@ def main() -> None:
     plans = []
     for host in hosts:
         base = project or home
-        configured = os.environ.get("CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR")
-        native = Path(os.path.abspath(configured)) if not project and not args.home and configured else base / f".{host}"
+        configured = os.environ.get(
+            "CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR"
+        )
+        native = (
+            Path(os.path.abspath(configured))
+            if not project and not args.home and configured
+            else base / f".{host}"
+        )
         skills = base / ".agents/skills" if host == "codex" else native / "skills"
         receipt = native / "pstack-install.json"
         if present(receipt) and (receipt.is_symlink() or not receipt.is_file()):
             raise ValueError(f"Receipt is not a regular file: {receipt}")
-        saved = json.loads(receipt.read_text()) if receipt.exists() else {"source": str(ROOT), "agents": {}}
-        if not isinstance(saved, dict) or saved.get("source") != str(ROOT) or not isinstance(saved.get("agents"), dict):
-            raise ValueError(f"Receipt belongs to another checkout or is invalid: {receipt}")
-        if any(not isinstance(value, str) and not (isinstance(value, list) and all(isinstance(item, str) for item in value))
-               for value in saved["agents"].values()):
-            raise ValueError(f"Receipt belongs to another checkout or is invalid: {receipt}")
-        entries = [{"source": skill, "target": skills / skill.name, "kind": "link"}
-                   for skill in sorted((ROOT / "skills").iterdir())
-                   if skill.is_dir() and not skill.is_symlink() and (skill / "SKILL.md").exists()]
-        entries += [{"source": agent, "target": native / "agents" / agent.name, "kind": "copy", "name": agent.name}
-                    for agent in sorted((ROOT / "agents" / host).iterdir())]
+        saved = (
+            json.loads(receipt.read_text())
+            if receipt.exists()
+            else {"source": str(ROOT), "agents": {}}
+        )
+        if (
+            not isinstance(saved, dict)
+            or saved.get("source") != str(ROOT)
+            or not isinstance(saved.get("agents"), dict)
+        ):
+            raise ValueError(
+                f"Receipt belongs to another checkout or is invalid: {receipt}"
+            )
+        if any(
+            not isinstance(value, str)
+            and not (
+                isinstance(value, list) and all(isinstance(item, str) for item in value)
+            )
+            for value in saved["agents"].values()
+        ):
+            raise ValueError(
+                f"Receipt belongs to another checkout or is invalid: {receipt}"
+            )
+        entries = [
+            {"source": skill, "target": skills / skill.name, "kind": "link"}
+            for skill in sorted((ROOT / "skills").iterdir())
+            if skill.is_dir()
+            and not skill.is_symlink()
+            and (skill / "SKILL.md").exists()
+        ]
+        entries += [
+            {
+                "source": agent,
+                "target": native / "agents" / agent.name,
+                "kind": "copy",
+                "name": agent.name,
+            }
+            for agent in sorted((ROOT / "agents" / host).iterdir())
+        ]
         for entry in entries:
             target, source = entry["target"], entry["source"]
             exists = present(target)
             hashes = saved["agents"].get(entry.get("name"))
             hashes = hashes if isinstance(hashes, list) else [hashes]
-            owned = owns_link(target, source) if entry["kind"] == "link" else exists and target.is_file() and not target.is_symlink() and digest(target) in hashes
+            owned = (
+                owns_link(target, source)
+                if entry["kind"] == "link"
+                else exists
+                and target.is_file()
+                and not target.is_symlink()
+                and digest(target) in hashes
+            )
             if args.action == "install":
-                entry["op"] = ("update" if entry["kind"] == "copy" and digest(source) != digest(target) else "keep") if exists and owned else "collision" if exists else "create"
+                entry["op"] = (
+                    (
+                        "update"
+                        if entry["kind"] == "copy" and digest(source) != digest(target)
+                        else "keep"
+                    )
+                    if exists and owned
+                    else "collision"
+                    if exists
+                    else "create"
+                )
             else:
-                entry["op"] = ("remove" if owned else "preserve") if exists else "absent"
+                entry["op"] = (
+                    ("remove" if owned else "preserve") if exists else "absent"
+                )
         plans.append({"receipt": receipt, "saved": saved, "entries": entries})
     for plan in plans:
         for entry in plan["entries"]:
-            console.print(Segments([Segment(f'{entry["op"]}\t{entry["target"]}\t{entry["source"]}\n')]), end="")
+            console.print(
+                Segments(
+                    [Segment(f"{entry['op']}\t{entry['target']}\t{entry['source']}\n")]
+                ),
+                end="",
+            )
     if any(entry["op"] == "collision" for plan in plans for entry in plan["entries"]):
-        raise ValueError("Existing files conflict. Nothing installed; choose another scope or resolve the named collisions.")
+        raise ValueError(
+            "Existing files conflict. Nothing installed; choose another scope or resolve the named collisions."
+        )
     if not args.apply:
         console.print("Preview only. Add --apply to perform these operations.")
         return
@@ -129,7 +198,9 @@ def main() -> None:
                     next_hash = digest(source)
                     old = plan["saved"]["agents"].get(entry["name"])
                     old = old if isinstance(old, list) else [old]
-                    plan["saved"]["agents"][entry["name"]] = list(dict.fromkeys(value for value in [*old, next_hash] if value))
+                    plan["saved"]["agents"][entry["name"]] = list(
+                        dict.fromkeys(value for value in [*old, next_hash] if value)
+                    )
                     save(plan)
                     if entry["op"] == "create":
                         with target.open("xb") as stream:
@@ -147,8 +218,12 @@ def main() -> None:
             save(plan)
         elif present(plan["receipt"]):
             plan["receipt"].unlink()
-    if args.action == "uninstall" and any(entry["op"] == "preserve" for plan in plans for entry in plan["entries"]):
-        console.print("Preserved unowned or modified files. Their receipts remain for inspection.")
+    if args.action == "uninstall" and any(
+        entry["op"] == "preserve" for plan in plans for entry in plan["entries"]
+    ):
+        console.print(
+            "Preserved unowned or modified files. Their receipts remain for inspection."
+        )
 
 
 if __name__ == "__main__":

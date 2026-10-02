@@ -11,6 +11,7 @@ import stat
 import sys
 import tomllib
 from pathlib import Path
+from typing import ClassVar
 from urllib.parse import unquote
 
 import yaml
@@ -19,15 +20,20 @@ from rich.console import Console
 
 class YamlLoader(yaml.SafeLoader):
     # YAML 1.2 booleans match Bun; names such as "on" remain strings.
-    yaml_implicit_resolvers = {
-        key: [(tag, pattern) for tag, pattern in resolvers
-              if tag != "tag:yaml.org,2002:bool"]
+    yaml_implicit_resolvers: ClassVar[dict] = {
+        key: [
+            (tag, pattern)
+            for tag, pattern in resolvers
+            if tag != "tag:yaml.org,2002:bool"
+        ]
         for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
     }
 
 
 YamlLoader.add_implicit_resolver(
-    "tag:yaml.org,2002:bool", re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"), list("tTfF")
+    "tag:yaml.org,2002:bool",
+    re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"),
+    list("tTfF"),
 )
 
 
@@ -36,15 +42,24 @@ def load_yaml(text: str):
 
 
 def frontmatter(file: Path) -> dict:
-    match = re.match(r"^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)", file.read_text(encoding="utf-8"))
+    match = re.match(
+        r"^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)", file.read_text(encoding="utf-8")
+    )
     if not match:
         raise ValueError("Missing YAML frontmatter")
     meta = load_yaml(match[1])
-    if (not isinstance(meta, dict) or not isinstance(meta.get("name"), str)
-            or not isinstance(meta.get("description"), str) or not meta["description"].strip()):
+    if (
+        not isinstance(meta, dict)
+        or not isinstance(meta.get("name"), str)
+        or not isinstance(meta.get("description"), str)
+        or not meta["description"].strip()
+    ):
         raise ValueError("Need scalar name and nonempty description")
-    if (not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", meta["name"])
-            or len(meta["name"]) > 64 or len(meta["description"]) > 1024):
+    if (
+        not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", meta["name"])
+        or len(meta["name"]) > 64
+        or len(meta["description"]) > 1024
+    ):
         raise ValueError("Invalid identifier or metadata length")
     return meta
 
@@ -58,7 +73,13 @@ def validate(root: Path) -> tuple[int, list[str]]:
 
     def walk(directory):
         for path in sorted(directory.iterdir()):
-            if path.name in {"node_modules", ".git", ".agent-work", ".venv", "__pycache__"}:
+            if path.name in {
+                "node_modules",
+                ".git",
+                ".agent-work",
+                ".venv",
+                "__pycache__",
+            }:
                 continue
             if path.is_symlink():
                 continue
@@ -67,8 +88,18 @@ def validate(root: Path) -> tuple[int, list[str]]:
             elif path.is_file():
                 yield path
 
-    allowed = {"name", "description", "disable-model-invocation", "metadata", "license", "compatibility", "allowed-tools"}
-    unsupported = re.compile(r"\.cursor/|cursor-team-kit|pstack-models\.mdc|run_in_background|cloud_base_branch|subagent_type|grok-4|claude-opus-5-5|gpt-5\.6-sol|/loop\b|/goal\b")
+    allowed = {
+        "name",
+        "description",
+        "disable-model-invocation",
+        "metadata",
+        "license",
+        "compatibility",
+        "allowed-tools",
+    }
+    unsupported = re.compile(
+        r"\.cursor/|cursor-team-kit|pstack-models\.mdc|run_in_background|cloud_base_branch|subagent_type|grok-4|claude-opus-5-5|gpt-5\.6-sol|/loop\b|/goal\b"
+    )
     for file in walk(root):
         relative = file.relative_to(root).as_posix()
         try:
@@ -82,13 +113,22 @@ def validate(root: Path) -> tuple[int, list[str]]:
                 for key in meta:
                     if key not in allowed:
                         fail(relative, f"Unsupported shared metadata: {key}")
-                if "disable-model-invocation" in meta and not isinstance(meta["disable-model-invocation"], bool):
+                if "disable-model-invocation" in meta and not isinstance(
+                    meta["disable-model-invocation"], bool
+                ):
                     fail(relative, "Invocation flag must be boolean")
                 if meta.get("disable-model-invocation") is True:
                     policy_file = file.parent / "agents/openai.yaml"
-                    policy = load_yaml(policy_file.read_text(encoding="utf-8")) if policy_file.exists() else None
+                    policy = (
+                        load_yaml(policy_file.read_text(encoding="utf-8"))
+                        if policy_file.exists()
+                        else None
+                    )
                     policy = policy.get("policy") if isinstance(policy, dict) else None
-                    if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
+                    if (
+                        not isinstance(policy, dict)
+                        or policy.get("allow_implicit_invocation") is not False
+                    ):
                         fail(relative, "Explicit-only Codex policy missing")
             if relative.startswith("agents/codex/"):
                 meta = tomllib.loads(file.read_text(encoding="utf-8"))
@@ -99,7 +139,10 @@ def validate(root: Path) -> tuple[int, list[str]]:
                     fail(relative, "Agent name mismatch")
             if relative.startswith("agents/claude/"):
                 meta = frontmatter(file)
-                if meta["name"] != file.name.removesuffix(".md") or meta.get("model") != "inherit":
+                if (
+                    meta["name"] != file.name.removesuffix(".md")
+                    or meta.get("model") != "inherit"
+                ):
                     fail(relative, "Agent name/model mismatch")
             if file.suffix == ".yaml":
                 load_yaml(file.read_text(encoding="utf-8"))
@@ -108,7 +151,9 @@ def validate(root: Path) -> tuple[int, list[str]]:
             text = file.read_text(encoding="utf-8")
             if re.search(r"[ \t]+$", text, re.MULTILINE):
                 fail(relative, "Trailing whitespace")
-            prose = re.sub(r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE)
+            prose = re.sub(
+                r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE
+            )
             for match in re.finditer(r"\]\(([^)]+)\)", prose):
                 link = match[1]
                 if re.match(r"(?:https?:|mailto:|#)", link) or re.search(r"[<>]", link):
@@ -116,17 +161,30 @@ def validate(root: Path) -> tuple[int, list[str]]:
                 path = unquote(link.split("#")[0], errors="strict")
                 if not (file.parent / path).exists():
                     fail(relative, f"Broken local link: {link}")
-            if relative.startswith(("skills/", "docs/guide/", "agents/")) and unsupported.search(text):
+            if relative.startswith(
+                ("skills/", "docs/guide/", "agents/")
+            ) and unsupported.search(text):
                 fail(relative, "Active unsupported host instruction")
         except (OSError, ValueError, yaml.YAMLError) as error:
             fail(relative, str(error))
 
-    for path in ("scripts/check-plan.mjs", "scripts/worktree-audit.sh", "scripts/worktree-audit.mjs", "scripts/watch-pr/watch-pr", "scripts/orch/orch.ts"):
+    for path in (
+        "scripts/check-plan.mjs",
+        "scripts/worktree-audit.sh",
+        "scripts/worktree-audit.mjs",
+        "scripts/watch-pr/watch-pr",
+        "scripts/orch/orch.ts",
+    ):
         if not (root / "skills/poteto-mode" / path).exists():
             fail(path, "Missing tool entrypoint")
-    for relative in ("skills/show-me-your-work/scripts/log.sh", "skills/poteto-mode/scripts/watch-pr/watch-pr"):
+    for relative in (
+        "skills/show-me-your-work/scripts/log.sh",
+        "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    ):
         try:
-            if not (root / relative).stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+            if not (root / relative).stat().st_mode & (
+                stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+            ):
                 fail(relative, "Helper not executable")
         except OSError as error:
             fail(relative, str(error))
@@ -138,7 +196,11 @@ def validate(root: Path) -> tuple[int, list[str]]:
 
 def main() -> int:
     count, failures = validate(Path(__file__).resolve().parent.parent)
-    Console().print(f"{count} skills, {len(failures)} structural problems", style="red" if failures else "green", markup=False)
+    Console().print(
+        f"{count} skills, {len(failures)} structural problems",
+        style="red" if failures else "green",
+        markup=False,
+    )
     console = Console(stderr=True)
     for failure in failures:
         console.print(failure, style="red", markup=False, highlight=False)

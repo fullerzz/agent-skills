@@ -27,18 +27,42 @@ class ValidateTests(unittest.TestCase):
         return path
 
     def test_valid_repository_and_yaml_12_boolean_policy(self):
-        self.write("skills/on/SKILL.md", "---\nname: on\ndescription: |\n  A multiline description.\ndisable-model-invocation: true\n---\n[resource](file%20name.txt)\n")
+        self.write(
+            "skills/on/SKILL.md",
+            "---\nname: on\ndescription: |\n  A multiline description.\ndisable-model-invocation: true\n---\n[resource](file%20name.txt)\n",
+        )
         self.write("skills/on/file name.txt", "resource")
-        self.write("skills/on/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
-        self.write("agents/codex/reviewer.toml", 'name = "reviewer"\ndescription = "Review code"\ndeveloper_instructions = "Check changes"\n')
-        self.write("agents/claude/reviewer.md", "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n")
+        self.write(
+            "skills/on/agents/openai.yaml",
+            "policy:\n  allow_implicit_invocation: false\n",
+        )
+        self.write(
+            "agents/codex/reviewer.toml",
+            'name = "reviewer"\ndescription = "Review code"\ndeveloper_instructions = "Check changes"\n',
+        )
+        self.write(
+            "agents/claude/reviewer.md",
+            "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n",
+        )
         self.assertEqual(validate(self.root), (1, []))
-        self.write("skills/on/agents/openai.yaml", "policy:\n  allow_implicit_invocation: off\n")
-        self.assertIn("skills/on/SKILL.md: Explicit-only Codex policy missing", validate(self.root)[1])
+        self.write(
+            "skills/on/agents/openai.yaml",
+            "policy:\n  allow_implicit_invocation: off\n",
+        )
+        self.assertIn(
+            "skills/on/SKILL.md: Explicit-only Codex policy missing",
+            validate(self.root)[1],
+        )
 
     def test_reports_structural_failures_and_ignores_fenced_links(self):
-        self.write("skills/example/SKILL.md", "---\nname: example\ndescription: Example\nextra: true\ndisable-model-invocation: yes\n---\n[missing](absent.txt)\n```md\n[example](not-real.txt)\n```\n/loop\ntrailing \n")
-        self.write("skills/duplicate/SKILL.md", "---\nname: example\ndescription: Duplicate\n---\n")
+        self.write(
+            "skills/example/SKILL.md",
+            "---\nname: example\ndescription: Example\nextra: true\ndisable-model-invocation: yes\n---\n[missing](absent.txt)\n```md\n[example](not-real.txt)\n```\n/loop\ntrailing \n",
+        )
+        self.write(
+            "skills/duplicate/SKILL.md",
+            "---\nname: example\ndescription: Duplicate\n---\n",
+        )
         self.write("broken.yaml", "a: [\n")
         self.write("agents/codex/bad.toml", 'name = "wrong"\n')
         self.write(".cursor-plugin/retired.txt", "")
@@ -46,19 +70,27 @@ class ValidateTests(unittest.TestCase):
         count, failures = validate(self.root)
         self.assertEqual(count, 1)
         for message in (
-            "Unsupported shared metadata: extra", "Invocation flag must be boolean",
-            "Broken local link: absent.txt", "Trailing whitespace",
-            "Active unsupported host instruction", "Duplicate skill name",
-            "Name must match directory", "Missing description",
-            "Missing developer_instructions", "Agent name mismatch",
-            "Helper not executable", "Retired content remains",
+            "Unsupported shared metadata: extra",
+            "Invocation flag must be boolean",
+            "Broken local link: absent.txt",
+            "Trailing whitespace",
+            "Active unsupported host instruction",
+            "Duplicate skill name",
+            "Name must match directory",
+            "Missing description",
+            "Missing developer_instructions",
+            "Agent name mismatch",
+            "Helper not executable",
+            "Retired content remains",
         ):
             self.assertTrue(any(message in failure for failure in failures), message)
         self.assertTrue(any(failure.startswith("broken.yaml:") for failure in failures))
         self.assertFalse(any("not-real.txt" in failure for failure in failures))
 
     def test_bad_metadata_missing_entrypoints_and_helpers_are_failures(self):
-        file = self.write("skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n")
+        file = self.write(
+            "skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n"
+        )
         with self.assertRaisesRegex(ValueError, "Invalid identifier"):
             frontmatter(file)
         file.write_text("No frontmatter\n")
@@ -68,7 +100,12 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertIn("skills/example/SKILL.md: Missing YAML frontmatter", failures)
         self.assertIn("scripts/check-plan.mjs: Missing tool entrypoint", failures)
-        self.assertTrue(any(failure.startswith("skills/show-me-your-work/scripts/log.sh:") for failure in failures))
+        self.assertTrue(
+            any(
+                failure.startswith("skills/show-me-your-work/scripts/log.sh:")
+                for failure in failures
+            )
+        )
 
 
 if __name__ == "__main__":
