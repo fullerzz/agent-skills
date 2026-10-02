@@ -25,7 +25,7 @@ test('installed resources inspect a separate repo with spaces and protect unknow
     mkdirSync(join(ignored, 'cache')); writeFileSync(join(ignored, 'cache/proof'), 'ignored work');
     git('worktree', 'add', '--detach', locked); git('worktree', 'lock', locked);
     git('worktree', 'add', '--detach', missing); rmSync(missing, { recursive: true });
-    assert.equal(spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), '--project', repo, '--apply']).status, 0);
+    assert.equal(spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), '--project', repo, '--apply']).status, 0);
     const skill = dirname(realpathSync(join(repo, '.agents/skills/poteto-mode/SKILL.md')));
     assert.equal(realpathSync(join(skill, '../how/SKILL.md')), join(root, 'skills/how/SKILL.md'));
     const audit = spawnSync('bash', [join(skill, 'scripts/worktree-audit.sh'), repo], { cwd: repo, encoding: 'utf8' });

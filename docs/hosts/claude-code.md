@@ -1,6 +1,6 @@
 # Use this library in Claude Code
 
-From the library checkout run `node scripts/install.mjs --host claude`, inspect the preview, then repeat with `--apply`. Add `--project "/path/to/project"` for project scope.
+From the library checkout run `uv run scripts/install.py --host claude`, inspect the preview, then repeat with `--apply`. Add `--project "/path/to/project"` for project scope. Empty `--home` or `--project` values are rejected before any writes.
 
 Personal skills link into `$CLAUDE_CONFIG_DIR/skills/<name>` (default `~/.claude/skills/<name>`); native agents copy into that root's `agents/`. Project installation uses `.claude/skills/<name>` and `.claude/agents/`. Explicit `--home` uses that root's `.claude`, ignoring the environment override so fixture installations stay isolated. A new session discovers these sources. See the native [configuration-directory setting](https://code.claude.com/docs/en/env-vars#variables).
 

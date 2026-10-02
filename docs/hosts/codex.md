@@ -1,6 +1,6 @@
 # Use this library in Codex
 
-From the library checkout run `node scripts/install.mjs --host codex`, inspect the preview, then repeat with `--apply`. Add `--project "/path/to/project"` for project installation.
+From the library checkout run `uv run scripts/install.py --host codex`, inspect the preview, then repeat with `--apply`. Add `--project "/path/to/project"` for project installation. Empty `--home` or `--project` values are rejected before any writes.
 
 Personal skills link into `~/.agents/skills/<name>`; project skills into `.agents/skills/<name>`. Personal agents copy into `$CODEX_HOME/agents/` (default `~/.codex/agents/`); project agents into `.codex/agents/`. An explicit `--home` uses that root's `.codex` for isolated testing. These are separate discovery locations.
 
