@@ -24,6 +24,8 @@ Findings must point to skills, tools, or MCPs invoked in this transcript. Specul
 - Native delegation prompts that name a skill path
 - Tool calls (Shell, Grep, MCP, etc.) that match a skill's documented commands
 
+Preserve invocation policy. Before proposing a missed-trigger or description change, read the target skill and host metadata. An explicit-only skill not selected by an ordinary request is expected behavior, not a missed trigger. Recommend automatic selection only when its existing policy permits it; changing invocation policy requires an explicit user request.
+
 Two valid finding shapes:
 
 - The parent invoked the skill and you found a real gap in its body. Route to the skill's relevant section.

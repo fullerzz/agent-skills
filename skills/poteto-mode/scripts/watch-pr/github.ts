@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 export const REVIEW_THREADS_QUERY =
-  "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100) {\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
+  "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100, after: $after) {\n        pageInfo { hasNextPage endCursor }\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 export const PR_COMMIT_STATUS_QUERY =
   "\nquery PrCommitStatuses($owner: String!, $repo: String!, $pr: Int!) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 50) {\n        nodes {\n          commit {\n            oid\n            statusCheckRollup {\n              state\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 export const PR_CHECK_ROLLUP_QUERY =
@@ -451,6 +451,7 @@ function graphqlArgs(
 }
 
 export class GhGitHubReader implements T.GitHubReader {
+  constructor(private readonly queryJson = runJson) {}
   async originRepo(): Promise<T.Repository | null> {
     const result = await run(["git", "remote", "get-url", "origin"]);
     return result.code === 0 ? parseRemote(result.stdout) : null;
@@ -571,9 +572,25 @@ export class GhGitHubReader implements T.GitHubReader {
   async reviewThreads(
     context: T.PrContext
   ): Promise<readonly T.ReviewThread[]> {
-    return parseReviewThreads(
-      await runJson(graphqlArgs(REVIEW_THREADS_QUERY, context))
-    );
+    const nodes: unknown[] = [];
+    let after: string | null = null;
+    do {
+      const argv = graphqlArgs(REVIEW_THREADS_QUERY, context);
+      if (after !== null) argv.push("-f", `after=${after}`);
+      const connection = record(
+        at(await this.queryJson(argv), ["data", "repository", "pullRequest", "reviewThreads"]),
+        "reviewThreads"
+      );
+      nodes.push(...list(connection.nodes, "reviewThreads.nodes"));
+      const page = record(connection.pageInfo, "reviewThreads.pageInfo");
+      if (typeof page.hasNextPage !== "boolean")
+        missing("reviewThreads.pageInfo.hasNextPage", page.hasNextPage);
+      const cursor = optionalString(page.endCursor, "reviewThreads.pageInfo.endCursor");
+      if (page.hasNextPage && (!cursor || cursor === after))
+        missing("reviewThreads.pageInfo.endCursor", page.endCursor);
+      after = page.hasNextPage ? cursor : null;
+    } while (after !== null);
+    return parseReviewThreads({ data: { repository: { pullRequest: { reviewThreads: { nodes } } } } });
   }
   async commitRollups(
     context: T.PrContext

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   ChecksUnavailable,
+  GhGitHubReader,
   WatcherQueryError,
   mapRollupNode,
   orderStack,
@@ -22,6 +23,32 @@ const context = {
   repo: "repo",
   number: parsePrNumber(42),
 };
+
+it("reads unresolved threads beyond page 100 and counts passes across pages", async () => {
+  const thread = (id: string, resolved: boolean, pass: string) => ({
+    id, isResolved: resolved,
+    comments: { nodes: [{ body: `RUN_ID: ${pass}`, createdAt: "now", path: null, line: null, author: { login: "bugbot" } }] },
+  });
+  const requests: string[][] = [];
+  const reader = new GhGitHubReader(async argv => {
+    requests.push([...argv]);
+    const second = argv.includes("after=next");
+    return { data: { repository: { pullRequest: { reviewThreads: {
+      nodes: second ? [thread("101", false, "second")] : Array.from({ length: 100 }, (_, i) => thread(String(i), true, "first")),
+      pageInfo: { hasNextPage: !second, endCursor: second ? null : "next" },
+    } } } } };
+  });
+  expect(await reader.reviewThreads(context)).toMatchObject([{ id: "101", bugbotReviewPasses: 2 }]);
+  expect(requests).toHaveLength(2);
+  expect(requests[0].join(" ")).toContain("after: $after");
+});
+
+it("rejects incomplete review pagination instead of returning clear", async () => {
+  const reader = new GhGitHubReader(async () => ({ data: { repository: { pullRequest: { reviewThreads: {
+    nodes: [], pageInfo: { hasNextPage: true, endCursor: null },
+  } } } } }));
+  await expect(reader.reviewThreads(context)).rejects.toBeInstanceOf(WatcherQueryError);
+});
 
 describe("checks fallback chain", () => {
   it("uses a non-empty fast-path result without a rollup query", async () => {

@@ -16,7 +16,7 @@ try {
   for (const phase of phases) {
     const title = phase.split('\n')[0].trim();
     for (const field of ['Depends on', 'Files', 'Acceptance', 'Verification']) {
-      if (!new RegExp('^- ' + field + ':\\s*\\S', 'm').test(phase)) problems.push(title + ': missing nonempty ' + field + ' bullet');
+      if (!new RegExp('^- ' + field + ':[ \\t]*\\S', 'm').test(phase)) problems.push(title + ': missing nonempty ' + field + ' bullet');
     }
   }
   console.log(phases.length + ' phases, ' + problems.length + ' problems');

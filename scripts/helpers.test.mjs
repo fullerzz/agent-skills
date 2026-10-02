@@ -17,6 +17,14 @@ test('installed resources inspect a separate repo with spaces and protect unknow
     const clean = join(scratch, 'clean worktree'), dirty = join(scratch, 'dirty worktree');
     git('worktree', 'add', '-b', 'clean', clean); git('worktree', 'add', '-b', 'dirty', dirty);
     writeFileSync(join(dirty, 'untracked.txt'), 'must preserve');
+    const ignored = join(scratch, 'ignored worktree'), locked = join(scratch, 'locked worktree'), missing = join(scratch, 'missing worktree');
+    git('worktree', 'add', '--detach', ignored);
+    writeFileSync(join(ignored, '.gitignore'), 'cache/\n');
+    execFileSync('git', ['-C', ignored, 'add', '.gitignore']);
+    execFileSync('git', ['-C', ignored, 'commit', '-m', 'ignore cache']);
+    mkdirSync(join(ignored, 'cache')); writeFileSync(join(ignored, 'cache/proof'), 'ignored work');
+    git('worktree', 'add', '--detach', locked); git('worktree', 'lock', locked);
+    git('worktree', 'add', '--detach', missing); rmSync(missing, { recursive: true });
     assert.equal(spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), '--project', repo, '--apply']).status, 0);
     const skill = dirname(realpathSync(join(repo, '.agents/skills/poteto-mode/SKILL.md')));
     assert.equal(realpathSync(join(skill, '../how/SKILL.md')), join(root, 'skills/how/SKILL.md'));
@@ -25,6 +33,9 @@ test('installed resources inspect a separate repo with spaces and protect unknow
     assert.match(audit.stdout, new RegExp('REPO\\t' + realpathSync(repo)));
     assert.match(audit.stdout, /unknown\treview-history-unknown\t.*clean worktree/);
     assert.match(audit.stdout, /unknown\thold-files\t.*dirty worktree/);
+    assert.match(audit.stdout, /unknown\thold-files\t.*ignored worktree/);
+    assert.match(audit.stdout, /unknown\thold-unavailable\t.*locked worktree/);
+    assert.match(audit.stdout, /unknown\thold-unavailable\t.*missing worktree/);
     assert.doesNotMatch(audit.stdout, /\tsafe\t/);
     assert.equal(readFileSync(join(dirty, 'untracked.txt'), 'utf8'), 'must preserve');
     const log = join(repo, 'proof trail.tsv');
@@ -43,6 +54,10 @@ test('plan validator accepts task-sized proof and rejects missing phase checks',
     writeFileSync(file, plan);
     const run = () => spawnSync(process.execPath, [join(root, 'skills/poteto-mode/scripts/check-plan.mjs'), file], { encoding: 'utf8' });
     assert.equal(run().status, 0);
+    for (const field of ['Depends on', 'Files', 'Acceptance', 'Verification']) {
+      writeFileSync(file, plan.replace(new RegExp('(- ' + field + ':)[^\\n]*'), '$1'));
+      assert.equal(run().status, 1, `empty ${field} must not borrow the next line`);
+    }
     writeFileSync(file, plan.replace('- Verification: Run the fixture command\n', ''));
     assert.equal(run().status, 1);
     assert.match(run().stderr, /Verification/);

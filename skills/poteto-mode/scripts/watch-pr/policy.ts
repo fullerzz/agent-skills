@@ -355,7 +355,7 @@ type StepResult<V> =
   | {
       readonly kind: "sleep";
       readonly seconds: number;
-      readonly onDeadline?: () => V;
+      readonly onDeadline: () => V;
     }
   | { readonly kind: "continue" };
 async function pollUntilTerminal<V>(args: {
@@ -366,6 +366,15 @@ async function pollUntilTerminal<V>(args: {
 }): Promise<V | T.BlockerVerdict | T.TimeoutVerdict> {
   let failures = 0;
   const started = args.dependencies.clock.now();
+  const expired = () =>
+    deadlinePassed(started, args.options, args.dependencies.clock.now());
+  const remainingDelay = (seconds: number) =>
+    args.options.timeout > 0
+      ? Math.max(0, Math.min(
+          seconds,
+          started + args.options.timeout - args.dependencies.clock.now()
+        ))
+      : seconds;
   while (true) {
     let result: StepResult<V>;
     try {
@@ -376,10 +385,10 @@ async function pollUntilTerminal<V>(args: {
       failures += 1;
       if (!error.failure.retryable || failures >= args.options.maxQueryErrors)
         return statusQueryVerdict(args.stamp, failures, error.failure);
-      const retryInSeconds = queryBackoffSeconds(
+      const retryInSeconds = remainingDelay(queryBackoffSeconds(
         args.options.interval,
         failures
-      );
+      ));
       args.dependencies.emit(
         args.stamp({
           kind: "RETRY",
@@ -389,24 +398,20 @@ async function pollUntilTerminal<V>(args: {
           retryInSeconds,
         })
       );
-      if (deadlinePassed(started, args.options, args.dependencies.clock.now()))
+      if (!expired()) await args.dependencies.clock.sleep(remainingDelay(retryInSeconds));
+      if (expired())
         return args.stamp({
           kind: "TIMEOUT",
           terminal: true,
           exitCode: 5,
           reason: { kind: "status-unavailable", failure: error.failure },
         });
-      await args.dependencies.clock.sleep(retryInSeconds);
       continue;
     }
     if (result.kind === "terminal") return result.verdict;
     if (result.kind === "sleep") {
-      if (
-        result.onDeadline !== undefined &&
-        deadlinePassed(started, args.options, args.dependencies.clock.now())
-      )
-        return result.onDeadline();
-      await args.dependencies.clock.sleep(result.seconds);
+      if (!expired()) await args.dependencies.clock.sleep(remainingDelay(result.seconds));
+      if (expired()) return result.onDeadline();
     }
   }
 }
@@ -816,7 +821,20 @@ export async function runQueued(args: {
               reason: evaluation.reason,
             })
           );
-        return { kind: "sleep", seconds: args.options.interval };
+        return {
+          kind: "sleep",
+          seconds: args.options.interval,
+          onDeadline: () => stamp({
+            kind: "TIMEOUT",
+            terminal: true,
+            exitCode: 5,
+            reason: {
+              kind: "queued-stack",
+              frontier: evaluation.frontier,
+              unmergedCount: activeRows(state).length,
+            },
+          }),
+        };
       default: {
         const exhaustive: never = evaluation;
         return exhaustive;

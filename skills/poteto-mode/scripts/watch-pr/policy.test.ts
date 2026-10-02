@@ -10,6 +10,7 @@ import {
   queryBackoffSeconds,
   readSnapshot,
   runQueued,
+  runSimple,
   selectTierMajorStackDecision,
 } from "./policy.ts";
 import {
@@ -41,6 +42,33 @@ const options = {
   maxQueryErrors: 5,
   allowDraft: false,
 } satisfies PollingOptions;
+
+for (const queued of [false, true]) {
+  for (const retry of [false, true]) {
+    it(`bounds ${queued ? "queued" : "simple"} ${retry ? "retry" : "poll"} sleep by the deadline`, async () => {
+      let now = 0;
+      let reads = 0;
+      const sleeps: number[] = [];
+      const base = fakeReader({ fastPath: { kind: "checks", checks: [pendingCheck()] } });
+      const dependencies = {
+        reader: { ...base, async pullRequest(pr: PrContext) {
+          reads += 1;
+          now += 2;
+          if (retry) throw new WatcherQueryError({ kind: "command-exit", retryable: true, code: 1, detail: "unavailable" });
+          return base.pullRequest(pr);
+        } },
+        clock: { now: () => now, observedAt: () => "now", async sleep(seconds: number) { sleeps.push(seconds); now += seconds; } },
+        emit() {},
+      };
+      const args = { dependencies, contexts: [context(1)] as NonEmpty<PrContext>, options: { ...options, timeout: 10, interval: 3600 } };
+      const result = queued ? await runQueued(args) : await runSimple({ ...args, mode: "single", statusOnly: false });
+      expect(result.kind).toBe("TIMEOUT");
+      expect(now).toBe(10);
+      expect(sleeps).toEqual([8]);
+      expect(reads).toBe(1);
+    });
+  }
+}
 
 describe("readiness truth table", () => {
   it("covers every specified row and every UNKNOWN rollup value", () => {

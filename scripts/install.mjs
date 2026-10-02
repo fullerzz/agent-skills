@@ -28,8 +28,9 @@ function main() {
   const hosts = values.host === 'both' ? ['codex', 'claude'] : [values.host];
   const plans = hosts.map(host => {
     const base = project ?? home;
-    const skills = join(base, host === 'codex' ? '.agents/skills' : '.claude/skills');
-    const native = host === 'codex' && !project && !values.home && process.env.CODEX_HOME ? resolve(process.env.CODEX_HOME) : join(base, host === 'codex' ? '.codex' : '.claude');
+    const configured = process.env[host === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR'];
+    const native = !project && !values.home && configured ? resolve(configured) : join(base, host === 'codex' ? '.codex' : '.claude');
+    const skills = host === 'codex' ? join(base, '.agents/skills') : join(native, 'skills');
     const receipt = join(native, 'pstack-install.json');
     if (present(receipt) && (!lstatSync(receipt).isFile() || lstatSync(receipt).isSymbolicLink())) throw new Error(`Receipt is not a regular file: ${receipt}`);
     const saved = existsSync(receipt) ? JSON.parse(readFileSync(receipt, 'utf8')) : { source: root, agents: {} };

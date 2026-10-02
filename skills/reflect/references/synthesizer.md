@@ -10,6 +10,8 @@ Reviewer outputs:
 
 <DIVERGENT_OUTPUT>
 
+Preserve invocation policy. Before proposing a missed-trigger or description change, read the target skill and host metadata. An explicit-only skill not selected by an ordinary request is expected behavior, not a missed trigger. Recommend automatic selection only when its existing policy permits it; changing invocation policy requires an explicit user request.
+
 Apply each criterion to every finding:
 
 - Durability: still true in 6 months once paths, SHAs, tool versions, and code shapes have changed.

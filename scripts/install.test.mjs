@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, existsSync, writeFileSync, readFileSync, realpathSync, unlinkSync, symlinkSync, rmSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, existsSync, writeFileSync, readFileSync, realpathSync, readlinkSync, unlinkSync, symlinkSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,30 @@ import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const run = args => spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), ...args], { encoding: 'utf8' });
+test('native personal roots are honored; explicit home and project remain isolated', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'pstack native roots '));
+  try {
+    const codex = join(scratch, 'codex config'), claude = join(scratch, 'claude config');
+    const env = { ...process.env, CODEX_HOME: codex, CLAUDE_CONFIG_DIR: claude };
+    const invoke = args => spawnSync(process.execPath, [join(root, 'scripts/install.mjs'), ...args], { encoding: 'utf8', env });
+    const preview = invoke(['--host', 'claude']);
+    assert.equal(preview.status, 0);
+    assert.ok(invoke(['--host', 'codex']).stdout.includes(`create\t${join(codex, 'agents/poteto-agent.toml')}\t`));
+    assert.ok(preview.stdout.includes(`create\t${join(claude, 'skills/how')}\t`));
+    assert.equal(invoke(['--host', 'claude', '--apply']).status, 0);
+    assert.equal(realpathSync(join(claude, 'skills/how')), join(root, 'skills/how'));
+    assert.equal(existsSync(join(claude, 'agents/poteto-agent.md')), true);
+    assert.equal(invoke(['uninstall', '--host', 'claude', '--apply']).status, 0);
+    assert.equal(existsSync(join(claude, 'agents/poteto-agent.md')), false);
+    for (const scope of ['--home', '--project']) {
+      const target = join(scratch, scope.slice(2)); mkdirSync(target, { recursive: true });
+      assert.equal(invoke([scope, target, '--host', 'both', '--apply']).status, 0);
+      assert.equal(existsSync(join(target, '.claude/skills/how')), true);
+      assert.equal(existsSync(join(target, '.codex/agents/poteto-agent.toml')), true);
+      assert.equal(existsSync(join(claude, 'skills/how')), false);
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
 test('install preview, rerun, collision, and owned removal for both hosts', () => {
   const home = mkdtempSync(join(tmpdir(), 'pstack home '));
   try {
@@ -16,6 +40,10 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(run(args).status, 0);
     assert.equal(existsSync(join(home, '.agents')), false);
     assert.equal(run([...args, '--apply']).status, 0);
+    const missingCopy = join(home, '.codex/agents/poteto-agent.toml');
+    unlinkSync(missingCopy);
+    assert.equal(run([...args, '--apply']).status, 0);
+    assert.equal(readFileSync(missingCopy, 'utf8'), readFileSync(join(root, 'agents/codex/poteto-agent.toml'), 'utf8'));
     assert.equal(realpathSync(join(home, '.agents/skills/how')), join(root, 'skills/how'));
     assert.equal(realpathSync(join(home, '.claude/skills/how')), join(root, 'skills/how'));
     assert.match(readFileSync(join(home, '.codex/agents/poteto-agent.toml'), 'utf8'), /developer_instructions/);
@@ -28,10 +56,13 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     mkdirSync(unrelated);
     const foreign = join(home, '.agents/skills/how');
     unlinkSync(foreign); symlinkSync(unrelated, foreign);
+    const dangling = join(home, '.claude/skills/why'), destination = join(home, 'missing foreign skill');
+    unlinkSync(dangling); symlinkSync(destination, dangling);
     assert.equal(run(['uninstall', ...args, '--apply']).status, 0);
     assert.equal(readFileSync(modified, 'utf8'), 'user override\n');
     assert.equal(existsSync(unrelated), true);
     assert.equal(realpathSync(foreign), realpathSync(unrelated));
+    assert.equal(readlinkSync(dangling), destination);
     assert.equal(existsSync(join(home, '.codex/agents/poteto-agent.toml')), false);
     assert.equal(existsSync(join(home, '.claude/skills/how')), false);
   } finally { rmSync(home, { recursive: true, force: true }); }

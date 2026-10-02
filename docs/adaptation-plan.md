@@ -1,6 +1,6 @@
 # Adapt pstack for Codex and Claude Code
 
-Status: implemented locally after scope approval and oracle review. Both oracle findings are addressed in code and focused checks. Representative native scenarios and remaining limits are recorded in [validation](validation.md). No personal installation, commit, push, or publication was performed.
+Status: implementation committed as `270ef2348dc92b993297fff8e9c465c3fb435ad5` after scope approval and plan-level oracle review. Both oracle findings are addressed in code and focused checks. Representative native scenarios, subsequent implementation review, and review corrections are recorded in [validation](validation.md). No personal installation, push, or publication was performed.
 
 Make this repository a personal skill library that works in Codex and Claude Code without Cursor. Keep the useful engineering workflows, principles, references, and scripts. Replace assumptions about the host rather than maintaining two copies of every skill.
 
@@ -132,7 +132,7 @@ Use one small structural check plus a few realistic scenarios. Static checks can
 - Run an installed workflow from a separate temporary Git repository whose path contains spaces. Verify bundled script and reference resolution, record the repository the helper actually inspects, and assert it is the target repository rather than this skills checkout.
 - Check policy behavior separately: existing explicit-only skills stay explicit-only, and reusable principles remain available as intended. Check selected skills through the mode router as well as direct invocation.
 - Confirm that a local skill-authoring request does not send messages, file tracker items, push, or open a PR without authorization in that request.
-- Record tested CLI versions and any minimum-version requirements demonstrated by the checks. The local binaries inspected during planning are Codex CLI `0.160.0` and Claude Code `2.1.287`; compatibility has not yet been tested.
+- Record tested CLI versions and any minimum-version requirements demonstrated by the checks. Codex CLI `0.160.0` and Claude Code `2.1.287` have now passed representative native scenarios; see [validation](validation.md) for exact coverage and unresolved limits.
 
 Done when both hosts pass these scenarios, every installed workflow has a supported execution path, and the README's setup steps have been followed successfully from a clean temporary installation.
 

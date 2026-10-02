@@ -2,7 +2,7 @@
 
 From the library checkout run `node scripts/install.mjs --host claude`, inspect the preview, then repeat with `--apply`. Add `--project "/path/to/project"` for project scope.
 
-Personal skills link into `~/.claude/skills/<name>`; project skills into `.claude/skills/<name>`. Native agent copies go to the corresponding `.claude/agents/`. A new session discovers these sources.
+Personal skills link into `$CLAUDE_CONFIG_DIR/skills/<name>` (default `~/.claude/skills/<name>`); native agents copy into that root's `agents/`. Project installation uses `.claude/skills/<name>` and `.claude/agents/`. Explicit `--home` uses that root's `.claude`, ignoring the environment override so fixture installations stay isolated. A new session discovers these sources. See the native [configuration-directory setting](https://code.claude.com/docs/en/env-vars#variables).
 
 Invoke `/how` or `/poteto-mode`. Explicit-only skills retain `disable-model-invocation: true`. When the selected mode needs a companion, it reads that installed skill's instructions deliberately. Do not assume an explicit-only skill can be silently auto-selected.
 
