@@ -15,8 +15,11 @@ import uuid
 from pathlib import Path
 from typing import Never, NotRequired, TypedDict
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.panel import Panel
 from rich.segment import Segment, Segments
+from rich.table import Table
+from rich.text import Text
 
 ROOT = Path(__file__).resolve().parent.parent
 console = Console(soft_wrap=True, highlight=False, markup=False)
@@ -37,6 +40,7 @@ class Entry(TypedDict):
 
 
 class Plan(TypedDict):
+    host: str
     receipt: Path
     legacy_receipt: NotRequired[Path]
     saved: Receipt
@@ -75,6 +79,75 @@ def atomic_write(target: Path, contents: bytes) -> None:
 def save(plan: Plan) -> None:
     plan["receipt"].parent.mkdir(parents=True, exist_ok=True)
     atomic_write(plan["receipt"], (json.dumps(plan["saved"], indent=2) + "\n").encode())
+
+
+OPS = {
+    "collision": ("bold red", "exists and is not owned; blocks install"),
+    "create": ("green", "new"),
+    "update": ("cyan", "owned copy changed in checkout"),
+    "replace": ("yellow", "overwritten by --force"),
+    "remove": ("red", "owned by this checkout"),
+    "preserve": ("magenta", "unowned or modified; left in place"),
+    "keep": ("dim", "already installed"),
+    "absent": ("dim", "not installed"),
+}
+HOSTS = {"codex": "Codex", "claude": "Claude Code"}
+
+
+def tilde(path: Path) -> str:
+    home = Path.home()
+    return f"~/{path.relative_to(home)}" if path.is_relative_to(home) else str(path)
+
+
+def show(plans: list[Plan], action: str) -> None:
+    # Pipes and tests get one tab-separated line per entry.
+    if not console.is_terminal:
+        for plan in plans:
+            for entry in plan["entries"]:
+                console.print(
+                    Segments(
+                        [
+                            Segment(
+                                f"{entry['op']}\t{entry['target']}\t{entry['source']}\n"
+                            )
+                        ]
+                    ),
+                    end="",
+                )
+        return
+    console.print(Text.assemble((f"zstack {action}", "bold"), " from ", tilde(ROOT)))
+    for plan in plans:
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(no_wrap=True)
+        grid.add_column(justify="right")
+        grid.add_column()
+        dirs = {entry["kind"]: entry["target"].parent for entry in plan["entries"]}
+        for kind, label in (("link", "skills"), ("copy", "agents")):
+            grid.add_row(
+                Text(label, "dim"), "", Text(tilde(dirs[kind]), "dim", overflow="fold")
+            )
+        grid.add_row()
+        for op, (style, note) in OPS.items():
+            names = [
+                entry["target"].name for entry in plan["entries"] if entry["op"] == op
+            ]
+            if names:
+                grid.add_row(
+                    Text(op, style),
+                    str(len(names)),
+                    Group(
+                        Text(note, "dim italic"),
+                        Text("  ".join(names), overflow="fold"),
+                    ),
+                )
+        console.print(
+            Panel(
+                grid,
+                title=Text(HOSTS[plan["host"]], "bold"),
+                title_align="left",
+                border_style="dim",
+            )
+        )
 
 
 class Parser(argparse.ArgumentParser):
@@ -222,6 +295,7 @@ def main() -> None:
                     ("remove" if owned else "preserve") if exists else "absent"
                 )
         plan: Plan = {
+            "host": host,
             "receipt": native / "zstack-install.json",
             "saved": saved,
             "entries": entries,
@@ -229,20 +303,16 @@ def main() -> None:
         if receipt == legacy_receipt:
             plan["legacy_receipt"] = legacy_receipt
         plans.append(plan)
-    for plan in plans:
-        for entry in plan["entries"]:
-            console.print(
-                Segments(
-                    [Segment(f"{entry['op']}\t{entry['target']}\t{entry['source']}\n")]
-                ),
-                end="",
-            )
+    show(plans, args.action)
     if any(entry["op"] == "collision" for plan in plans for entry in plan["entries"]):
         raise ValueError(
             "Existing files conflict. Nothing installed; choose another scope or resolve the named collisions."
         )
     if not args.apply:
-        console.print("Preview only. Add --apply to perform these operations.")
+        console.print(
+            "Preview only. Add --apply to perform these operations.",
+            style="bold yellow",
+        )
         return
     for plan in plans:
         if "legacy_receipt" in plan:
@@ -285,11 +355,10 @@ def main() -> None:
             save(plan)
         elif present(plan["receipt"]):
             plan["receipt"].unlink()
-    if any(
-        entry["op"] == "preserve" for plan in plans for entry in plan["entries"]
-    ):
+    if any(entry["op"] == "preserve" for plan in plans for entry in plan["entries"]):
         console.print(
-            "Preserved unowned or modified files. Their receipts remain for inspection."
+            "Preserved unowned or modified files. Their receipts remain for inspection.",
+            style="magenta",
         )
 
 
@@ -297,5 +366,5 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError) as error:
-        errors.print(str(error))
+        errors.print(str(error), style="bold red")
         sys.exit(1)

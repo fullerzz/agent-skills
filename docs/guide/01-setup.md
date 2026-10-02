@@ -42,7 +42,7 @@ uv run scripts/install.py --host both --project "/absolute/path/to/project" --ap
 
 Replace `both` with `codex` or `claude` for one host. `--home "/temporary/home"` selects an isolated personal root; it cannot be combined with `--project`. Empty scope values are rejected before writes.
 
-The preview reports `create`, `keep`, `update`, or `collision`. Any collision stops the entire installation before writes, including when installing both hosts. Existing zstack folders, links to another checkout, and locally modified agent copies can collide. Inspect the named path, back up custom work, then choose another scope or resolve only that conflict. A receipt from another checkout is rejected rather than adopted.
+The preview reports `create`, `keep`, `update`, or `collision`. In a terminal, entries are grouped by host and operation; when output is piped, each entry is one tab-separated `operation  target  source` line. Any collision stops the entire installation before writes, including when installing both hosts. Existing zstack folders, links to another checkout, and locally modified agent copies can collide. Inspect the named path, back up custom work, then choose another scope or resolve only that conflict. A receipt from another checkout is rejected rather than adopted.
 
 To replace conflicting skills, such as a previous pstack installation, add `--force`. Preview first, then apply with the same scope:
 
