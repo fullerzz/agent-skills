@@ -247,3 +247,19 @@ test('legacy installs migrate owned receipts and names while preserving modified
     assert.equal(JSON.parse(readFileSync(receipt, 'utf8')).agents['poteto-agent.toml'], saved.agents['poteto-agent.toml']);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
+test('terminal preview groups entries by operation per host', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'zstack terminal '));
+  try {
+    const env = { ...process.env, TTY_COMPATIBLE: '1', NO_COLOR: '1', COLUMNS: '200' };
+    const result = spawnSync('uv', ['run', '--script', join(root, 'scripts/install.py'), '--home', scratch, '--host', 'both'], { encoding: 'utf8', env });
+    assert.equal(result.status, 0);
+    const stdout = result.stdout.replace(/\x1b\[[0-9;]*m/g, '');
+    assert.doesNotMatch(stdout, /\t/);
+    assert.match(stdout, /Codex/);
+    assert.match(stdout, /Claude Code/);
+    assert.match(stdout, /create\s+\d+\s+new/);
+    assert.match(stdout, /z-agent\.toml/);
+    assert.match(stdout, /\.codex\/agents/);
+    assert.match(stdout, /Preview only/);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
