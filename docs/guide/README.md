@@ -1,14 +1,15 @@
 # The skill guide
 
-These examples use Claude Code slash syntax. In Codex use the same name with a dollar sign, such as `$how`. Start with a concrete goal and observable done condition.
+Start with a concrete goal and an observable done condition. Examples show both hosts: Claude Code uses slash syntax, such as `/how`, and Codex uses a dollar sign, such as `$how`.
 
-1. [Install](01-setup.md).
-2. [Route work](02-poteto-mode.md).
-3. [Understand code](03-understand.md).
-4. [Design and review](04-design.md).
-5. [Build and clean](05-build-and-clean.md).
-6. [Verify and publish](06-verify-and-ship.md).
-7. [Long work and handoffs](07-overnight.md).
-8. [Use principles](08-principles.md).
-9. [Personalize](09-make-it-yours.md).
-10. [Recipes and limits](10-recipes-and-pitfalls.md).
+<Workflow />
+
+| Step | Page | Key skills |
+| --- | --- | --- |
+| 1 | [Install and route work](01-setup.md) | setup-pstack, poteto-mode |
+| 2 | [Understand and design](02-understand-and-design.md) | how, why, teach, recall, architect, arena, swarm, interrogate |
+| 3 | [Build and verify](03-build-and-verify.md) | tdd, no-comments, unslop, create-verification-skill |
+| 4 | [Long work and conventions](04-long-work.md) | autonomous-run, pause-safely, orchestrate, automate-me, reflect |
+| 5 | [Principles and recipes](05-principles-and-recipes.md) | The 23 principles, example prompts |
+
+Every skill and playbook is listed in the [skill catalog](../skills.md).
