@@ -8,6 +8,10 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Codex plugin <Badge type="info" text="2026-10-03" />
 
+The added Ruff annotation (`ANN`) and complexity (`C901`) rules pass through `just check`. Typed helpers separate installer receipt loading, planning, and application; validator checks; package resource validation; hook state restoration; and benchmark execution. No new rule suppressions or hook runtime imports were added for these rules. Structural validation (48 skills), 13 Node tests, 14 Python tests, and a six-pair hook benchmark smoke check passed; the staged package was rebuilt.
+
+The user-provided Ruff configuration and `just check` recipes now pass for the Python sources. Formatting/import fixes and bound benchmark closures were applied; benchmark verification uses explicit errors so Python optimization cannot disable it. Documented rule exceptions preserve measured hook startup imports, lexical installer path handling, the stdlib unittest runner, trusted subprocess fixtures, the SafeLoader subclass, and independent helper-error reporting. Structural validation, 13 Node tests, 14 Python tests, and the historical-baseline benchmark smoke check passed. The user's justfile and Ruff configuration were unchanged.
+
 Renamed the hook to `session_start.py` and updated its configured command and tests. The benchmark reads each revision's helper filename from its hook configuration, preserving comparisons against pre-rename commits. Structural validation, 13 Node tests, 14 Python tests, and a six-pair historical-baseline benchmark smoke check passed; the smoke check establishes compatibility, not a new performance result. The staged package was rebuilt with the renamed hook.
 
 ### Hook startup optimization

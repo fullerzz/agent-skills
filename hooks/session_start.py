@@ -1,5 +1,8 @@
 """Codex SessionStart context and explicit, session-scoped z-mode controls."""
 
+# Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
+# ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
+
 import json
 import os
 import re
@@ -7,7 +10,7 @@ import shlex
 import sys
 
 
-def state_path(data_dir, session_id):
+def state_path(data_dir: str, session_id: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", session_id):
         raise ValueError("Invalid session id")
     if not os.path.isabs(data_dir):
@@ -15,7 +18,7 @@ def state_path(data_dir, session_id):
     return os.path.join(data_dir, "z-mode", session_id + ".json")
 
 
-def set_active(path, active):
+def set_active(path: str, active: bool) -> None:
     if not active:
         try:
             os.unlink(path)
@@ -39,7 +42,28 @@ def set_active(path, active):
             pass
 
 
-def session_start():
+def restore_state(path: str, source: str) -> tuple[bool, str | None]:
+    clear_error = None
+    if source == "clear":
+        try:
+            set_active(path, False)
+        except OSError:
+            clear_error = (
+                "z-mode state could not be removed on clear. This session is inactive, "
+                "but a later resume may see stale stored activation. Retry Disable "
+                "and preserve this opt-out in resume notes; user opt-out always takes precedence."
+            )
+    active = False
+    if source != "clear":
+        try:
+            with open(path, encoding="utf-8") as state:
+                active = json.load(state).get("active") is True
+        except (OSError, ValueError, AttributeError):
+            pass
+    return active, clear_error
+
+
+def session_start() -> None:
     try:
         event = json.loads(sys.stdin.read(65536))
         if event.get("hook_event_name") != "SessionStart":
@@ -52,30 +76,27 @@ def session_start():
     except (ValueError, TypeError, AttributeError, KeyError):
         return
 
-    clear_error = None
-    if event["source"] == "clear":
-        try:
-            set_active(path, False)
-        except OSError:
-            clear_error = (
-                "z-mode state could not be removed on clear. This session is inactive, "
-                "but a later resume may see stale stored activation. Retry Disable "
-                "and preserve this opt-out in resume notes; user opt-out always takes precedence."
-            )
-    active = False
-    if event["source"] != "clear":
-        try:
-            with open(path, encoding="utf-8") as state:
-                active = json.load(state).get("active") is True
-        except (OSError, ValueError, AttributeError):
-            pass
+    active, clear_error = restore_state(path, event["source"])
     helper = os.path.realpath(__file__)
     controls = {}
     for action in ("enable", "disable"):
-        controls[action] = shlex.join([
-            "uv", "run", "--no-project", "--no-config", "python", "-I", "-S", helper, action,
-            "--session-id", session_id, "--data-dir", data_dir,
-        ])
+        controls[action] = shlex.join(
+            [
+                "uv",
+                "run",
+                "--no-project",
+                "--no-config",
+                "python",
+                "-I",
+                "-S",
+                helper,
+                action,
+                "--session-id",
+                session_id,
+                "--data-dir",
+                data_dir,
+            ]
+        )
     context = (
         "The zstack plugin provides engineering skills. Select only skills whose "
         "invocation policy permits the current request. Installation does not enable z-mode. "
@@ -97,16 +118,19 @@ def session_start():
         context += "z-mode is inactive for this cleared context."
     else:
         context += "No stored z-mode activation exists for this session."
-    output = {"hookSpecificOutput": {
-        "hookEventName": "SessionStart", "additionalContext": context,
-    }}
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": context,
+        }
+    }
     if clear_error:
         output["systemMessage"] = clear_error
         output["hookSpecificOutput"]["additionalContext"] += "\n" + clear_error
     print(json.dumps(output))
 
 
-def main():
+def main() -> None:
     if len(sys.argv) == 1:
         session_start()
         return

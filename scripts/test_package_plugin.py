@@ -1,3 +1,6 @@
+# Retain the stdlib unittest runner used by the repository.
+# ruff: noqa: PT009, PT027
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,10 +9,21 @@ from package_plugin import package
 
 
 class PackagePluginTests(unittest.TestCase):
-    def test_resources_dependencies_and_rebuild(self):
+    def test_resources_dependencies_and_rebuild(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for name in (".codex-plugin/plugin.json", "LICENSE", "skills/z-mode/SKILL.md", "skills/z-mode/scripts/tool.ts", "skills/z-mode/scripts/package.json", "hooks/hooks.json", "hooks/session_start.py", "skills/z-mode/scripts/node_modules/dependency.js", "skills/z-mode/__pycache__/module.pyc", ".git/config"):
+            for name in (
+                ".codex-plugin/plugin.json",
+                "LICENSE",
+                "skills/z-mode/SKILL.md",
+                "skills/z-mode/scripts/tool.ts",
+                "skills/z-mode/scripts/package.json",
+                "hooks/hooks.json",
+                "hooks/session_start.py",
+                "skills/z-mode/scripts/node_modules/dependency.js",
+                "skills/z-mode/__pycache__/module.pyc",
+                ".git/config",
+            ):
                 file = root / name
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text(name)
@@ -25,7 +39,7 @@ class PackagePluginTests(unittest.TestCase):
             package(root)
             self.assertFalse((staged / "stale").exists())
 
-    def test_refuses_symlinked_destination_and_external_resources(self):
+    def test_refuses_symlinked_destination_and_external_resources(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for name in (".codex-plugin/plugin.json", "LICENSE"):

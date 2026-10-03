@@ -7,11 +7,18 @@ import os
 import shutil
 from pathlib import Path
 
-
 RESOURCES = (".codex-plugin", "LICENSE", "skills", "hooks")
 IGNORED = {
-    ".git", "node_modules", "__pycache__", ".cache", ".venv", ".agent-work",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache", ".DS_Store",
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".cache",
+    ".venv",
+    ".agent-work",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".DS_Store",
 }
 
 
@@ -19,11 +26,7 @@ def ignored(directory: str, names: list[str]) -> set[str]:
     return {name for name in names if name in IGNORED or name.endswith((".pyc", ".pyo", ".log"))}
 
 
-def package(root: Path) -> Path:
-    root = root.resolve()
-    destination = root / "dist" / "zstack"
-    if (root / "dist").is_symlink() or destination.is_symlink():
-        raise ValueError("Refusing to replace a symlinked dist/zstack directory")
+def validate_resources(root: Path) -> None:
     for name in RESOURCES:
         source = root / name
         if not source.exists() or source.is_symlink():
@@ -38,13 +41,21 @@ def package(root: Path) -> Path:
                     continue
                 target = path.resolve()
                 if (
-                    Path(os.readlink(path)).is_absolute()
+                    path.readlink().is_absolute()
                     or not target.exists()
                     or not any(target.is_relative_to(root / resource) for resource in RESOURCES)
                     or any(part in IGNORED for part in target.relative_to(root).parts)
                     or bool(ignored(str(target.parent), [target.name]))
                 ):
                     raise ValueError(f"Plugin symlink escapes packaged resources: {path.relative_to(root)}")
+
+
+def package(root: Path) -> Path:
+    root = root.resolve()
+    destination = root / "dist" / "zstack"
+    if (root / "dist").is_symlink() or destination.is_symlink():
+        raise ValueError("Refusing to replace a symlinked dist/zstack directory")
+    validate_resources(root)
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
