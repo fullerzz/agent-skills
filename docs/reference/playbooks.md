@@ -347,6 +347,10 @@ Claude Code: /z-mode Commit these task files and open a draft PR against main.
 
 Verify repository, branch, base and dirty state; check requirements; stage intended files; commit and publish within authority; write a concrete body and read back head, base and URL. Return publication link and validation.
 
-**Prerequisites and limits:** Requires publication authority and forge tooling; GitHub prefers gh with a body file. Opening a PR does not authorize merge, auto-merge, or background babysitting.
+Use the host's built-in PR tool for supported operations and forge or stack tooling for the rest. With no built-in tool, GitHub falls back to gh with a body file. Complete any required host attachment even when creation used a CLI.
+
+Descriptions use `## Why`, `## What changed`, `## Scope`, optional `## Tradeoffs` and `## Blast Radius`, and `## Verification`, unless the repository template or user specifies another format. Keep each stack layer's description scoped to its own diff; root targets trunk and children target their parent branch.
+
+**Prerequisites and limits:** Requires publication authority. Honor requested draft/ready status and repository policy; otherwise open ready and verify actual state. Opening a PR does not authorize merge, auto-merge, or background babysitting.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/opening-a-pr.md).
