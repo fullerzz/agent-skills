@@ -8,6 +8,18 @@ Shared instructions live in `skills/`. Each host uses its own native agents and 
 
 Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. Only `how` and `why` permit automatic selection in Codex; z-mode and the other workflows remain explicit. Claude Code continues to use the installer below.
 
+From this checkout, stage and install the native Codex plugin:
+
+```sh
+uv run scripts/package_plugin.py
+codex plugin marketplace add "$PWD"
+codex plugin add zstack@zstack-local
+```
+
+Start a new session and select `zstack:how` from the skill picker. Review hook trust separately. The plugin packages skills and the hook; it does not register native agent roles.
+
+### Linked installation
+
 Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the helper tests; Bun runs the optional orchestration and PR tools. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
@@ -37,6 +49,10 @@ Explicit-only workflows retain their invocation policy. The mode reads relevant 
 See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-code.md), and the [guide](docs/guide/README.md). Runtime evidence and remaining gaps are recorded in [validation](docs/validation.md).
 
 ## Remove
+
+For the native Codex plugin, run `codex plugin remove zstack@zstack-local`. See [plugin updates and marketplace removal](docs/hosts/codex.md#plugin-update-and-removal).
+
+For linked installations:
 
 ```sh
 uv run scripts/install.py uninstall --host both

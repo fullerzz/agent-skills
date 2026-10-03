@@ -1,6 +1,6 @@
 # The skill guide
 
-Start with a concrete goal and an observable done condition. Examples show both hosts: Claude Code uses slash syntax, such as `/how`, and Codex uses a dollar sign, such as `$how`.
+Start with a concrete goal and an observable done condition. Examples show both hosts: Claude Code uses slash syntax, such as `/how`, and Codex uses a dollar sign, such as `$how`. With the native Codex plugin, select the namespaced equivalent (for example, `zstack:how`) through the skill picker. See [installation choices](01-setup.md#install).
 
 ## How the library works
 

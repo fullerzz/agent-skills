@@ -77,6 +77,7 @@ export default defineConfig({
         items: [
           { text: 'Claude Code', link: '/hosts/claude-code' },
           { text: 'Codex', link: '/hosts/codex' },
+          { text: 'Native Codex plugin', link: '/hosts/codex#native-plugin' },
         ],
       },
     ],
@@ -102,6 +103,7 @@ export default defineConfig({
           { text: 'Principles', link: '/reference/principles' },
           { text: 'Claude Code', link: '/hosts/claude-code' },
           { text: 'Codex', link: '/hosts/codex' },
+          { text: 'Native Codex plugin', link: '/hosts/codex#native-plugin' },
         ],
       },
       {

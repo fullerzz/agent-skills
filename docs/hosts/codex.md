@@ -52,6 +52,24 @@ codex plugin add zstack@zstack-local
 
 Restart the session and review hook trust afterward. To uninstall, run only the removal command. Remove its marketplace separately with `codex plugin marketplace remove zstack-local` if no longer needed. These commands manage the native plugin; the Python uninstall command manages the linked installation.
 
+### Check the plugin and troubleshoot
+
+```sh
+codex plugin list --marketplace zstack-local --json
+```
+
+Confirm `zstack@zstack-local` is installed and enabled. In a new session, check for namespaced skills in the picker. The session hook should supply controls for the current session and report whether z-mode has stored activation. An inactive report is expected until you explicitly select z-mode.
+
+| Symptom | Check |
+| --- | --- |
+| Duplicate skill names | Remove the old linked installation in its original scope before using the plugin. |
+| Checkout edits are missing | Rebuild `dist/zstack`, remove and add the cached plugin, then start a new session. |
+| Skills load but mode persistence is unavailable | Check hook trust and whether uv is available on the execution host. |
+| `z-agent` or `comment-sicko` is unavailable | The plugin does not register these roles; use the linked installation if you need installer-managed agents. |
+| CLI reports it could not create PATH aliases | Check the command's exit status and output. This is a Codex CLI startup warning, not a zstack hook error. In the recorded sandbox check, help and plugin listing still succeeded. |
+
+Installed/enabled status proves registration, not skill execution. See the [validation record](../validation.md) for observed host behavior and remaining gaps.
+
 ## Install
 
 The linked installation remains available for hosts without native plugin support and for installer-managed native roles.

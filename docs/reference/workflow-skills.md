@@ -1,8 +1,8 @@
 # Workflow skills
 
-These entries describe the 24 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. Replace the task details with your own files, feature, or repository.
+These entries describe the 24 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native Codex plugin, select the namespaced equivalent, such as `zstack:how`, through the skill picker. Replace the task details with your own files, feature, or repository.
 
-Most workflow skills require explicit invocation. `setup-zstack` permits implicit invocation through its host metadata. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
+Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
 Delegated workflows use native host agents, inherited models, bounded concurrency, and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
 

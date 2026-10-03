@@ -43,4 +43,4 @@ $z-mode pause; record the exact resume action
 Neither skill silently writes memory or files external backlog.
 :::
 
-Keep one canonical skill source and link it into each chosen host. Preserve invocation policy, validate metadata and resources, and exercise behavior changes in isolated native sessions.
+Keep one canonical skill source. Use linked installation or rebuild and refresh the native Codex plugin when that source changes. Preserve invocation policy, validate metadata and resources, and exercise behavior changes in isolated native sessions.

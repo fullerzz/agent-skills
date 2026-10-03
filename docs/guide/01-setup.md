@@ -11,9 +11,34 @@ git clone https://github.com/fullerzz/agent-skills.git "$HOME/Code/agent-skills"
 cd "$HOME/Code/agent-skills"
 ```
 
-Skills link back to this checkout. Keep it available at the same path for as long as the installation is in use.
+Linked installations refer back to this checkout. The native Codex plugin uses a cached package, with this checkout supplying local marketplace updates.
 
 ## Install
+
+Choose one Codex installation method. Claude Code uses the linked installer.
+
+| Method | Includes | Use when |
+| --- | --- | --- |
+| [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
+| Linked installer | Skill links and copied native agent roles | You use Claude Code or need installer-managed Codex roles. |
+
+### Native Codex plugin
+
+From the checkout, stage the package and register its local marketplace:
+
+```sh
+uv run scripts/package_plugin.py
+codex plugin marketplace add "$PWD"
+codex plugin add zstack@zstack-local
+```
+
+Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. Only `how` and `why` permit automatic selection in Codex.
+
+If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; workflows use available roles or disclose a fallback. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
+
+### Linked installer
+
+The remaining installation, discovery, update, and removal commands on this page describe linked installations. Keep their checkout at a stable path.
 
 1. Preview the installation and check for collisions.
 2. Apply it.
@@ -113,7 +138,7 @@ Receipts record the source path. Moving first leaves broken links and causes rec
 
 ## Host differences
 
-[Compare installation maps](visual-guide.md#from-checkout-to-host) to see how linked skills, copied agents, and ownership receipts fit together for each host and scope.
+The table and [installation maps](visual-guide.md#from-checkout-to-host) describe linked installations. Native Codex plugin skills come from the plugin cache and use names such as `zstack:how`; the plugin does not register agent roles.
 
 | | Claude Code | Codex |
 | --- | --- | --- |
@@ -145,5 +170,5 @@ $z-mode explain the retry path; no edits
 :::
 
 ::: tip Mode persistence
-The mode lasts within conversational context until "stop z-mode". A resume note carries it to a new session.
+The mode remains selected until "stop z-mode" or a style switch. With the trusted Codex plugin hook, explicit activation is stored for that session and restored on resume or compaction; forks do not inherit activation, and clearing resets it. Without the hook, preserve the selection or opt-out in conversation context and resume notes. Installation alone never activates the mode.
 :::

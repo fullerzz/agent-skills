@@ -1,6 +1,6 @@
 # Adapt upstream pstack for Codex and Claude Code
 
-This records the original port. Current usage examples use the updated zstack names; the upstream baseline and original naming decision are retained as history. The personal rename now uses `z-mode`, `z-agent`, and `setup-zstack`.
+This records the original port. Native Codex plugin packaging was added afterward; use the [current Codex setup](hosts/codex.md#native-plugin) for installation rather than the original distribution plan below. Current usage examples use the updated zstack names; the upstream baseline and original naming decision are retained as history. The personal rename now uses `z-mode`, `z-agent`, and `setup-zstack`.
 
 Status: implementation committed as `270ef2348dc92b993297fff8e9c465c3fb435ad5` after scope approval and plan-level oracle review. Both oracle findings are addressed in code and focused checks. Representative native scenarios, subsequent implementation review, and review corrections are recorded in [validation](validation.md). No personal installation, push, or publication was performed.
 
