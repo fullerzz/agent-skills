@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## PR workflow <Badge type="info" text="2026-10-03" />
 
+PR #11 review remediation explicitly marks only Tradeoffs and Blast Radius as optional and defines when Blast Radius may be omitted, matching the user reference. Structural validation (48 skills, zero problems), both documentation reference tests, the VitePress build, and whitespace checks passed. This is documentation validation, not live host behavior.
+
 Ported upstream 23e4138's built-in PR-tool preference and concise description headings. The workflow keeps repository templates and requested draft status, falls back per unsupported operation, and requires host registration even after CLI creation. Queue publication routes through the shared PR playbook.
 
 Structural validation passed (48 skills, zero problems), all 13 Node tests and four Python tests passed, and the VitePress build and whitespace check passed using the temporary mise cache. A direct instruction walkthrough covered a partial-capability PR tool (fallback only for missing operations), an attachment-only tool (create through forge tooling, then attach), a requested draft (preserve it), and a child PR (target its parent). This is prose validation, not fresh autonomous host behavior. The task's actual stack publication uses gh-stack plus host attachment because no built-in creation tool is exposed.

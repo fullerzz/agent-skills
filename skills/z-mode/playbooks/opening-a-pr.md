@@ -9,13 +9,13 @@ Return what was published, the link, checks, and limits. Local fixes remain loca
 
 ## Description format
 
-Keep the briefing readable in under a minute, normally under 40 lines. Use actual `##` headings rather than bold lead-ins. Keep these sections in order, omitting empty optional sections:
+Keep the briefing readable in under a minute, normally under 40 lines. Use actual `##` headings rather than bold lead-ins. Keep these sections in order. Only `## Tradeoffs` and `## Blast Radius` are optional, under the conditions below:
 
 - `## Why`: one to three short sentences stating the problem and approach.
 - `## What changed`: one to three bullets. Name symbols or paths only when they explain the change; name both sides of a rename.
 - `## Scope`: one to three items stating what this PR covers and any deliberate exclusions, follow-ups, or known gaps. Do not invent exclusions or enumerate every file.
 - `## Tradeoffs`: only alternatives a reviewer would reasonably ask about; omit when there was no meaningful choice.
-- `## Blast Radius`: one or two sentences identifying affected users or behavior and material risks. If this repairs a red main, explain the cost of leaving it broken.
+- `## Blast Radius`: one or two sentences identifying affected users or behavior and material risks; omit when there is no material risk or cost to report. If this repairs a red main, explain the cost of leaving it broken.
 - `## Verification`: one to three bullets naming actual checks and outcomes. For performance changes, use one primary before/after number with units and link the supporting run evidence.
 
 Link detailed logs, measurements, and review artifacts instead of pasting SHA lists, worker reports, or file-by-file recitals. Attach screenshots or video when they prove a claim.
