@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Codex plugin <Badge type="info" text="2026-10-03" />
 
+Renamed the hook to `session_start.py` and updated its configured command and tests. The benchmark reads each revision's helper filename from its hook configuration, preserving comparisons against pre-rename commits. Structural validation, 13 Node tests, 14 Python tests, and a six-pair historical-baseline benchmark smoke check passed; the smoke check establishes compatibility, not a new performance result. The staged package was rebuilt with the renamed hook.
+
 ### Hook startup optimization
 
 The hook now defers argparse until a mode control runs and tempfile until enable writes state, uses os.path without importing pathlib, resolves its helper location once, and skips a redundant read after clear. The configured command and emitted controls use `--no-config` plus Python `-I -S` to avoid uv configuration discovery, Python environment customizations, and site initialization. State validation, atomic replacement, shell quoting, and opt-out failure reporting remain intact. The configured-command regression also runs with invalid local uv configuration and a PYTHONPATH site customization that must not execute.

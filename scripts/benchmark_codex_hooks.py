@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import statistics
+import shlex
 import subprocess
 import tempfile
 import time
@@ -20,15 +21,18 @@ def benchmark(baseline, pairs):
         for label in ("before", "after"):
             package = Path(temporary) / label
             (package / "hooks").mkdir(parents=True)
-            for name in ("hooks.json", "session-start.py"):
-                relative = f"hooks/{name}"
-                contents = (
+            def read_resource(relative):
+                return (
                     subprocess.check_output(
                         ["git", "show", f"{baseline}:{relative}"], cwd=root
                     ) if label == "before" else (root / relative).read_bytes()
                 )
-                (package / relative).write_bytes(contents)
-            command = json.loads((package / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+            config = read_resource("hooks/hooks.json")
+            (package / "hooks/hooks.json").write_bytes(config)
+            command = json.loads(config)["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+            # Historical baselines may use a different hook filename.
+            helper = next(part.removeprefix("${PLUGIN_ROOT}/") for part in shlex.split(command) if part.startswith("${PLUGIN_ROOT}/"))
+            (package / helper).write_bytes(read_resource(helper))
             data = package / "data"
             (data / "z-mode").mkdir(parents=True)
             variants[label] = (command, data, dict(os.environ, PLUGIN_ROOT=str(package), PLUGIN_DATA=str(data)))
