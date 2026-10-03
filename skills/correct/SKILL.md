@@ -31,8 +31,8 @@ Keep exceptions local to the offending line where supported, with a reason, expi
 
 ## Keep the rule table
 
-Update the repository's existing agent instruction file with a concise table pairing each remaining rule with its enforcement. Preserve unrelated instructions. Include a check command or code boundary, proof reference, and any unenforced judgment or approved exception. Do not copy private transcript excerpts into repository files.
+Only when repository edits are authorized, update the repository's existing agent instruction file with a concise table pairing each remaining rule with its enforcement. For review-only requests, return the proposed table and any proposed rule changes in the report without modifying files. Preserve unrelated instructions. Include a check command or code boundary, proof reference, and any unenforced judgment or approved exception. Do not copy private transcript excerpts into repository files.
 
-During this requested correction work, treat a recurrence of an existing unenforced rule as a reason to move enforcement higher in the same change. Remove redundant prose rules once their mistake is structurally impossible; retain the prevention evidence with the implementation. This skill does not activate itself on future corrections.
+During authorized correction edits, treat a recurrence of an existing unenforced rule as a reason to move enforcement higher in the same change. Remove redundant prose rules once their mistake is structurally impossible; retain the prevention evidence with the implementation. This skill does not activate itself on future corrections.
 
 Report each class, its occurrence evidence, the chosen prevention level, why higher levels were unsuitable, actual failing/passing checks, and remaining gaps.

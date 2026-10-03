@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Correct skill <Badge type="info" text="2026-10-03" />
 
+PR #14 review remediation explicitly gates rule-table updates and rule cleanup on authorized repository edits. Review-only invocations return the proposed table and rule changes in the report without modifying files. Structural validation passed (49 skills, zero problems), and whitespace checks passed. A direct instruction walkthrough checked both review-only and authorized-edit paths; this is prose verification, not a live model-driven run.
+
 Ported upstream 9511e603's repeated-mistake prevention workflow with explicit-only metadata for Codex and Claude Code. Preserved the prevention hierarchy and rule table, while scoping history access, requiring isolated historical reproductions, and keeping commits and future invocation outside the skill's authority. Updated the catalog references and current skill counts; historical host results below remain unchanged.
 
 Structural validation passed with 49 skills and zero problems, all 13 Node tests and 20 Python tests passed, and the VitePress production build and whitespace check passed. The first Node run lacked VitePress; installing the frozen pnpm dependencies resolved it. Commands used Homebrew's uv on PATH and a temporary mise cache for pnpm. A temporary-home installation for both hosts verified that each `correct` link resolves to this checkout and exposes the explicit-only policy. No personal skill installation was changed.
