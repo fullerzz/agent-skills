@@ -11,3 +11,5 @@ Cross-provider orchestration, marketplace packaging, and a replacement agent dae
 The personal naming migration uses `zstack`, `z-mode`, `setup-zstack`, and `z-agent`. Upstream names and URLs remain in attribution and historical baseline records.
 
 The benchmark-checklist and principle-explain-the-number skills were adapted from pstack 0.15.6, commit [23e4138](https://github.com/cursor/plugins/commit/23e4138daa01c42d4969f7a5465f82704e64f798). Their routing targets z-mode, preserves explicit invocation on both hosts, and uses portable host checks. This is a selective port, not a full update to that release.
+
+The same commit supplies the fresh-agent lifecycle policy, adapted to native host limits and exclusive write ownership. Reuse remains available for costly agent-held state.

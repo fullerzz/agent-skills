@@ -53,6 +53,8 @@ Agent roles are `z-agent` and `comment-sicko`, with Markdown frontmatter and `mo
 The comment reviewer excludes Write and Edit and is instructed to avoid all writes, including Bash and MCP. Those exclusions alone are not a complete sandbox.
 :::
 
+New tasks, fix rounds, and retries use fresh agents with consolidated briefs. Reuse requires costly agent-held state; stop or drain an old writer before assigning its files to a replacement. See the [native lifecycle contract](../../skills/z-mode/references/native-hosts.md#agent-lifecycle).
+
 ## Model overrides
 
 Use native model and effort configuration for requested overrides. Modified owned copies are preserved, and future installer runs report collisions.

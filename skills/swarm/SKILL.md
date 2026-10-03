@@ -12,6 +12,6 @@ Use the smallest useful count. Each brief names slice, read/write scope, exclusi
 
 Run native local workers within exposed limits. Do not assume cloud VMs or placement arguments. Isolate worktrees, data, and ports where needed.
 
-Wait for terminal results and inspect receipts. Missing required SHAs/method invalidate measurement: rerun once, then record a gap. A first-pass race still cancels or drains remaining writers.
+Wait for terminal results and inspect receipts. Missing required SHAs/method invalidate measurement: respawn that worker once with a consolidated brief under the [agent lifecycle rules](../z-mode/references/native-hosts.md#agent-lifecycle), then record a gap after a second miss. A first-pass race still cancels or drains remaining writers.
 
 Return a consolidated table, evidenced findings, selection rule, identities if exposed, and explicit gaps. Missing required coverage is not a pass.

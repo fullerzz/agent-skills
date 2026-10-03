@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Agent lifecycle <Badge type="info" text="2026-10-03" />
+
+PR #9 review remediation makes the reviewed-defect handoff explicitly target a fresh owner with the prior scope, directives, report, and artifact paths. The shared state-dependent reuse exception and safe writer handoff still apply. Structural validation (48 skills, zero problems), both documentation reference tests, the VitePress build, and whitespace checks passed. This is instruction and documentation validation, not live agent execution.
+
+Ported the fresh-agent default from upstream 23e4138 into the shared native contract, mode, agent descriptions, swarm retries, and queue playbooks. Consolidated briefs carry prior directives and artifacts; costly agent-held state permits reuse. Replacement writers must not overlap the previous writer's scope.
+
+Structural validation passed (48 skills, zero problems), all 13 Node tests and four Python tests passed, and the VitePress build and whitespace check passed using the temporary mise cache. A direct instruction walkthrough covered a completed worker's fix round (fresh agent), a needed live watcher (reuse), and an unconfirmed writer termination (separate scope or blocker). This is a prose walkthrough, not live agent-lifecycle validation. No personal installation was changed.
+
 ## Benchmark skills <Badge type="info" text="2026-10-03" />
 
 PR #8 review remediation replaces fixed AB ordering with counterbalanced AB/BA pairs or balanced randomized schedules, equivalent state preparation, and independent warmup. The workflow reference matches. Structural validation (48 skills, zero problems), all 13 Node tests, all four Python tests, the VitePress build, and whitespace checks passed. These checks validate documentation and packaging, not live benchmark fairness.
