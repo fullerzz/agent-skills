@@ -1,10 +1,33 @@
 # Workflow skills
 
-These entries describe the 23 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. Replace the task details with your own files, feature, or repository.
+These entries describe the 24 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. Replace the task details with your own files, feature, or repository.
 
 Most workflow skills require explicit invocation. `setup-zstack` permits implicit invocation through its host metadata. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
 Delegated workflows use native host agents, inherited models, bounded concurrency, and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
+
+## Benchmark checklist {#benchmark-checklist}
+
+Use this before reporting or acting on a measured speedup or regression.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$benchmark-checklist Vet the before/after export benchmark and its measurement script.` |
+| Claude Code | `/benchmark-checklist Vet the before/after export benchmark and its measurement script.` |
+
+### How it works
+
+Checks the limiter, production tuning, physical limits, failures, repeatability, end-to-end relevance, and whether the timed work happened. Comparative runs use at least five samples per side with counterbalanced or balanced randomized ordering, equivalent starting state, and independent warmup where needed. Record the order and state preparation, and report the median and range. A requested single-run ballpark still checks errors and completed work and is labeled as one run.
+
+### Expected result
+
+A faster, slower, no measurable difference, or inconclusive verdict with units, run count, spread, limiter evidence, and artifact paths.
+
+### Dependencies and limits
+
+Uses [Explain the number](principles.md#principle-explain-the-number). Z-mode's performance and hillclimb playbooks read this companion without changing its explicit-only policy. Missing evidence stays a gap; the skill does not expand the requested runtime budget or authorize publication.
+
+[Full benchmark-checklist instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/benchmark-checklist/SKILL.md)
 
 ## Architect {#architect}
 

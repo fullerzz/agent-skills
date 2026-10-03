@@ -50,6 +50,8 @@ Read only the selected playbook. Resolve companion skills through the catalog or
 
 If no playbook fits, read the installed figure-it-out skill and design a scoped workflow.
 
+When running a benchmark or reporting a measured speedup or regression, read [benchmark-checklist](../benchmark-checklist/SKILL.md) before trusting or acting on the number. For measured eval results, read [explain the number](../principle-explain-the-number/SKILL.md).
+
 ## Principles
 
 Load a leaf when it changes a decision. Principles remain inside task scope and host permissions.
@@ -59,6 +61,7 @@ Load a leaf when it changes a decision. Principles remain inside task scope and 
 - [build the lever](../principle-build-the-lever/SKILL.md)
 - [encode lessons in structure](../principle-encode-lessons-in-structure/SKILL.md)
 - [exhaust the design space](../principle-exhaust-the-design-space/SKILL.md)
+- [explain the number](../principle-explain-the-number/SKILL.md)
 - [experience first](../principle-experience-first/SKILL.md)
 - [fix root causes](../principle-fix-root-causes/SKILL.md)
 - [foundational thinking](../principle-foundational-thinking/SKILL.md)

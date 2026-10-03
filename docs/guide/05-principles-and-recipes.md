@@ -2,7 +2,7 @@
 
 ## Use principles when they change a decision
 
-The [router's principle index](../../skills/z-mode/SKILL.md#principles) lists all 23 leaves; the [skill catalog](../skills.md#principles) describes each one. Read the relevant leaf instead of reciting every principle for each task.
+The [router's principle index](../../skills/z-mode/SKILL.md#principles) lists all 24 leaves; the [skill catalog](../skills.md#principles) describes each one. Read the relevant leaf instead of reciting every principle for each task.
 
 | Principle | Pushes toward |
 | --- | --- |

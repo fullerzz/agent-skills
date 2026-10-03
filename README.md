@@ -2,7 +2,7 @@
 
 Zach's updated personal engineering skill library for Codex and Claude Code, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
-Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 46 skills, 23 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 48 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 ## Install
 

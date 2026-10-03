@@ -4,6 +4,14 @@ Principles are decision leaves, not a checklist to load in bulk. After selecting
 
 Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode Fix the restart crash; trace its root cause.` in Claude Code. The request selects bug-fix; evidence may then select fix-root-causes or make-operations-idempotent. Leaves preserve task scope, permissions and action authority. See the [routing source](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md).
 
+## Explain the number {#principle-explain-the-number}
+
+**Decision affected:** Before trusting a measured performance or eval result, establish what limits it and rule out failures, skipped work, tuning differences, and noise.
+
+**Example:** A faster export reports fewer completed rows. Reject the speedup claim, correct the probe, and repeat comparable runs. Keep run count, spread, and limiter evidence with the number. For performance results, use [benchmark-checklist](workflow-skills.md#benchmark-checklist).
+
+[Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-explain-the-number/SKILL.md).
+
 ## Attack the premise {#principle-attack-the-premise}
 
 **Decision affected:** After two fixes sharing an assumption fail the same gate, decide whether the assumption itself is wrong. Write it down and take a rerunnable per-actor census before another fix.
