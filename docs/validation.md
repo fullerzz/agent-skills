@@ -6,6 +6,16 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Interactive visual guide <Badge type="info" text="2026-10-02" />
+
+Added page-local Vue components for the library/host component map, four illustrative z-mode routes, and host/scope installation destinations. The maps derive their descriptions from the shared router, selected playbooks, native host contract, and installer locations; they do not execute workflows or change installation state.
+
+The VitePress production build passed on Node 24.21.0, alongside structural validation (46 skills, zero problems), all 13 Node tests, and all four Python tests. Runtime commands used a temporary `MISE_CACHE_DIR` because the default shim encountered a sandbox permission error.
+
+Camofox exercised route switching on the development page. Chromium through playwright-cli checked the production preview: expanding/collapsing components, all four routes, all four host/scope combinations, generated preview commands, receipts, and linked reference anchors. The interaction check also passed at 390px with no horizontal page overflow. Desktop dark and mobile light layouts were visually inspected; keyboard Enter activated route buttons and expanded component details. Explicit accessible names were added to the installation selectors after the exact-name check exposed ambiguous implicit labels. Browser console inspection reported no errors or warnings.
+
+To repeat the browser smoke check, build and preview the site, open `/guide/visual-guide`, and evaluate `scripts/docs-visuals.check.js` in the browser console or a browser evaluation tool. Use the production preview because link checks inspect rendered HTML anchors. Restart preview after rebuilding; its cached HTML can otherwise retain the prior build. The script changes only illustration controls and reads same-origin reference pages. No new dependencies were added. These checks cover documentation behavior, not fresh native host discovery, actual agent execution, or deployed-site behavior.
+
 ## Forced skill replacement <Badge type="info" text="2026-10-02" />
 
 PR #5 review repairs retain rejection of both `pstack-models.mdc` and `zstack-models.mdc` in active Markdown instructions. Regression fixtures cover skills, Claude agents, and guides. The legacy migration fixture now removes the renamed agent and its receipt entry before migration, checks a read-only `create` preview, and verifies the installed agent contents. Structural validation passed (46 skills, zero problems), all 12 Node tests and four Python tests passed. These are isolated local checks; native host discovery was not rerun.
