@@ -25,7 +25,7 @@ hero:
 features:
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
     title: Shared skills
-    details: 46 skills, 23 engineering principles, and 23 workflow playbooks live once in skills/ and serve both hosts.
+    details: 48 skills, 24 engineering principles, and 23 workflow playbooks live once in skills/ and serve both hosts.
     link: /skills
     linkText: Browse the catalog
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg>

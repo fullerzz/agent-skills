@@ -75,7 +75,7 @@ Codex: $z-mode Reduce picker latency on a 10000-session workload.
 Claude Code: /z-mode Reduce picker latency on a 10000-session workload.
 ```
 
-Capture a repeatable baseline, trace cost, change one mechanism, interleave baseline and treatment samples, and run correctness regressions. Return units, delta, method, and artifacts.
+Capture a repeatable baseline, vet each number with [benchmark-checklist](workflow-skills.md#benchmark-checklist), trace cost, change one mechanism, interleave baseline and treatment samples, and run correctness regressions. Return units, delta, method, and artifacts.
 
 **Prerequisites and limits:** Use the same realistic workload; source inspection cannot prove a win. Use hillclimb for sustained optimization.
 
@@ -90,7 +90,7 @@ Codex: $z-mode Hillclimb picker latency below 50 ms with a 30-minute budget.
 Claude Code: /z-mode Hillclimb picker latency below 50 ms with a 30-minute budget.
 ```
 
-Fix metric, workload, target, correctness floor, sampling and budget; validate the probe; record one hypothesis per isolated attempt in show-me-your-work; keep wins above noise. Return baseline/final, accepted and rejected attempts, and trail.
+Fix metric, workload, target, correctness floor, sampling and budget; vet the probe with [benchmark-checklist](workflow-skills.md#benchmark-checklist) before freezing it, including error and completed-work counts; record one hypothesis per isolated attempt in show-me-your-work; keep wins above noise. Return baseline/final, accepted and rejected attempts, and trail.
 
 **Prerequisites and limits:** Requires a stable probe and decision trail. Stop at target, stop request, budget, or blocker; discard only this run's failed edits.
 

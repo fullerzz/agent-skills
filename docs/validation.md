@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Benchmark skills <Badge type="info" text="2026-10-03" />
+
+Added benchmark-checklist and principle-explain-the-number from upstream 23e4138, with explicit-only metadata for both hosts. Z-mode routes measured performance to the checklist and measured eval results to the principle. Perf issue vets each number; hillclimb vets the probe before freezing it and requires error and completed-work counts.
+
+Structural validation passed with 48 skills and zero problems. All 13 Node tests, all four Python tests, the VitePress production build, and `git diff --check` passed. Commands used `MISE_CACHE_DIR=/private/tmp/benchmark-skills-mise` after the default mise shim failed with a sandbox permission error. The generic Codex skill-creator quick validator rejected the shared `disable-model-invocation` field; the repository validator covers that field and its corresponding Codex policy. No policy was removed to satisfy the generic validator.
+
+A parent-run Node scenario alternated five eager and five unconsumed-generator exports of 1,000 rows. Assertions confirmed that each eager run completed 1,000 rows and each lazy run completed zero. Applying checklist question 7 rejects the apparent speedup: the lazy side never did the work. This is a local scenario walkthrough, not an independent agent evaluation or a performance claim. Fresh native host discovery and autonomous use of the new routing were not exercised; installer tests remained isolated from personal configuration.
+
 ## Interactive visual guide <Badge type="info" text="2026-10-02" />
 
 Added page-local Vue components for the library/host component map, four illustrative z-mode routes, and host/scope installation destinations. The maps derive their descriptions from the shared router, selected playbooks, native host contract, and installer locations; they do not execute workflows or change installation state.
