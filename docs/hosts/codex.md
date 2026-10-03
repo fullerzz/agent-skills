@@ -35,6 +35,8 @@ Review and trust the bundled hook through Codex's hook trust flow. A trusted `Se
 
 State lives in `PLUGIN_DATA/z-mode/<session-id>.json`; it is never shared between session IDs. Clearing a session removes its activation; a failed removal is reported because later resumes may still see stale state. Missing or corrupt state means inactive. Hook execution requires uv on the execution host. Without a trusted hook, mode persistence uses conversation context and resume notes. The hook does not authorize delegation or external actions.
 
+The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Both startup and emitted mode controls use the same isolated launch options.
+
 ### Native agents
 
 This package does not register `agents/codex/` as plugin roles. Existing native agent copies may still be used; otherwise workflows disclose a built-in or direct fallback. Use the linked installation below if you need the installer-managed native roles, and disable/remove the plugin to avoid duplicate skills. See [OpenAI's conversion guidance](https://developers.openai.com/plugins/guides/submit-claude-plugin) for the distinction between reusable plugin skills and agent files.

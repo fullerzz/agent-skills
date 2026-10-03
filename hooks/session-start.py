@@ -1,36 +1,42 @@
 """Codex SessionStart context and explicit, session-scoped z-mode controls."""
 
-import argparse
 import json
 import os
-from pathlib import Path
 import re
 import shlex
 import sys
-import tempfile
 
 
 def state_path(data_dir, session_id):
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", session_id):
         raise ValueError("Invalid session id")
-    data_dir = Path(data_dir)
-    if not data_dir.is_absolute():
+    if not os.path.isabs(data_dir):
         raise ValueError("Plugin data directory must be absolute")
-    return data_dir / "z-mode" / (session_id + ".json")
+    return os.path.join(data_dir, "z-mode", session_id + ".json")
 
 
 def set_active(path, active):
     if not active:
-        path.unlink(missing_ok=True)
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as file:
-        temporary = Path(file.name)
+
+    import tempfile
+
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=directory, delete=False) as file:
+        temporary = file.name
         json.dump({"active": True}, file)
     try:
         os.replace(temporary, path)
     finally:
-        temporary.unlink(missing_ok=True)
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
 
 
 def session_start():
@@ -56,17 +62,18 @@ def session_start():
                 "but a later resume may see stale stored activation. Retry Disable "
                 "and preserve this opt-out in resume notes; user opt-out always takes precedence."
             )
-    try:
-        active = json.loads(path.read_text()).get("active") is True
-    except (OSError, ValueError, AttributeError):
-        active = False
-    if event["source"] == "clear":
-        active = False
-    helper = str(Path(__file__).resolve())
+    active = False
+    if event["source"] != "clear":
+        try:
+            with open(path, encoding="utf-8") as state:
+                active = json.load(state).get("active") is True
+        except (OSError, ValueError, AttributeError):
+            pass
+    helper = os.path.realpath(__file__)
     controls = {}
     for action in ("enable", "disable"):
         controls[action] = shlex.join([
-            "uv", "run", "--no-project", "python", helper, action,
+            "uv", "run", "--no-project", "--no-config", "python", "-I", "-S", helper, action,
             "--session-id", session_id, "--data-dir", data_dir,
         ])
     context = (
@@ -81,7 +88,7 @@ def session_start():
         "delegation, commits, publication, messages, or tracker writes.\n"
     )
     if active:
-        skill = Path(__file__).resolve().parents[1] / "skills/z-mode/SKILL.md"
+        skill = os.path.join(os.path.dirname(os.path.dirname(helper)), "skills/z-mode/SKILL.md")
         context += (
             f"z-mode was explicitly enabled for this session. Read {skill} and "
             "continue its engineering style unless a later user instruction opts out."
@@ -103,6 +110,8 @@ def main():
     if len(sys.argv) == 1:
         session_start()
         return
+    import argparse
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("enable", "disable"))
     parser.add_argument("--session-id", required=True)

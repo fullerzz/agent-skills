@@ -8,6 +8,20 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Codex plugin <Badge type="info" text="2026-10-03" />
 
+### Hook startup optimization
+
+The hook now defers argparse until a mode control runs and tempfile until enable writes state, uses os.path without importing pathlib, resolves its helper location once, and skips a redundant read after clear. The configured command and emitted controls use `--no-config` plus Python `-I -S` to avoid uv configuration discovery, Python environment customizations, and site initialization. State validation, atomic replacement, shell quoting, and opt-out failure reporting remain intact. The configured-command regression also runs with invalid local uv configuration and a PYTHONPATH site customization that must not execute.
+
+Two independent runs of `uv run scripts/benchmark_codex_hooks.py 2b873c9` each used 20 alternating AB/BA pairs per scenario after two warmups per side. Every measured process ran the full configured shell/uv/Python command, returned valid context and controls, and checked clear's file removal; failed commands or assertions abort the run. State was reset outside each timed region. Across both runs, each side completed 40 samples per scenario with zero failures. On this macOS host with Python 3.14.7, 14 logical CPUs, and starting load averages 3.12/3.14/2.99:
+
+| Scenario | Before median (range), ms | After median (range), ms |
+| --- | --- | --- |
+| Inactive startup | 88.84 (86.83–95.67) | 81.22 (78.63–89.83) |
+| Active startup | 88.83 (87.08–94.56) | 80.88 (78.91–85.89) |
+| Clear | 89.18 (86.39–93.53) | 81.44 (78.56–86.67) |
+
+Active startup is about 9% faster in this fixture. A separate import profile attributed about 5.2 ms to tempfile and its dependencies before optimization; it is absent from the normal startup import path afterward. An empty optimized shell/uv/Python launch had a 75.52 ms median (73.62–77.70 ms, ten measured runs), so launcher overhead dominates the remaining time. These are warmed fresh-process hook timings, not cold-disk measurements or end-to-end Codex turn latency. Both variants used the same inherited launcher environment and temporary mise cache; no claim is made that all hosts will see the same improvement.
+
 Added a native Codex package, local marketplace, clean staging command, and a session-scoped z-mode hook. Only how and why opt into Codex implicit invocation; Claude invocation flags remain unchanged. Native agent roles still use the existing installer or disclosed built-in fallback.
 
 Codex CLI 0.160.0 installed the staged package in a temporary `CODEX_HOME`. Auth-free app-server `skills/list` discovered all 48 enabled, namespaced plugin skills with no loader errors. `hooks/list` and `plugin/read` discovered the SessionStart hook as untrusted. Trusting its exact reported hash in that temporary profile changed its native trust status to trusted. No credentials were copied and no personal configuration was changed.

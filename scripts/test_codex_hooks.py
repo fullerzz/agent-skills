@@ -23,7 +23,7 @@ class CodexHooksTests(unittest.TestCase):
 
     def hook(self, session="session-a", source="startup"):
         result = subprocess.run(
-            [sys.executable, str(HELPER)],
+            [sys.executable, "-I", "-S", str(HELPER)],
             input=json.dumps({
                 "hook_event_name": "SessionStart", "source": source,
                 "session_id": session,
@@ -35,12 +35,18 @@ class CodexHooksTests(unittest.TestCase):
 
     def control(self, action, session="session-a", check=True):
         return subprocess.run(
-            [sys.executable, str(HELPER), action, "--session-id", session,
+            [sys.executable, "-I", "-S", str(HELPER), action, "--session-id", session,
              "--data-dir", str(self.data)],
             text=True, capture_output=True, check=check,
         )
 
     def test_configured_command_and_emitted_controls(self):
+        (self.data / "uv.toml").write_text("invalid TOML [")
+        marker = self.data / "site-loaded"
+        (self.data / "sitecustomize.py").write_text(
+            f"open({str(marker)!r}, 'w').close()\n"
+        )
+        self.env["PYTHONPATH"] = str(self.data)
         group = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]
         for source in ("startup", "resume", "compact", "clear"):
             self.assertIsNotNone(re.fullmatch(group["matcher"], source))
@@ -58,6 +64,7 @@ class CodexHooksTests(unittest.TestCase):
             subprocess.run(commands[action], shell=True, check=True, env=self.env, cwd=self.data)
             active = "was explicitly enabled" in self.hook()
             self.assertEqual(active, action == "Enable")
+            self.assertFalse(marker.exists())
 
     def test_disabled_default_session_isolation_and_clear(self):
         self.assertIn("No stored", self.hook())
