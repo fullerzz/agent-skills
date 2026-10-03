@@ -139,18 +139,38 @@ class ValidateTests(unittest.TestCase):
     def test_generated_plugin_does_not_duplicate_source_skills(self) -> None:
         text = "---\nname: example\ndescription: Explain code\n---\n"
         self.write("skills/example/SKILL.md", text)
+        self.write("skills/example/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
         self.write("dist/zstack/skills/example/SKILL.md", text)
+        self.assertEqual(validate(self.root), (1, []))
+
+    def test_nested_dist_resources_are_validated(self) -> None:
+        self.write("dist/generated.md", "[ignored](missing.md)\n")
+        self.write("skills/example/dist/reference.md", "[broken](missing.md)\n")
+        self.assertEqual(validate(self.root)[1], ["skills/example/dist/reference.md: Broken local link: missing.md"])
+
+    def test_codex_policy_required_without_shared_invocation_marker(self) -> None:
+        self.write("skills/setup-zstack/SKILL.md", "---\nname: setup-zstack\ndescription: Configure host\n---\n")
+        for text in (None, "{}", "policy: []", "policy: {}", "policy:\n  allow_implicit_invocation: true\n"):
+            with self.subTest(policy=text):
+                if text is not None:
+                    self.write("skills/setup-zstack/agents/openai.yaml", text)
+                self.assertIn(
+                    "skills/setup-zstack/SKILL.md: Explicit-only Codex policy missing", validate(self.root)[1]
+                )
+        self.write("skills/setup-zstack/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
         self.assertEqual(validate(self.root), (1, []))
 
     def test_only_read_only_skills_opt_into_codex_implicit_invocation(self) -> None:
         skills = Path(__file__).resolve().parent.parent / "skills"
         implicit = set()
         for skill in skills.iterdir():
+            if not (skill / "SKILL.md").is_file():
+                continue
             policy_file = skill / "agents/openai.yaml"
-            if policy_file.is_file():
-                policy = load_yaml(policy_file.read_text())["policy"]
-                if policy["allow_implicit_invocation"]:
-                    implicit.add(skill.name)
+            policy = load_yaml(policy_file.read_text()) if policy_file.is_file() else None
+            policy = policy.get("policy") if isinstance(policy, dict) else None
+            if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
+                implicit.add(skill.name)
         self.assertEqual(implicit, {"how", "why"})
         for name in implicit:
             self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)

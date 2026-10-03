@@ -21,7 +21,7 @@ codex plugin marketplace add "$PWD"
 codex plugin add zstack@zstack-local
 ```
 
-The packaging command refreshes `dist/zstack` without Git history, installed dependencies, or personal configuration. The marketplace installs that staged directory. Optional Bun tools install their locked dependencies at their installed resource location when used.
+The packaging command requires a Git checkout and refreshes `dist/zstack` from tracked resource files, using their current working-tree contents. Add intended new resources to Git before packaging; untracked and ignored personal files are excluded, along with Git history and installed dependencies. The marketplace installs that staged directory. Optional Bun tools install their locked dependencies at their installed resource location when used.
 
 The source and staged package use the native manifest because CLI 0.160.0 discovered its hook there, while a portable root manifest's OpenAI extension did not expose the hook on that tested host.
 
@@ -33,7 +33,7 @@ The plugin enables automatic selection only for `how` and `why`, limited to read
 
 Review and trust the bundled hook through Codex's hook trust flow. A trusted `SessionStart` hook supplies brief orientation and session-specific enable/disable commands. On explicit z-mode invocation the skill runs the supplied enable command; on `stop z-mode` or a style switch it runs disable. The hook restores that session's activation on resume or compaction, with later user instructions taking precedence.
 
-State lives in `PLUGIN_DATA/z-mode/<session-id>.json`; it is never shared between session IDs. Clearing a session removes its activation; a failed removal is reported because later resumes may still see stale state. Missing or corrupt state means inactive. Hook execution requires uv on the execution host. Without a trusted hook, mode persistence uses conversation context and resume notes. The hook does not authorize delegation or external actions.
+Forked sessions receive new child-scoped controls that supersede inherited parent controls; activation is not copied from the parent. State lives in `PLUGIN_DATA/z-mode/<session-id>.json`; it is never shared between session IDs. Clearing a session removes its activation; a failed removal is reported because later resumes may still see stale state. Missing or corrupt state means inactive. Hook execution requires uv on the execution host. Without a trusted hook, mode persistence uses conversation context and resume notes. The hook does not authorize delegation or external actions.
 
 The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Both startup and emitted mode controls use the same isolated launch options.
 

@@ -68,7 +68,7 @@ def session_start() -> None:
         event = json.loads(sys.stdin.read(65536))
         if event.get("hook_event_name") != "SessionStart":
             return
-        if event.get("source") not in ("startup", "resume", "clear", "compact"):
+        if event.get("source") not in ("startup", "resume", "clear", "compact", "fork"):
             return
         session_id = event["session_id"]
         data_dir = os.environ["PLUGIN_DATA"]
@@ -91,15 +91,16 @@ def session_start() -> None:
                 "-S",
                 helper,
                 action,
-                "--session-id",
-                session_id,
+                f"--session-id={session_id}",
                 "--data-dir",
                 data_dir,
             ]
         )
     context = (
-        "The zstack plugin provides engineering skills. Select only skills whose "
+        "The zstack plugin provides engineering skills. Use only skills whose "
         "invocation policy permits the current request. Installation does not enable z-mode. "
+        "These controls supersede any controls inherited from a parent or forked conversation; "
+        "never run another session's controls. Parent activation does not activate a fork. "
         "These controls apply only to this session; use them only when the user "
         "explicitly selects z-mode or opts out/switches style:\n"
         f"Enable: {controls['enable']}\nDisable: {controls['disable']}\n"

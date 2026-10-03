@@ -69,21 +69,22 @@ def frontmatter(file: Path) -> dict[str, object]:
 Fail = Callable[[str, str], None]
 
 
-def walk(directory: Path) -> Iterator[Path]:
+def walk(directory: Path, root: Path) -> Iterator[Path]:
     for path in sorted(directory.iterdir()):
         if path.name in {
             "node_modules",
-            "dist",
             ".git",
             ".agent-work",
             ".venv",
             "__pycache__",
         }:
             continue
+        if path == root / "dist":
+            continue
         if path.is_symlink():
             continue
         if path.is_dir():
-            yield from walk(path)
+            yield from walk(path, root)
         elif path.is_file():
             yield path
 
@@ -103,19 +104,18 @@ UNSUPPORTED = re.compile(
 
 
 def validate_policy(file: Path, meta: dict[str, object], relative: str, fail: Fail) -> None:
-    if meta.get("disable-model-invocation") is True:
-        policy_file = file.parent / "agents/openai.yaml"
-        policy = load_yaml(policy_file.read_text(encoding="utf-8")) if policy_file.exists() else None
-        policy = policy.get("policy") if isinstance(policy, dict) else None
-        if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not (
-            meta["name"] in CODEX_IMPLICIT_SKILLS
-        ):
-            fail(
-                relative,
-                "Explicit-only Codex policy missing"
-                if meta["name"] not in CODEX_IMPLICIT_SKILLS
-                else "Read-only Codex implicit policy missing",
-            )
+    policy_file = file.parent / "agents/openai.yaml"
+    policy = load_yaml(policy_file.read_text(encoding="utf-8")) if policy_file.exists() else None
+    policy = policy.get("policy") if isinstance(policy, dict) else None
+    if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not (
+        meta["name"] in CODEX_IMPLICIT_SKILLS
+    ):
+        fail(
+            relative,
+            "Explicit-only Codex policy missing"
+            if meta["name"] not in CODEX_IMPLICIT_SKILLS
+            else "Read-only Codex implicit policy missing",
+        )
 
 
 def validate_skill(file: Path, relative: str, names: set[str], fail: Fail) -> None:
@@ -214,7 +214,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
     def fail(file: str, message: str) -> None:
         failures.append(f"{file}: {message}")
 
-    for file in walk(root):
+    for file in walk(root, root):
         relative = file.relative_to(root).as_posix()
         try:
             if file.name == "SKILL.md":
