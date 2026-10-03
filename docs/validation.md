@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Claude controls and state isolation <Badge type="info" text="2026-10-03" />
+
+Fixed the two follow-up PR #15 findings. Each launcher now supplies an explicit host marker: Claude reads only `CLAUDE_PLUGIN_DATA`, while Codex reads only `PLUGIN_DATA`. The hook emits labeled POSIX sh and PowerShell enable/disable commands and instructs choosing the executing shell's variant. PowerShell literal quoting doubles straight and curly apostrophes and preserves dollar signs and backticks. Host selection no longer depends on inherited environment-variable precedence, and shell selection does not rely on a platform guess.
+
+On this macOS host, structural validation reported 49 skills and zero problems; all 25 Python tests and 13 Node tests passed, along with Ruff lint/format and whitespace checks. Regressions cover inherited absolute and relative `PLUGIN_DATA` in Claude, unrelated Claude variables in Codex, Windows-path PowerShell serialization, and POSIX execution from a path with apostrophes and shell metacharacters. Existing enable/disable, clear, fork, and session-isolation checks remain green.
+
+Claude Code 2.1.288 passed strict validation of both manifests. An isolated, unauthenticated `--init-only --plugin-dir` run with `PLUGIN_DATA=unrelated-relative` loaded 49 skills and both agents, then successfully executed `SessionStart:startup`. Its 2,007-character context contained both shell variants and the isolated `CLAUDE_PLUGIN_DATA` path. No inference ran or personal configuration changed. An independent `gpt-6.1-sol` review found no actionable issues. Neither PowerShell nor Windows is available on this host, so PowerShell quoting has fixture and static-review coverage only; live PowerShell execution and a live Codex session remain unverified. The changed Codex launcher requires reviewing hook trust after updating.
+
 ## Claude plugin PR review fixes <Badge type="info" text="2026-10-03" />
 
 Addressed all three PR #15 findings. Validation now reports a missing Claude manifest and marketplace independently; regression cases for either missing file and both missing files failed before the fix and pass afterward. Migration instructions now preserve the original `CLAUDE_CONFIG_DIR` for both uninstall commands.

@@ -28,7 +28,9 @@ Claude Code runs the shared `SessionStart` Python helper through `hooks/hooks.js
 
 The hook supplies session-specific enable/disable commands. On explicit z-mode invocation the skill runs enable; on `stop z-mode` or a style switch it runs disable. Activation is restored on resume and compaction. Forked sessions (`--fork-session`, `/branch`) get child-scoped controls and do not inherit activation. Clearing resets it. Later user instructions take precedence over stored state.
 
-State lives in `CLAUDE_PLUGIN_DATA/z-mode/<session-id>.json`, by default `~/.claude/plugins/data/zstack-zstack-local/`. Uninstalling the plugin deletes that directory unless you pass `--keep-data`. The controls run through the Bash tool and write outside the project, so Claude Code may ask for permission first. Missing or corrupt state means inactive. The hook does not authorize delegation or external actions.
+The launcher explicitly selects the Claude host, so state lives in `CLAUDE_PLUGIN_DATA/z-mode/<session-id>.json`, by default `~/.claude/plugins/data/zstack-zstack-local/`, even when the environment contains an unrelated `PLUGIN_DATA`. Uninstalling the plugin deletes that directory unless you pass `--keep-data`.
+
+The hook supplies labeled POSIX sh and PowerShell enable/disable commands. Use the variant matching the executing tool: POSIX sh for Bash, PowerShell for the PowerShell tool. This preserves paths containing apostrophes in either shell without guessing which tool is active. Claude can use PowerShell on Windows without Git Bash and can enable it on other platforms; see the [PowerShell tool reference](https://code.claude.com/docs/en/tools-reference#powershell-tool). Controls write outside the project, so Claude Code may ask for permission first. Missing or corrupt state means inactive. The hook does not authorize delegation or external actions.
 
 ### Plugin update and removal
 
