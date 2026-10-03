@@ -14,6 +14,11 @@ class ValidateTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.write(".claude-plugin/plugin.json", json.dumps({"name": "zstack", "version": "0.1.0", "agents": []}))
+        self.write(
+            ".claude-plugin/marketplace.json",
+            json.dumps({"name": "zstack-local", "plugins": [{"name": "zstack", "source": "./"}]}),
+        )
         for relative in (
             "skills/z-mode/scripts/check-plan.mjs",
             "skills/z-mode/scripts/worktree-audit.sh",
@@ -48,6 +53,10 @@ class ValidateTests(unittest.TestCase):
         self.write(
             "agents/claude/reviewer.md",
             "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n",
+        )
+        self.write(
+            ".claude-plugin/plugin.json",
+            json.dumps({"name": "zstack", "version": "0.1.0", "agents": ["./agents/claude/reviewer.md"]}),
         )
         self.assertEqual(validate(self.root), (1, []))
         self.write(
@@ -180,11 +189,11 @@ class ValidateTests(unittest.TestCase):
             "skills": "./skills/",
             "name": "zstack",
             "version": "0.1.0",
-            "hooks": "./hooks/hooks.json",
+            "hooks": "./hooks/codex.json",
         }
         self.write(".codex-plugin/plugin.json", json.dumps(manifest))
         self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
-        self.write("hooks/hooks.json", '{"hooks": {}}')
+        self.write("hooks/codex.json", '{"hooks": {}}')
         self.write("LICENSE", "MIT")
         self.assertEqual(validate(self.root), (0, []))
         manifest["hooks"] = "../outside.json"
@@ -215,6 +224,18 @@ class ValidateTests(unittest.TestCase):
             with self.subTest(marketplace=broken):
                 self.write(".claude-plugin/marketplace.json", json.dumps(broken))
                 self.assertTrue(validate(self.root)[1][0].startswith(".claude-plugin/marketplace.json: "))
+
+    def test_claude_plugin_requires_manifest_and_marketplace(self) -> None:
+        paths = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json")
+        for missing in ((paths[0],), (paths[1],), paths):
+            with self.subTest(missing=missing):
+                saved = {path: (self.root / path).read_text() for path in missing}
+                for path in missing:
+                    (self.root / path).unlink()
+                failures = validate(self.root)[1]
+                for path, content in saved.items():
+                    self.write(path, content)
+                self.assertEqual(failures, [f"{path}: Missing required Claude plugin file" for path in missing])
 
 
 if __name__ == "__main__":

@@ -199,7 +199,7 @@ def validate_plugin(root: Path, fail: Fail) -> None:
             ):
                 fail(".codex-plugin/plugin.json", "Invalid native plugin identity")
             hooks = manifest["hooks"]
-            if hooks != "./hooks/hooks.json" or not (root / hooks).is_file():
+            if hooks != "./hooks/codex.json" or not (root / hooks).is_file():
                 fail(".codex-plugin/plugin.json", "Missing bundled hook configuration")
             if not (root / "skills").is_dir() or not (root / "LICENSE").is_file():
                 fail(".codex-plugin/plugin.json", "Missing shared skills or license")
@@ -209,7 +209,9 @@ def validate_plugin(root: Path, fail: Fail) -> None:
 
 def validate_claude_plugin(root: Path, fail: Fail) -> None:
     claude_file = root / ".claude-plugin/plugin.json"
-    if claude_file.exists():
+    if not claude_file.is_file():
+        fail(".claude-plugin/plugin.json", "Missing required Claude plugin file")
+    else:
         try:
             manifest = json.loads(claude_file.read_text(encoding="utf-8"))
             codex_file = root / ".codex-plugin/plugin.json"
@@ -223,7 +225,9 @@ def validate_claude_plugin(root: Path, fail: Fail) -> None:
         except (OSError, ValueError, TypeError, AttributeError) as error:
             fail(".claude-plugin/plugin.json", str(error))
     marketplace_file = root / ".claude-plugin/marketplace.json"
-    if marketplace_file.exists():
+    if not marketplace_file.is_file():
+        fail(".claude-plugin/marketplace.json", "Missing required Claude plugin file")
+    else:
         try:
             marketplace = json.loads(marketplace_file.read_text(encoding="utf-8"))
             # Documented install commands use zstack@zstack-local, loaded in place from the checkout root.

@@ -6,6 +6,7 @@
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -55,7 +56,9 @@ class CodexHooksTests(unittest.TestCase):
         marker = self.data / "site-loaded"
         (self.data / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').close()\n")
         self.env["PYTHONPATH"] = str(self.data)
-        group = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]
+        manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
+        group = json.loads((ROOT / manifest["hooks"]).read_text())["hooks"]["SessionStart"][0]
+        self.env["CLAUDE_PLUGIN_ROOT"] = str(self.data / "unrelated-plugin")
         for source in ("startup", "resume", "compact", "clear", "fork"):
             self.assertIsNotNone(re.fullmatch(group["matcher"], source))
         result = subprocess.run(  # noqa: S602 - Trusted fixture/manifest commands.
@@ -82,12 +85,19 @@ class CodexHooksTests(unittest.TestCase):
             self.assertFalse(marker.exists())
 
     def test_configured_command_uses_claude_plugin_variables(self) -> None:
+        plugin_root = self.data / "Claude's plugin $root `literal`"
+        (plugin_root / "hooks").mkdir(parents=True)
+        (plugin_root / "hooks/session_start.py").write_bytes(HELPER.read_bytes())
         env = {key: value for key, value in self.env.items() if key not in ("PLUGIN_ROOT", "PLUGIN_DATA")}
-        env |= {"CLAUDE_PLUGIN_ROOT": str(ROOT), "CLAUDE_PLUGIN_DATA": str(self.data)}
-        command = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-        result = subprocess.run(  # noqa: S602 - Trusted fixture/manifest commands.
+        env |= {"CLAUDE_PLUGIN_ROOT": str(plugin_root), "CLAUDE_PLUGIN_DATA": str(self.data)}
+        group = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]
+        for source in ("startup", "resume", "compact", "clear", "fork"):
+            self.assertIsNotNone(re.fullmatch(group["matcher"], source))
+        hook = group["hooks"][0]
+        # Model Claude's documented exec-form placeholder substitution, without a shell.
+        command = [hook["command"], *(arg.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root)) for arg in hook["args"])]
+        result = subprocess.run(  # noqa: S603 - Trusted fixture/manifest commands.
             command,
-            shell=True,
             input=json.dumps({"hook_event_name": "SessionStart", "source": "startup", "session_id": "claude-a"}),
             text=True,
             capture_output=True,
@@ -97,6 +107,7 @@ class CodexHooksTests(unittest.TestCase):
         )
         context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
         enable = next(line.split(": ", 1)[1] for line in context.splitlines() if line.startswith("Enable: "))
+        self.assertIn(str((plugin_root / "hooks/session_start.py").resolve()), shlex.split(enable))
         subprocess.run(enable, shell=True, check=True, env=env, cwd=self.data)  # noqa: S602
         self.assertTrue((self.data / "z-mode/claude-a.json").is_file())
 

@@ -50,7 +50,7 @@ codex plugin remove zstack@zstack-local
 codex plugin add zstack@zstack-local
 ```
 
-Restart the session and review hook trust afterward. Codex skips a hook whose definition changed since you trusted it. The update that added the Claude Code plugin changed the hook command to resolve `CLAUDE_PLUGIN_ROOT` before `PLUGIN_ROOT`, so trust it again after refreshing. To uninstall, run only the removal command. Remove its marketplace separately with `codex plugin marketplace remove zstack-local` if no longer needed. These commands manage the native plugin; the Python uninstall command manages the linked installation.
+Restart the session and review hook trust afterward. Codex skips a hook whose definition changed since you trusted it. Codex's launcher now lives in `hooks/codex.json` and uses `PLUGIN_ROOT`; Claude's separate launcher uses its native exec form. To uninstall, run only the removal command. Remove its marketplace separately with `codex plugin marketplace remove zstack-local` if no longer needed. These commands manage the native plugin; the Python uninstall command manages the linked installation.
 
 ### Check the plugin and troubleshoot
 

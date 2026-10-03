@@ -11,7 +11,7 @@ uv run scripts/install.py uninstall --host claude
 uv run scripts/install.py uninstall --host claude --apply
 ```
 
-Include the original `--home` or `--project` option if used. Keeping both installations enabled duplicates every skill and agent role.
+Include the original `--home` or `--project` option if used, and preserve the same `CLAUDE_CONFIG_DIR` value for both commands if used. Keeping both installations enabled duplicates every skill and agent role.
 
 From this checkout, register the local marketplace and install the plugin:
 
@@ -24,7 +24,7 @@ Start a new session. Skills appear as `/zstack:how`, `/zstack:z-mode`, and so on
 
 ### Session hook
 
-Claude Code uses the same `SessionStart` hook as the Codex plugin. Its command reads `CLAUDE_PLUGIN_ROOT` and falls back to Codex's `PLUGIN_ROOT`. Claude Code runs an enabled plugin's hooks without a separate trust review, so read `hooks/hooks.json` and `hooks/session_start.py` before installing.
+Claude Code runs the shared `SessionStart` Python helper through `hooks/hooks.json`. Its exec-form command passes `${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py` directly to uv as one argument, without shell expansion, including on Windows without Git Bash. Codex uses its own launcher in `hooks/codex.json`. Claude Code runs an enabled plugin's hooks without a separate trust review, so read `hooks/hooks.json` and `hooks/session_start.py` before installing. See Claude's [exec-form hook reference](https://code.claude.com/docs/en/hooks#exec-form-and-shell-form).
 
 The hook supplies session-specific enable/disable commands. On explicit z-mode invocation the skill runs enable; on `stop z-mode` or a style switch it runs disable. Activation is restored on resume and compaction. Forked sessions (`--fork-session`, `/branch`) get child-scoped controls and do not inherit activation. Clearing resets it. Later user instructions take precedence over stored state.
 

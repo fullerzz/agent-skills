@@ -9,5 +9,5 @@
   "repository": "https://github.com/fullerzz/agent-skills",
   "license": "MIT",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/codex.json"
 }

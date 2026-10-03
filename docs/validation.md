@@ -6,6 +6,16 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Claude plugin PR review fixes <Badge type="info" text="2026-10-03" />
+
+Addressed all three PR #15 findings. Validation now reports a missing Claude manifest and marketplace independently; regression cases for either missing file and both missing files failed before the fix and pass afterward. Migration instructions now preserve the original `CLAUDE_CONFIG_DIR` for both uninstall commands.
+
+Replaced the shared POSIX fallback launcher with separate host configurations. Claude's default `hooks/hooks.json` uses exec-form `command` and `args`, passing the plugin path without a shell. The Codex manifest points to `hooks/codex.json`, which retains the `PLUGIN_ROOT` shell command and context limit. Both launch the unchanged shared Python helper. The hook regression executes Claude's argument vector from a plugin path containing spaces, an apostrophe, a dollar sign, and backticks, then exercises its emitted enable control. The Codex regression reads its manifest's hook path and succeeds even with an unrelated `CLAUDE_PLUGIN_ROOT` present.
+
+On this macOS host, Claude Code 2.1.288 passed strict validation of both manifests. An isolated, unauthenticated `CLAUDE_CONFIG_DIR` and `--init-only --plugin-dir` run loaded 49 skills, both agent files, and exactly one configured hook. Debug output confirmed successful `SessionStart:startup` execution and valid additional context from the exec-form launcher. No inference ran or personal configuration changed. Windows execution and a live Codex loader/session rerun remain unverified; the Windows fix follows Claude's documented exec-form contract.
+
+Structural validation (49 skills, zero problems), all 24 Python tests, all 13 Node tests, Ruff lint/format checks, the VitePress build, and whitespace checks passed. A six-pair Codex benchmark smoke run against the PR head completed all scenarios with zero failures; this is compatibility evidence, not a new performance claim. Packaging with a temporary Git index and object directory included the new Codex configuration, and the packaged manifest resolved it successfully. The real Git index was unchanged. Commands used `MISE_CACHE_DIR=/private/tmp/zstack-pr15-mise` because the default mise cache was unavailable in the sandbox.
+
 ## Claude Code plugin <Badge type="info" text="2026-10-03" />
 
 Added `.claude-plugin/plugin.json` and a `zstack-local` marketplace whose plugin source is the checkout root. The manifest lists both `agents/claude` roles; skills and `hooks/hooks.json` use Claude's default locations. The shared hook command now resolves `${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}`, and the script reads `PLUGIN_DATA`, falling back to `CLAUDE_PLUGIN_DATA`. The z-mode activation rule and agent references name both hosts. The validator requires matching plugin versions and a manifest entry for every Claude agent file.
