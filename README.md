@@ -6,6 +6,8 @@ Shared instructions live in `skills/`. Each host uses its own native agents and 
 
 ## Install
 
+Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. Only `how` and `why` permit automatic selection in Codex; z-mode and the other workflows remain explicit. Claude Code continues to use the installer below.
+
 Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the helper tests; Bun runs the optional orchestration and PR tools. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
@@ -30,7 +32,7 @@ Start a new host session after installation. Invoke `$z-mode` or `$how` in Codex
 Explain how this command parses arguments. Keep this read-only and cite the source.
 ```
 
-The explicit-only skills retain their invocation policy on both hosts. The mode reads relevant companion instructions when you select it. Simple work runs directly; broader investigations can use native agents. Missing capabilities and independent coverage are reported.
+Explicit-only workflows retain their invocation policy. The mode reads relevant companion instructions when you select it. Simple work runs directly; broader investigations can use native agents. Missing capabilities and independent coverage are reported.
 
 See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-code.md), and the [guide](docs/guide/README.md). Runtime evidence and remaining gaps are recorded in [validation](docs/validation.md).
 
@@ -52,7 +54,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Publish or merge only when the user's request authorizes those actions.
 
-Cross-provider orchestration, marketplace packaging, and the old automation runtime are outside this release. Native independent runs may use the same model.
+Cross-provider orchestration, public marketplace publication, the Claude plugin, and the old automation runtime are outside this release. Native independent runs may use the same model.
 
 ## Maintain
 

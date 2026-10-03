@@ -1,6 +1,6 @@
 ---
 name: why
-description: "Use for 'why does X work this way', 'why we picked Y', design rationale, regressions, postmortems, or data-backed thresholds. Discovers available MCPs and queries each evidence category (source control, issue tracker, long-form docs, real-time chat, infrastructure observability, error tracking, product analytics warehouse) in parallel, then returns a cited read on decisions and tradeoffs. Use how for runtime behavior."
+description: "Read-only research into historical code design decisions: why a subsystem works this way or why a particular approach was chosen. Uses relevant Git history and available supporting sources, separating documented facts from inference. Use how for runtime behavior; do not select for implementation or debugging requests."
 disable-model-invocation: true
 ---
 

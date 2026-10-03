@@ -1,0 +1,39 @@
+line-length = 120
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    "N",
+    "FA",
+    "S",
+    "SIM",
+    "ASYNC",
+    "BLE",
+    "C4",
+    "DTZ",
+    "PT",
+    "RET",
+    "TC",
+    "PTH",
+    "PERF",
+    "RUF",
+    "ISC",
+    "C901",
+    "ANN"
+]

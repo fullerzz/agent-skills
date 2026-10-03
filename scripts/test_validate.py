@@ -1,12 +1,16 @@
+# Retain the stdlib unittest runner used by the repository.
+# ruff: noqa: PT009, PT027
+
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from validate import frontmatter, validate
+from validate import frontmatter, load_yaml, validate
 
 
 class ValidateTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -20,16 +24,17 @@ class ValidateTests(unittest.TestCase):
         ):
             self.write(relative, "").chmod(0o755)
 
-    def write(self, relative, text):
+    def write(self, relative: str, text: str) -> Path:
         path = self.root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         return path
 
-    def test_valid_repository_and_yaml_12_boolean_policy(self):
+    def test_valid_repository_and_yaml_12_boolean_policy(self) -> None:
         self.write(
             "skills/on/SKILL.md",
-            "---\nname: on\ndescription: |\n  A multiline description.\ndisable-model-invocation: true\n---\n[resource](file%20name.txt)\n",
+            "---\nname: on\ndescription: |\n"
+            "  A multiline description.\ndisable-model-invocation: true\n---\n[resource](file%20name.txt)\n",
         )
         self.write("skills/on/file name.txt", "resource")
         self.write(
@@ -54,10 +59,11 @@ class ValidateTests(unittest.TestCase):
             validate(self.root)[1],
         )
 
-    def test_reports_structural_failures_and_ignores_fenced_links(self):
+    def test_reports_structural_failures_and_ignores_fenced_links(self) -> None:
         self.write(
             "skills/example/SKILL.md",
-            "---\nname: example\ndescription: Example\nextra: true\ndisable-model-invocation: yes\n---\n[missing](absent.txt)\n```md\n[example](not-real.txt)\n```\n/loop\ntrailing \n",
+            "---\nname: example\ndescription: Example\nextra: true\ndisable-model-invocation: yes\n"
+            "---\n[missing](absent.txt)\n```md\n[example](not-real.txt)\n```\n/loop\ntrailing \n",
         )
         self.write(
             "skills/duplicate/SKILL.md",
@@ -87,7 +93,7 @@ class ValidateTests(unittest.TestCase):
         self.assertTrue(any(failure.startswith("broken.yaml:") for failure in failures))
         self.assertFalse(any("not-real.txt" in failure for failure in failures))
 
-    def test_rejects_legacy_and_renamed_model_markers_in_active_markdown(self):
+    def test_rejects_legacy_and_renamed_model_markers_in_active_markdown(self) -> None:
         for marker in ("pstack-models.mdc", "zstack-models.mdc"):
             for relative in (
                 "skills/example/reference.md",
@@ -106,10 +112,8 @@ class ValidateTests(unittest.TestCase):
                     )
                     file.unlink()
 
-    def test_bad_metadata_missing_entrypoints_and_helpers_are_failures(self):
-        file = self.write(
-            "skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n"
-        )
+    def test_bad_metadata_missing_entrypoints_and_helpers_are_failures(self) -> None:
+        file = self.write("skills/example/SKILL.md", "---\nname: Example\ndescription: Example\n---\n")
         with self.assertRaisesRegex(ValueError, "Invalid identifier"):
             frontmatter(file)
         file.write_text("No frontmatter\n")
@@ -119,12 +123,73 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertIn("skills/example/SKILL.md: Missing YAML frontmatter", failures)
         self.assertIn("scripts/check-plan.mjs: Missing tool entrypoint", failures)
-        self.assertTrue(
-            any(
-                failure.startswith("skills/show-me-your-work/scripts/log.sh:")
-                for failure in failures
+        self.assertTrue(any(failure.startswith("skills/show-me-your-work/scripts/log.sh:") for failure in failures))
+
+    def test_codex_read_only_activation_preserves_claude_policy(self) -> None:
+        for name in ("how", "why"):
+            self.write(
+                f"skills/{name}/SKILL.md",
+                f"---\nname: {name}\ndescription: Explain code\ndisable-model-invocation: true\n---\n",
             )
-        )
+            self.write(f"skills/{name}/agents/openai.yaml", "policy:\n  allow_implicit_invocation: true\n")
+        self.assertEqual(validate(self.root), (2, []))
+        self.write("skills/how/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.assertIn("skills/how/SKILL.md: Read-only Codex implicit policy missing", validate(self.root)[1])
+
+    def test_generated_plugin_does_not_duplicate_source_skills(self) -> None:
+        text = "---\nname: example\ndescription: Explain code\n---\n"
+        self.write("skills/example/SKILL.md", text)
+        self.write("skills/example/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.write("dist/zstack/skills/example/SKILL.md", text)
+        self.assertEqual(validate(self.root), (1, []))
+
+    def test_nested_dist_resources_are_validated(self) -> None:
+        self.write("dist/generated.md", "[ignored](missing.md)\n")
+        self.write("skills/example/dist/reference.md", "[broken](missing.md)\n")
+        self.assertEqual(validate(self.root)[1], ["skills/example/dist/reference.md: Broken local link: missing.md"])
+
+    def test_codex_policy_required_without_shared_invocation_marker(self) -> None:
+        self.write("skills/setup-zstack/SKILL.md", "---\nname: setup-zstack\ndescription: Configure host\n---\n")
+        for text in (None, "{}", "policy: []", "policy: {}", "policy:\n  allow_implicit_invocation: true\n"):
+            with self.subTest(policy=text):
+                if text is not None:
+                    self.write("skills/setup-zstack/agents/openai.yaml", text)
+                self.assertIn(
+                    "skills/setup-zstack/SKILL.md: Explicit-only Codex policy missing", validate(self.root)[1]
+                )
+        self.write("skills/setup-zstack/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.assertEqual(validate(self.root), (1, []))
+
+    def test_only_read_only_skills_opt_into_codex_implicit_invocation(self) -> None:
+        skills = Path(__file__).resolve().parent.parent / "skills"
+        implicit = set()
+        for skill in skills.iterdir():
+            if not (skill / "SKILL.md").is_file():
+                continue
+            policy_file = skill / "agents/openai.yaml"
+            policy = load_yaml(policy_file.read_text()) if policy_file.is_file() else None
+            policy = policy.get("policy") if isinstance(policy, dict) else None
+            if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
+                implicit.add(skill.name)
+        self.assertEqual(implicit, {"how", "why"})
+        for name in implicit:
+            self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)
+
+    def test_native_plugin_requires_packaged_hook_and_license(self) -> None:
+        manifest = {
+            "skills": "./skills/",
+            "name": "zstack",
+            "version": "0.1.0",
+            "hooks": "./hooks/hooks.json",
+        }
+        self.write(".codex-plugin/plugin.json", json.dumps(manifest))
+        self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
+        self.write("hooks/hooks.json", '{"hooks": {}}')
+        self.write("LICENSE", "MIT")
+        self.assertEqual(validate(self.root), (0, []))
+        manifest["hooks"] = "../outside.json"
+        self.write(".codex-plugin/plugin.json", json.dumps(manifest))
+        self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
 
 
 if __name__ == "__main__":

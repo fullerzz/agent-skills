@@ -6,6 +6,40 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Codex plugin <Badge type="info" text="2026-10-03" />
+
+PR #12 review repairs enforce the Codex invocation allowlist for every skill, including an explicit false policy for setup-zstack, and exclude only the generated root dist directory from validation. Hook controls accept leading-hyphen IDs and fork events provide child-scoped controls that supersede inherited parent controls. Packaging uses a Git-tracked resource inventory, excludes ignored files, rejects wrong resource types, and checks symlink routes against packaged resources. Regression fixtures cover nested dist content, absent/malformed policies, executed controls and parent/child isolation, resource types, omitted symlink routes, and untracked personal files. `just check`, structural validation (48 skills), 13 Node tests, 20 Python tests, the documentation build, and a tracked-resource package rebuild passed. These are direct fixture checks, not proof of model-driven fork handling.
+
+The added Ruff annotation (`ANN`) and complexity (`C901`) rules pass through `just check`. Typed helpers separate installer receipt loading, planning, and application; validator checks; package resource validation; hook state restoration; and benchmark execution. No new rule suppressions or hook runtime imports were added for these rules. Structural validation (48 skills), 13 Node tests, 14 Python tests, and a six-pair hook benchmark smoke check passed; the staged package was rebuilt.
+
+The user-provided Ruff configuration and `just check` recipes now pass for the Python sources. Formatting/import fixes and bound benchmark closures were applied; benchmark verification uses explicit errors so Python optimization cannot disable it. Documented rule exceptions preserve measured hook startup imports, lexical installer path handling, the stdlib unittest runner, trusted subprocess fixtures, the SafeLoader subclass, and independent helper-error reporting. Structural validation, 13 Node tests, 14 Python tests, and the historical-baseline benchmark smoke check passed. The user's justfile and Ruff configuration were unchanged.
+
+Renamed the hook to `session_start.py` and updated its configured command and tests. The benchmark reads each revision's helper filename from its hook configuration, preserving comparisons against pre-rename commits. Structural validation, 13 Node tests, 14 Python tests, and a six-pair historical-baseline benchmark smoke check passed; the smoke check establishes compatibility, not a new performance result. The staged package was rebuilt with the renamed hook.
+
+### Hook startup optimization
+
+The hook now defers argparse until a mode control runs and tempfile until enable writes state, uses os.path without importing pathlib, resolves its helper location once, and skips a redundant read after clear. The configured command and emitted controls use `--no-config` plus Python `-I -S` to avoid uv configuration discovery, Python environment customizations, and site initialization. State validation, atomic replacement, shell quoting, and opt-out failure reporting remain intact. The configured-command regression also runs with invalid local uv configuration and a PYTHONPATH site customization that must not execute.
+
+Two independent runs of `uv run scripts/benchmark_codex_hooks.py 2b873c9` each used 20 alternating AB/BA pairs per scenario after two warmups per side. Every measured process ran the full configured shell/uv/Python command, returned valid context and controls, and checked clear's file removal; failed commands or assertions abort the run. State was reset outside each timed region. Across both runs, each side completed 40 samples per scenario with zero failures. On this macOS host with Python 3.14.7, 14 logical CPUs, and starting load averages 3.12/3.14/2.99:
+
+| Scenario | Before median (range), ms | After median (range), ms |
+| --- | --- | --- |
+| Inactive startup | 88.84 (86.83–95.67) | 81.22 (78.63–89.83) |
+| Active startup | 88.83 (87.08–94.56) | 80.88 (78.91–85.89) |
+| Clear | 89.18 (86.39–93.53) | 81.44 (78.56–86.67) |
+
+Active startup is about 9% faster in this fixture. A separate import profile attributed about 5.2 ms to tempfile and its dependencies before optimization; it is absent from the normal startup import path afterward. An empty optimized shell/uv/Python launch had a 75.52 ms median (73.62–77.70 ms, ten measured runs), so launcher overhead dominates the remaining time. These are warmed fresh-process hook timings, not cold-disk measurements or end-to-end Codex turn latency. Both variants used the same inherited launcher environment and temporary mise cache; no claim is made that all hosts will see the same improvement.
+
+Added a native Codex package, local marketplace, clean staging command, and a session-scoped z-mode hook. Only how and why opt into Codex implicit invocation; Claude invocation flags remain unchanged. Native agent roles still use the existing installer or disclosed built-in fallback.
+
+Codex CLI 0.160.0 installed the staged package in a temporary `CODEX_HOME`. Auth-free app-server `skills/list` discovered all 48 enabled, namespaced plugin skills with no loader errors. `hooks/list` and `plugin/read` discovered the SessionStart hook as untrusted. Trusting its exact reported hash in that temporary profile changed its native trust status to trusted. No credentials were copied and no personal configuration was changed.
+
+The native manifest is deliberate: on this CLI, a portable root manifest exposed skills but did not expose its OpenAI-extension hook declaration. A compatibility manifest alongside that root did not fix discovery; using only `.codex-plugin/plugin.json` did. Installing the checkout directly also copied Git history and dependencies, so the local marketplace now uses `dist/zstack`, containing only the manifest, license, skills, and hooks. The final cached package contained neither `.git` nor `node_modules`.
+
+Structural validation passed with 48 skills and zero problems after staging. All 13 Node tests, 14 Python tests, the VitePress production build, and whitespace checks passed. Hook tests execute the configured command and its emitted enable/disable commands in temporary directories; they cover inactive defaults, session isolation, resume/compaction, clear, corrupt state, invalid identities, and reported reset failure. Packaging checks cover resource preservation, dependency exclusion, rebuilds, and symlink boundaries. A regression keeps generated packages out of source validation. Commands used a temporary `MISE_CACHE_DIR` because the default mise shim failed under the sandbox.
+
+These checks do not prove model-driven implicit skill selection, execution of mode controls in response to natural language, or lifecycle hook execution during a real model turn. The isolated native thread was created without inference; hook commands were exercised directly by fixtures. Desktop/remote/Windows behavior, public marketplace publication, and Claude plugin packaging were not exercised. Hook trust and uv on the execution host remain required; failed mode-state updates must be reported, and user opt-out takes precedence over stored state.
+
 ## PR workflow <Badge type="info" text="2026-10-03" />
 
 PR #11 review remediation explicitly marks only Tradeoffs and Blast Radius as optional and defines when Blast Radius may be omitted, matching the user reference. Structural validation (48 skills, zero problems), both documentation reference tests, the VitePress build, and whitespace checks passed. This is documentation validation, not live host behavior.

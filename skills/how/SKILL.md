@@ -1,6 +1,6 @@
 ---
 name: how
-description: "Use for \"how does X work\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models. Use why for motivation."
+description: "Read-only explanations of how a named code subsystem works: entry points, callers, runtime flow, package ownership, and layering. Use for code walkthroughs and architecture questions. Use why for historical design rationale; do not select for implementation or debugging requests."
 disable-model-invocation: true
 ---
 
