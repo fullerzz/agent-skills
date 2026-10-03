@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## PR workflow <Badge type="info" text="2026-10-03" />
+
+Ported upstream 23e4138's built-in PR-tool preference and concise description headings. The workflow keeps repository templates and requested draft status, falls back per unsupported operation, and requires host registration even after CLI creation. Queue publication routes through the shared PR playbook.
+
+Structural validation passed (48 skills, zero problems), all 13 Node tests and four Python tests passed, and the VitePress build and whitespace check passed using the temporary mise cache. A direct instruction walkthrough covered a partial-capability PR tool (fallback only for missing operations), an attachment-only tool (create through forge tooling, then attach), a requested draft (preserve it), and a child PR (target its parent). This is prose validation, not fresh autonomous host behavior. The task's actual stack publication uses gh-stack plus host attachment because no built-in creation tool is exposed.
+
 ## Agent lifecycle <Badge type="info" text="2026-10-03" />
 
 PR #9 review remediation makes the reviewed-defect handoff explicitly target a fresh owner with the prior scope, directives, report, and artifact paths. The shared state-dependent reuse exception and safe writer handoff still apply. Structural validation (48 skills, zero problems), both documentation reference tests, the VitePress build, and whitespace checks passed. This is instruction and documentation validation, not live agent execution.
