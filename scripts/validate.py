@@ -207,6 +207,34 @@ def validate_plugin(root: Path, fail: Fail) -> None:
             fail(".codex-plugin/plugin.json", str(error))
 
 
+def validate_claude_plugin(root: Path, fail: Fail) -> None:
+    claude_file = root / ".claude-plugin/plugin.json"
+    if claude_file.exists():
+        try:
+            manifest = json.loads(claude_file.read_text(encoding="utf-8"))
+            codex_file = root / ".codex-plugin/plugin.json"
+            codex = json.loads(codex_file.read_text(encoding="utf-8")) if codex_file.exists() else manifest
+            if manifest.get("name") != "zstack" or manifest.get("version") != codex.get("version"):
+                fail(".claude-plugin/plugin.json", "Invalid native plugin identity")
+            # The manifest's agents list replaces Claude's default agents/ scan.
+            agents = sorted(f"./{path.relative_to(root).as_posix()}" for path in (root / "agents/claude").glob("*.md"))
+            if sorted(manifest.get("agents", [])) != agents:
+                fail(".claude-plugin/plugin.json", "Agents must list every agents/claude file")
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            fail(".claude-plugin/plugin.json", str(error))
+    marketplace_file = root / ".claude-plugin/marketplace.json"
+    if marketplace_file.exists():
+        try:
+            marketplace = json.loads(marketplace_file.read_text(encoding="utf-8"))
+            # Documented install commands use zstack@zstack-local, loaded in place from the checkout root.
+            if marketplace.get("name") != "zstack-local" or {"name": "zstack", "source": "./"} not in [
+                {"name": plugin.get("name"), "source": plugin.get("source")} for plugin in marketplace["plugins"]
+            ]:
+                fail(".claude-plugin/marketplace.json", "Missing zstack@zstack-local root plugin")
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            fail(".claude-plugin/marketplace.json", str(error))
+
+
 def validate(root: Path) -> tuple[int, list[str]]:
     failures: list[str] = []
     names: set[str] = set()
@@ -228,6 +256,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
             fail(relative, str(error))
     validate_helpers(root, fail)
     validate_plugin(root, fail)
+    validate_claude_plugin(root, fail)
     return len(names), failures
 
 

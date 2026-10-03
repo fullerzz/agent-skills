@@ -67,16 +67,15 @@ def benchmark(baseline: str, pairs: int) -> dict[str, object]:
             config = read_resource("hooks/hooks.json")
             (package / "hooks/hooks.json").write_bytes(config)
             command = json.loads(config)["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-            # Historical baselines may use a different hook filename.
+            # Historical baselines may use a different hook filename or root expression.
             helper = next(
-                part.removeprefix("${PLUGIN_ROOT}/")
-                for part in shlex.split(command)
-                if part.startswith("${PLUGIN_ROOT}/")
+                part.rpartition("}/")[2] for part in shlex.split(command) if "PLUGIN_ROOT" in part and "}/" in part
             )
             (package / helper).write_bytes(read_resource(helper))
             data = package / "data"
             (data / "z-mode").mkdir(parents=True)
-            variants[label] = (command, data, dict(os.environ, PLUGIN_ROOT=str(package), PLUGIN_DATA=str(data)))
+            inherited = {key: value for key, value in os.environ.items() if not key.startswith("CLAUDE_PLUGIN_")}
+            variants[label] = (command, data, dict(inherited, PLUGIN_ROOT=str(package), PLUGIN_DATA=str(data)))
 
         results = {}
         for scenario in ("inactive", "active", "clear"):

@@ -1,4 +1,4 @@
-"""Codex SessionStart context and explicit, session-scoped z-mode controls."""
+"""Codex and Claude Code SessionStart context and explicit, session-scoped z-mode controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
 # ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
@@ -71,7 +71,7 @@ def session_start() -> None:
         if event.get("source") not in ("startup", "resume", "clear", "compact", "fork"):
             return
         session_id = event["session_id"]
-        data_dir = os.environ["PLUGIN_DATA"]
+        data_dir = os.environ.get("PLUGIN_DATA") or os.environ["CLAUDE_PLUGIN_DATA"]
         path = state_path(data_dir, session_id)
     except (ValueError, TypeError, AttributeError, KeyError):
         return

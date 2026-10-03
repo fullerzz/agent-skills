@@ -50,7 +50,7 @@ codex plugin remove zstack@zstack-local
 codex plugin add zstack@zstack-local
 ```
 
-Restart the session and review hook trust afterward. To uninstall, run only the removal command. Remove its marketplace separately with `codex plugin marketplace remove zstack-local` if no longer needed. These commands manage the native plugin; the Python uninstall command manages the linked installation.
+Restart the session and review hook trust afterward. Codex skips a hook whose definition changed since you trusted it. The update that added the Claude Code plugin changed the hook command to resolve `CLAUDE_PLUGIN_ROOT` before `PLUGIN_ROOT`, so trust it again after refreshing. To uninstall, run only the removal command. Remove its marketplace separately with `codex plugin marketplace remove zstack-local` if no longer needed. These commands manage the native plugin; the Python uninstall command manages the linked installation.
 
 ### Check the plugin and troubleshoot
 
@@ -64,7 +64,7 @@ Confirm `zstack@zstack-local` is installed and enabled. In a new session, check 
 | --- | --- |
 | Duplicate skill names | Remove the old linked installation in its original scope before using the plugin. |
 | Checkout edits are missing | Rebuild `dist/zstack`, remove and add the cached plugin, then start a new session. |
-| Skills load but mode persistence is unavailable | Check hook trust and whether uv is available on the execution host. |
+| Skills load but mode persistence is unavailable | Check hook trust, including after a refresh that changed the hook definition, and whether uv is available on the execution host. |
 | `z-agent` or `comment-sicko` is unavailable | The plugin does not register these roles; use the linked installation if you need installer-managed agents. |
 | CLI reports it could not create PATH aliases | Check the command's exit status and output. This is a Codex CLI startup warning, not a zstack hook error. In the recorded sandbox check, help and plugin listing still succeeded. |
 

@@ -191,6 +191,31 @@ class ValidateTests(unittest.TestCase):
         self.write(".codex-plugin/plugin.json", json.dumps(manifest))
         self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
 
+    def test_claude_plugin_lists_every_agent_and_matches_codex_version(self) -> None:
+        self.write("agents/claude/reviewer.md", "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n")
+        manifest = {"name": "zstack", "version": "0.1.0", "agents": ["./agents/claude/reviewer.md"]}
+        self.write(".claude-plugin/plugin.json", json.dumps(manifest))
+        self.assertEqual(validate(self.root), (0, []))
+        self.write("agents/claude/worker.md", "---\nname: worker\ndescription: Do work\nmodel: inherit\n---\n")
+        self.assertIn(".claude-plugin/plugin.json: Agents must list every agents/claude file", validate(self.root)[1])
+        manifest["agents"].append("./agents/claude/worker.md")
+        self.write(".claude-plugin/plugin.json", json.dumps(manifest))
+        self.write(".codex-plugin/plugin.json", json.dumps({"name": "zstack", "version": "0.2.0"}))
+        self.assertIn(".claude-plugin/plugin.json: Invalid native plugin identity", validate(self.root)[1])
+
+    def test_claude_marketplace_exposes_documented_install_id(self) -> None:
+        marketplace = {"name": "zstack-local", "plugins": [{"name": "zstack", "source": "./"}]}
+        self.write(".claude-plugin/marketplace.json", json.dumps(marketplace))
+        self.assertEqual(validate(self.root), (0, []))
+        for broken in (
+            {**marketplace, "name": "renamed"},
+            {**marketplace, "plugins": [{"name": "zstack", "source": "./dist/zstack"}]},
+            {"name": "zstack-local"},
+        ):
+            with self.subTest(marketplace=broken):
+                self.write(".claude-plugin/marketplace.json", json.dumps(broken))
+                self.assertTrue(validate(self.root)[1][0].startswith(".claude-plugin/marketplace.json: "))
+
 
 if __name__ == "__main__":
     unittest.main()

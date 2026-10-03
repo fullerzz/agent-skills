@@ -21,7 +21,8 @@ class CodexHooksTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(prefix="zstack hook ")
         self.addCleanup(self.directory.cleanup)
         self.data = Path(self.directory.name)
-        self.env = dict(os.environ, PLUGIN_ROOT=str(ROOT), PLUGIN_DATA=str(self.data))
+        inherited = {key: value for key, value in os.environ.items() if not key.startswith("CLAUDE_PLUGIN_")}
+        self.env = dict(inherited, PLUGIN_ROOT=str(ROOT), PLUGIN_DATA=str(self.data))
 
     def hook(self, session: str = "session-a", source: str = "startup") -> str:
         result = subprocess.run(  # noqa: S603 - Trusted fixture/manifest commands.
@@ -79,6 +80,25 @@ class CodexHooksTests(unittest.TestCase):
             active = "was explicitly enabled" in self.hook()
             self.assertEqual(active, action == "Enable")
             self.assertFalse(marker.exists())
+
+    def test_configured_command_uses_claude_plugin_variables(self) -> None:
+        env = {key: value for key, value in self.env.items() if key not in ("PLUGIN_ROOT", "PLUGIN_DATA")}
+        env |= {"CLAUDE_PLUGIN_ROOT": str(ROOT), "CLAUDE_PLUGIN_DATA": str(self.data)}
+        command = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        result = subprocess.run(  # noqa: S602 - Trusted fixture/manifest commands.
+            command,
+            shell=True,
+            input=json.dumps({"hook_event_name": "SessionStart", "source": "startup", "session_id": "claude-a"}),
+            text=True,
+            capture_output=True,
+            check=True,
+            cwd=self.data,
+            env=env,
+        )
+        context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+        enable = next(line.split(": ", 1)[1] for line in context.splitlines() if line.startswith("Enable: "))
+        subprocess.run(enable, shell=True, check=True, env=env, cwd=self.data)  # noqa: S602
+        self.assertTrue((self.data / "z-mode/claude-a.json").is_file())
 
     def test_emitted_controls_accept_leading_hyphen_session_ids(self) -> None:
         for session in ("-session", "--session-id", "-"):

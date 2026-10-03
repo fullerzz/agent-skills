@@ -47,7 +47,7 @@ Publication is a separate requested action. Passing local checks does not grant 
 
 <InstallMap />
 
-The [native Codex plugin](../hosts/codex.md#native-plugin) uses a different path: checkout → `dist/zstack` → Codex plugin cache. It packages skills and a session hook, with no installer receipt or bundled agent registration. Rebuild and refresh the plugin to apply checkout changes.
+The [native Codex plugin](../hosts/codex.md#native-plugin) uses a different path: checkout → `dist/zstack` → Codex plugin cache. It packages skills and a session hook, with no installer receipt or bundled agent registration. Rebuild and refresh the plugin to apply checkout changes. The [Claude Code plugin](../hosts/claude-code.md#native-plugin) loads skills, the hook, and both agent roles in place from the checkout; changes apply at the next session or `/reload-plugins`.
 
 The installed link leads back to the real skill directory for references and helpers. Commands that operate on your product still run in the target repository. The library checkout and the target project can live in entirely different places.
 

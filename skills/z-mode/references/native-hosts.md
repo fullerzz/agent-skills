@@ -21,7 +21,7 @@ These variables are local to the command. Do not repurpose `HOME` or `CODEX_HOME
 
 Use the selected host's native agent tool. Omit model overrides to inherit its configured default. Where a validated native role override is requested, keep the model ID and effort as separate supported settings. Do not promise provider diversity. Report model identity if exposed, otherwise say it is unavailable.
 
-Use `z-agent` for scoped engineering work and `comment-sicko` for comment reports when installed. A built-in agent with the same scoped brief is a fallback; disclose it. A child reads the selected workflow instructions, but does not recursively launch another copy of itself merely because the mode is active.
+Use `z-agent` for scoped engineering work and `comment-sicko` for comment reports when installed. The Claude Code plugin registers them as `zstack:z-agent` and `zstack:comment-sicko`. A built-in agent with the same scoped brief is a fallback; disclose it. A child reads the selected workflow instructions, but does not recursively launch another copy of itself merely because the mode is active.
 
 Every brief names goal, context paths, read/write scope, acceptance check, and report format. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
 
