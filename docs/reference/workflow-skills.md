@@ -17,7 +17,7 @@ Use this before reporting or acting on a measured speedup or regression.
 
 ### How it works
 
-Checks the limiter, production tuning, physical limits, failures, repeatability, end-to-end relevance, and whether the timed work happened. Comparative runs alternate sides at least five times each and report the median and range. A requested single-run ballpark still checks errors and completed work and is labeled as one run.
+Checks the limiter, production tuning, physical limits, failures, repeatability, end-to-end relevance, and whether the timed work happened. Comparative runs use at least five samples per side with counterbalanced or balanced randomized ordering, equivalent starting state, and independent warmup where needed. Record the order and state preparation, and report the median and range. A requested single-run ballpark still checks errors and completed work and is labeled as one run.
 
 ### Expected result
 

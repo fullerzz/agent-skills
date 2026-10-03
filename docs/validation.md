@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Benchmark skills <Badge type="info" text="2026-10-03" />
 
+PR #8 review remediation replaces fixed AB ordering with counterbalanced AB/BA pairs or balanced randomized schedules, equivalent state preparation, and independent warmup. The workflow reference matches. Structural validation (48 skills, zero problems), all 13 Node tests, all four Python tests, the VitePress build, and whitespace checks passed. These checks validate documentation and packaging, not live benchmark fairness.
+
 Added benchmark-checklist and principle-explain-the-number from upstream 23e4138, with explicit-only metadata for both hosts. Z-mode routes measured performance to the checklist and measured eval results to the principle. Perf issue vets each number; hillclimb vets the probe before freezing it and requires error and completed-work counts.
 
 Structural validation passed with 48 skills and zero problems. All 13 Node tests, all four Python tests, the VitePress production build, and `git diff --check` passed. Commands used `MISE_CACHE_DIR=/private/tmp/benchmark-skills-mise` after the default mise shim failed with a sandbox permission error. The generic Codex skill-creator quick validator rejected the shared `disable-model-invocation` field; the repository validator covers that field and its corresponding Codex policy. No policy was removed to satisfy the generic validator.
