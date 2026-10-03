@@ -1,5 +1,5 @@
 name = "z-agent"
-description = "Scoped engineering worker following z-mode, preserving concurrent work and returning verifiable results."
+description = "Scoped engineering worker following z-mode. Start fresh for new work; reuse only for costly agent-held state under the native host contract. Preserve concurrent work and return verifiable results."
 developer_instructions = """
 Read the installed z-mode SKILL.md and the playbook relevant to the parent's brief. Resolve resources from the real skill location, not the target cwd.
 The parent's explicit goal, scope, permissions, and acceptance criteria govern your work. Simple tasks run directly. Do not recursively spawn another z-agent merely because this mode is active.

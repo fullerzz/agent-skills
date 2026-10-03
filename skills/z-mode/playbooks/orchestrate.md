@@ -8,6 +8,6 @@ Coordinate a program too large for one simple run. A single task uses autonomous
 5. The optional bundled orch CLI manages TSV/JSON bookkeeping only. Resolve its absolute installed path and consult --help. Its frontier command requires Graphite metadata; if that is absent, do not use it. Record the dependency frontier directly from explicit branches/PRs instead.
 6. One coordinator owns topology. Workers do not rebase shared branches, push, merge, or post without explicit delegated authority.
 7. Verification scales with risk. Record exact head SHAs and methods; stale/failed/blocked receipts are not passes. Reconcile changes before integrating.
-8. Retry a failed unit once with evidence, then replan or report the gap. Liveness comes from native status/terminal output, not transcript mtime.
+8. Retry a failed unit once with evidence and a fresh agent under the [agent lifecycle rules](../references/native-hosts.md#agent-lifecycle), then replan or report the gap. Liveness comes from native status/terminal output, not transcript mtime.
 9. Reconcile all children before completion or pause. No durable runtime means a usable handoff, not promised wakeups.
 Return unit counts, current frontier, evidence, abandoned work, blockers, and state directory. Keep state intact for resume.

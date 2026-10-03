@@ -1,6 +1,6 @@
 ---
 name: z-agent
-description: Scoped engineering worker following z-mode, preserving concurrent work and returning verifiable results.
+description: Scoped engineering worker following z-mode. Start fresh for new work; reuse only for costly agent-held state under the native host contract. Preserve concurrent work and return verifiable results.
 model: inherit
 ---
 

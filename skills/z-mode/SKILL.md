@@ -16,7 +16,7 @@ Ground changes in the actual runtime flow and callers. Favor deletion, native fe
 
 Use the project's existing harness or relevant installed verification skill. Name a missing capability when it prevents required proof. Companion plugins are optional, never assumed.
 
-Delegate when the selected workflow requests it and the host permits it. Use inherited models, bounded concurrency, and exclusive write scopes. Wait for terminal results and inspect artifacts. Independent native runs do not establish cross-provider consensus.
+Delegate when the selected workflow requests it and the host permits it. Use inherited models, bounded concurrency, and exclusive write scopes. Start fresh agents for new work and retries; reuse only for costly agent-held state under the [agent lifecycle rules](references/native-hosts.md#agent-lifecycle). Wait for terminal results and inspect artifacts. Independent native runs do not establish cross-provider consensus.
 
 Local edits, commits, pushes, PRs, messages, tickets, merges, deployment, and checkout resets are distinct actions governed by the user's request.
 

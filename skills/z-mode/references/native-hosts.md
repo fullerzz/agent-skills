@@ -25,7 +25,15 @@ Use `z-agent` for scoped engineering work and `comment-sicko` for comment report
 
 Every brief names goal, context paths, read/write scope, acceptance check, and report format. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
 
-Cap active workers at the host's exposed concurrency limit and the task's useful parallelism. Start with 2-3 independent slices, queue the rest. Avoid nested coordinators unless the host supports nesting and the workload warrants it. Wait for completed, failed, cancelled, or blocked results; a started agent is not coverage. Inspect output artifacts before accepting results. Retry a failed slice once with a corrected brief, then record the gap.
+### Agent lifecycle
+
+Start a fresh agent for new work, including fix rounds, follow-ups, retries, and the next queue item. Give it a consolidated brief: the original scope, later directives, prior report, and branch or artifact paths. A continuing role does not require a continuing agent.
+
+Resume, message, or queue new work on an existing agent only when that work needs state held by the agent that is costly to transfer, such as an agent-local checkout, uncommitted edits, or a running dev server, simulator, or watcher. A shared checkout or a role name alone is not a reason to reuse it. Stop and hold orders are always allowed within the task's authority.
+
+Before replacing a writer, stop or drain it and confirm it can no longer write the assigned scope. Preserve its changes and hand them off; if termination cannot be confirmed, use a separate write scope or report the blocker. Never overlap replacement writers on the same files.
+
+Cap active workers at the host's exposed concurrency limit and the task's useful parallelism. Start with 2-3 independent slices, queue the rest. Avoid nested coordinators unless the host supports nesting and the workload warrants it. Wait for completed, failed, cancelled, or blocked results; a started agent is not coverage. Inspect output artifacts before accepting results. Retry a failed slice once with a fresh agent and corrected brief, subject to the state-dependent reuse exception above, then record the gap.
 
 If delegation is unavailable or forbidden, perform the scoped work directly and disclose that independent coverage is missing. Never fabricate another agent's verdict. Do not silently substitute native runs for a request requiring another provider.
 
