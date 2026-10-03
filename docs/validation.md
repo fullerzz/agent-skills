@@ -6,6 +6,18 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Codex plugin <Badge type="info" text="2026-10-03" />
+
+Added a native Codex package, local marketplace, clean staging command, and a session-scoped z-mode hook. Only how and why opt into Codex implicit invocation; Claude invocation flags remain unchanged. Native agent roles still use the existing installer or disclosed built-in fallback.
+
+Codex CLI 0.160.0 installed the staged package in a temporary `CODEX_HOME`. Auth-free app-server `skills/list` discovered all 48 enabled, namespaced plugin skills with no loader errors. `hooks/list` and `plugin/read` discovered the SessionStart hook as untrusted. Trusting its exact reported hash in that temporary profile changed its native trust status to trusted. No credentials were copied and no personal configuration was changed.
+
+The native manifest is deliberate: on this CLI, a portable root manifest exposed skills but did not expose its OpenAI-extension hook declaration. A compatibility manifest alongside that root did not fix discovery; using only `.codex-plugin/plugin.json` did. Installing the checkout directly also copied Git history and dependencies, so the local marketplace now uses `dist/zstack`, containing only the manifest, license, skills, and hooks. The final cached package contained neither `.git` nor `node_modules`.
+
+Structural validation passed with 48 skills and zero problems after staging. All 13 Node tests, 14 Python tests, the VitePress production build, and whitespace checks passed. Hook tests execute the configured command and its emitted enable/disable commands in temporary directories; they cover inactive defaults, session isolation, resume/compaction, clear, corrupt state, invalid identities, and reported reset failure. Packaging checks cover resource preservation, dependency exclusion, rebuilds, and symlink boundaries. A regression keeps generated packages out of source validation. Commands used a temporary `MISE_CACHE_DIR` because the default mise shim failed under the sandbox.
+
+These checks do not prove model-driven implicit skill selection, execution of mode controls in response to natural language, or lifecycle hook execution during a real model turn. The isolated native thread was created without inference; hook commands were exercised directly by fixtures. Desktop/remote/Windows behavior, public marketplace publication, and Claude plugin packaging were not exercised. Hook trust and uv on the execution host remain required; failed mode-state updates must be reported, and user opt-out takes precedence over stored state.
+
 ## PR workflow <Badge type="info" text="2026-10-03" />
 
 PR #11 review remediation explicitly marks only Tradeoffs and Blast Radius as optional and defines when Blast Radius may be omitted, matching the user reference. Structural validation (48 skills, zero problems), both documentation reference tests, the VitePress build, and whitespace checks passed. This is documentation validation, not live host behavior.

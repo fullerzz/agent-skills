@@ -1,0 +1,17 @@
+{
+  "description": "Orient each session and restore explicitly enabled z-mode.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"${PLUGIN_ROOT}/hooks/session-start.py\"",
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ]
+  }
+}

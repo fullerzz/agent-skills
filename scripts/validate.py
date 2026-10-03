@@ -6,6 +6,7 @@
 # ]
 # ///
 
+import json
 import re
 import stat
 import sys
@@ -15,6 +16,9 @@ from urllib.parse import unquote
 
 import yaml
 from rich.console import Console
+
+# Codex opts in only these read-only workflows; Claude retains explicit invocation.
+CODEX_IMPLICIT_SKILLS = {"how", "why"}
 
 
 class YamlLoader(yaml.SafeLoader):
@@ -75,6 +79,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
         for path in sorted(directory.iterdir()):
             if path.name in {
                 "node_modules",
+                "dist",
                 ".git",
                 ".agent-work",
                 ".venv",
@@ -127,9 +132,10 @@ def validate(root: Path) -> tuple[int, list[str]]:
                     policy = policy.get("policy") if isinstance(policy, dict) else None
                     if (
                         not isinstance(policy, dict)
-                        or policy.get("allow_implicit_invocation") is not False
+                        or policy.get("allow_implicit_invocation")
+                        is not (meta["name"] in CODEX_IMPLICIT_SKILLS)
                     ):
-                        fail(relative, "Explicit-only Codex policy missing")
+                        fail(relative, "Explicit-only Codex policy missing" if meta["name"] not in CODEX_IMPLICIT_SKILLS else "Read-only Codex implicit policy missing")
             if relative.startswith("agents/codex/"):
                 meta = tomllib.loads(file.read_text(encoding="utf-8"))
                 for key in ("name", "description", "developer_instructions"):
@@ -191,6 +197,23 @@ def validate(root: Path) -> tuple[int, list[str]]:
     for path in (".cursor-plugin", "automations/benny", "skills/make-bot-ui"):
         if (root / path).exists():
             fail(path, "Retired content remains")
+    manifest_file = root / ".codex-plugin/plugin.json"
+    if manifest_file.exists():
+        try:
+            manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+            if (
+                manifest.get("skills") != "./skills/"
+                or manifest.get("name") != "zstack"
+                or not re.fullmatch(r"\d+\.\d+\.\d+", manifest.get("version", ""))
+            ):
+                fail(".codex-plugin/plugin.json", "Invalid native plugin identity")
+            hooks = manifest["hooks"]
+            if hooks != "./hooks/hooks.json" or not (root / hooks).is_file():
+                fail(".codex-plugin/plugin.json", "Missing bundled hook configuration")
+            if not (root / "skills").is_dir() or not (root / "LICENSE").is_file():
+                fail(".codex-plugin/plugin.json", "Missing shared skills or license")
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            fail(".codex-plugin/plugin.json", str(error))
     return len(names), failures
 
 

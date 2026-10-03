@@ -1,0 +1,13 @@
+{
+  "name": "zstack",
+  "version": "0.1.0",
+  "description": "Evidence-driven engineering workflows, scoped agents, and task-sized verification for Codex.",
+  "author": {
+    "name": "Zach Fuller",
+    "url": "https://github.com/fullerzz"
+  },
+  "repository": "https://github.com/fullerzz/agent-skills",
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

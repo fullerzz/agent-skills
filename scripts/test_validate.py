@@ -1,8 +1,9 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
-from validate import frontmatter, validate
+from validate import frontmatter, load_yaml, validate
 
 
 class ValidateTests(unittest.TestCase):
@@ -125,6 +126,48 @@ class ValidateTests(unittest.TestCase):
                 for failure in failures
             )
         )
+
+    def test_codex_read_only_activation_preserves_claude_policy(self):
+        for name in ("how", "why"):
+            self.write(f"skills/{name}/SKILL.md", f"---\nname: {name}\ndescription: Explain code\ndisable-model-invocation: true\n---\n")
+            self.write(f"skills/{name}/agents/openai.yaml", "policy:\n  allow_implicit_invocation: true\n")
+        self.assertEqual(validate(self.root), (2, []))
+        self.write("skills/how/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.assertIn("skills/how/SKILL.md: Read-only Codex implicit policy missing", validate(self.root)[1])
+
+    def test_generated_plugin_does_not_duplicate_source_skills(self):
+        text = "---\nname: example\ndescription: Explain code\n---\n"
+        self.write("skills/example/SKILL.md", text)
+        self.write("dist/zstack/skills/example/SKILL.md", text)
+        self.assertEqual(validate(self.root), (1, []))
+
+    def test_only_read_only_skills_opt_into_codex_implicit_invocation(self):
+        skills = Path(__file__).resolve().parent.parent / "skills"
+        implicit = set()
+        for skill in skills.iterdir():
+            policy_file = skill / "agents/openai.yaml"
+            if policy_file.is_file():
+                policy = load_yaml(policy_file.read_text())["policy"]
+                if policy["allow_implicit_invocation"]:
+                    implicit.add(skill.name)
+        self.assertEqual(implicit, {"how", "why"})
+        for name in implicit:
+            self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)
+
+    def test_native_plugin_requires_packaged_hook_and_license(self):
+        manifest = {
+            "skills": "./skills/",
+            "name": "zstack", "version": "0.1.0",
+            "hooks": "./hooks/hooks.json",
+        }
+        self.write(".codex-plugin/plugin.json", json.dumps(manifest))
+        self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
+        self.write("hooks/hooks.json", '{"hooks": {}}')
+        self.write("LICENSE", "MIT")
+        self.assertEqual(validate(self.root), (0, []))
+        manifest["hooks"] = "../outside.json"
+        self.write(".codex-plugin/plugin.json", json.dumps(manifest))
+        self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
 
 
 if __name__ == "__main__":
