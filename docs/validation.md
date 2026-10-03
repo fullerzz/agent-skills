@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Correct skill <Badge type="info" text="2026-10-03" />
+
+Ported upstream 9511e603's repeated-mistake prevention workflow with explicit-only metadata for Codex and Claude Code. Preserved the prevention hierarchy and rule table, while scoping history access, requiring isolated historical reproductions, and keeping commits and future invocation outside the skill's authority. Updated the catalog references and current skill counts; historical host results below remain unchanged.
+
+Structural validation passed with 49 skills and zero problems, all 13 Node tests and 20 Python tests passed, and the VitePress production build and whitespace check passed. The first Node run lacked VitePress; installing the frozen pnpm dependencies resolved it. Commands used Homebrew's uv on PATH and a temporary mise cache for pnpm. A temporary-home installation for both hosts verified that each `correct` link resolves to this checkout and exposes the explicit-only policy. No personal skill installation was changed.
+
+A direct instruction walkthrough covered a commit plus its review (one incident), two independent recurrences (eligible class), a review-only request (no edits), unavailable history (reported gap), and a configured but unexecuted CI check (no passing-CI claim). This is prose review and installer verification, not a live model-driven correction run or fresh native host discovery. No bundled executable tools changed.
+
 ## Documentation refresh <Badge type="info" text="2026-10-03" />
 
 Updated the README, site home, setup guide, navigation, visual-guide scope, workflow reference, and provenance to distinguish native Codex plugin installation from linked installation. Corrected the Codex setup-zstack invocation policy and documented plugin discovery checks, troubleshooting, cached updates, native-role limits, and session-scoped mode persistence.

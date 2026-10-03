@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 24 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native Codex plugin, select the namespaced equivalent, such as `zstack:how`, through the skill picker. Replace the task details with your own files, feature, or repository.
+These entries describe the 25 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native Codex plugin, select the namespaced equivalent, such as `zstack:how`, through the skill picker. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -143,6 +143,29 @@ A clearer version of the previous reply.
 This is a rewrite of the last reply, not a new investigation or implementation.
 
 [Full bro instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/bro/SKILL.md)
+
+## Correct {#correct}
+
+You keep correcting agents for the same repository mistakes and want enforceable prevention.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$correct Find repeated mistakes in this repo's recent history and implement prevention. Leave changes uncommitted.` |
+| Claude Code | `/correct Find repeated mistakes in this repo's recent history and implement prevention. Leave changes uncommitted.` |
+
+### How it works
+
+Groups cited, independent incidents into classes with at least two occurrences, then addresses the most frequent within scope. Prefers architecture, types, lint or CI, and behavioral tests, with docs reserved for judgment calls. Reproduces past mistakes in isolation to demonstrate failing checks and corrected cases, and pairs remaining rules with enforcement in the repository's agent instruction file.
+
+### Expected result
+
+Reviewable prevention changes and a report of each class, evidence, selected level, reasons higher levels were unsuitable, actual checks, and proof gaps. A review-only request produces findings and proposals.
+
+### Dependencies and limits
+
+Uses scoped history access and the repository's existing checks. Missing history or unexecuted CI is disclosed. Explicit-only on both hosts; future corrections do not automatically activate it. Commits, publication, personal memory, messages, and tracker writes require their own authorization.
+
+[Full correct instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/correct/SKILL.md)
 
 ## Create a verification skill {#create-verification-skill}
 
