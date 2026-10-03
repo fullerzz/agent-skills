@@ -6,7 +6,7 @@ The port keeps the portable engineering principles, reference prompts, decision 
 
 The Cursor plugin manifest, branding assets, `make-bot-ui`, and dormant `automations/benny` pack are retired. The latter two require Cursor routines, secret cards, webhooks, or an automation runtime unavailable in this library. Recover their original sources from upstream if a replacement runtime becomes a concrete project. They are not installed or advertised as working here.
 
-Cross-provider orchestration, marketplace packaging, and a replacement agent daemon remain outside this release.
+The native Codex plugin packages shared skills and a session hook through a local marketplace. Cross-provider orchestration, public marketplace publication, Claude plugin packaging, and a replacement agent daemon remain outside this release.
 
 The personal naming migration uses `zstack`, `z-mode`, `setup-zstack`, and `z-agent`. Upstream names and URLs remain in attribution and historical baseline records.
 

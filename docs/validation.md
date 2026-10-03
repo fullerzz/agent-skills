@@ -6,6 +6,16 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Documentation refresh <Badge type="info" text="2026-10-03" />
+
+Updated the README, site home, setup guide, navigation, visual-guide scope, workflow reference, and provenance to distinguish native Codex plugin installation from linked installation. Corrected the Codex setup-zstack invocation policy and documented plugin discovery checks, troubleshooting, cached updates, native-role limits, and session-scoped mode persistence.
+
+On this macOS host, structural validation passed with 48 skills and zero problems, all 13 Node tests and 20 Python tests passed, and the VitePress production build passed. Installer and hook tests used isolated fixtures. Commands used `MISE_CACHE_DIR=/private/tmp/zstack-docs-mise` after the default mise shim failed under the sandbox.
+
+Codex CLI 0.160.0 reported zstack@zstack-local version 0.1.0 installed and enabled. This chat received the installed hook's session-specific orientation and inactive-mode status. A direct read-only resume-event invocation of that installed hook exited successfully and returned matching controls and inactive state. CLI help and plugin listing exited successfully despite a PATH-alias creation warning; the hook did not emit that warning. No plugin installation, trust setting, activation state, or personal configuration was changed by these checks.
+
+This verifies current registration, delivered session context, and direct hook output. It does not establish model-driven implicit selection, mode activation/opt-out, or live resume/fork behavior. The documentation build is not a fresh browser or deployed-site check.
+
 ## Codex plugin <Badge type="info" text="2026-10-03" />
 
 PR #12 review repairs enforce the Codex invocation allowlist for every skill, including an explicit false policy for setup-zstack, and exclude only the generated root dist directory from validation. Hook controls accept leading-hyphen IDs and fork events provide child-scoped controls that supersede inherited parent controls. Packaging uses a Git-tracked resource inventory, excludes ignored files, rejects wrong resource types, and checks symlink routes against packaged resources. Regression fixtures cover nested dist content, absent/malformed policies, executed controls and parent/child isolation, resource types, omitted symlink routes, and untracked personal files. `just check`, structural validation (48 skills), 13 Node tests, 20 Python tests, the documentation build, and a tracked-resource package rebuild passed. These are direct fixture checks, not proof of model-driven fork handling.

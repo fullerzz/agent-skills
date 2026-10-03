@@ -43,9 +43,11 @@ Publication is a separate requested action. Passing local checks does not grant 
 
 ## From checkout to host
 
-**Skills are linked; agents are copied.** Switch hosts and installation scopes to see why the stable checkout, discovery directories, and ownership receipt all matter.
+**For linked installations, skills are linked and agents are copied.** Switch hosts and installation scopes to see why the stable checkout, discovery directories, and ownership receipt all matter.
 
 <InstallMap />
+
+The [native Codex plugin](../hosts/codex.md#native-plugin) uses a different path: checkout → `dist/zstack` → Codex plugin cache. It packages skills and a session hook, with no installer receipt or bundled agent registration. Rebuild and refresh the plugin to apply checkout changes.
 
 The installed link leads back to the real skill directory for references and helpers. Commands that operate on your product still run in the target repository. The library checkout and the target project can live in entirely different places.
 
