@@ -113,6 +113,8 @@ Receipts record the source path. Moving first leaves broken links and causes rec
 
 ## Host differences
 
+[Compare installation maps](visual-guide.md#from-checkout-to-host) to see how linked skills, copied agents, and ownership receipts fit together for each host and scope.
+
 | | Claude Code | Codex |
 | --- | --- | --- |
 | Invoke | `/how` | `$how` or the skill picker |

@@ -2,6 +2,8 @@
 
 ## Build a scoped change
 
+[Follow an example request](visual-guide.md#follow-a-request) through investigation, bug fixing, feature work, or a safe pause.
+
 The [z-mode router](../../skills/z-mode/SKILL.md#routing) picks the matching playbook. Each one needs a different starting point.
 
 | Work | Needs | Playbook |

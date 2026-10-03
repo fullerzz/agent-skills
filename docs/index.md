@@ -13,6 +13,9 @@ hero:
       text: Read the guide
       link: /guide/
     - theme: alt
+      text: Explore the visual guide
+      link: /guide/visual-guide
+    - theme: alt
       text: Browse skills
       link: /skills
     - theme: alt

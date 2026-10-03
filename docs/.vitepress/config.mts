@@ -85,6 +85,7 @@ export default defineConfig({
         text: 'Guide',
         items: [
           { text: 'Overview', link: '/guide/' },
+          { text: 'Visual guide', link: '/guide/visual-guide' },
           { text: 'Install and route work', link: '/guide/01-setup' },
           { text: 'Understand and design', link: '/guide/02-understand-and-design' },
           { text: 'Build and verify', link: '/guide/03-build-and-verify' },
