@@ -1,6 +1,6 @@
 # zstack
 
-Zach's updated personal engineering skill library for Codex and Claude Code, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
+Zach's updated personal engineering skill library for Codex, Claude Code, and Hermes Agent, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
 Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 50 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
@@ -26,6 +26,15 @@ claude plugin install zstack@zstack-local
 ```
 
 Start a new session and invoke `/zstack:how`. Checkout edits apply at the next session or `/reload-plugins`.
+
+Hermes loads this repository as a native directory plugin through `plugin.yaml` and `register(ctx)`, exposing all shared skills as explicit `zstack:<skill>` loads:
+
+```sh
+hermes plugins install fullerzz/agent-skills --no-enable
+hermes plugins enable zstack
+```
+
+These commands use the merged default branch. See [Hermes setup](docs/hosts/hermes.md) for draft-PR installation at an exact commit, verification, and removal. Decline any Node dependency prompt: `package.json` is for the docs site. Ask Hermes to load `zstack:z-mode` with `skill_view` to select the mode. Hermes uses conversational mode persistence and native delegation fallbacks; this package registers no Hermes hooks or agent roles.
 
 ### Linked installation
 
@@ -55,11 +64,13 @@ Explain how this command parses arguments. Keep this read-only and cite the sour
 
 Explicit-only workflows retain their invocation policy. The mode reads relevant companion instructions when you select it. Simple work runs directly; broader investigations can use native agents. Missing capabilities and independent coverage are reported.
 
-See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-code.md), and the [guide](docs/guide/README.md). Runtime evidence and remaining gaps are recorded in [validation](docs/validation.md).
+See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-code.md), [Hermes setup](docs/hosts/hermes.md), and the [guide](docs/guide/README.md). Runtime evidence and remaining gaps are recorded in [validation](docs/validation.md).
 
 ## Remove
 
 For the native Codex plugin, run `codex plugin remove zstack@zstack-local`. See [plugin updates and marketplace removal](docs/hosts/codex.md#plugin-update-and-removal). For the Claude Code plugin, run `claude plugin uninstall zstack@zstack-local`; see [Claude plugin removal](docs/hosts/claude-code.md#plugin-update-and-removal).
+
+For Hermes, run `hermes plugins remove zstack`; see [Hermes removal](docs/hosts/hermes.md#update-and-remove).
 
 For linked installations:
 
@@ -97,13 +108,13 @@ Run `just mypy` as a shortcut for the project-wide mypy check.
 
 ### Versioning
 
-The Codex and Claude Code plugins share one `0.MINOR.PATCH` version in `.codex-plugin/plugin.json` and `.claude-plugin/plugin.json`. Validation fails if the manifests differ or leave `0.x`; reaching `1.0.0` is a deliberate change to that rule.
+The Codex, Claude Code, and Hermes plugins share one `0.MINOR.PATCH` version in `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and `plugin.yaml`. Validation fails if the manifests differ or leave `0.x`; reaching `1.0.0` is a deliberate change to that rule.
 
 - Bump MINOR for incompatible or new behavior: added, removed, or renamed skills and agents, changed invocation policy, and hook or stored-state contract changes.
 - Bump PATCH for compatible fixes and wording changes to packaged content.
-- Changes that ship nothing to either plugin, such as tests or the docs site, need no bump.
+- Changes that ship no plugin behavior or instructions, such as tests or the docs site, need no bump.
 
-Run `just bump minor` or `just bump patch` (`uv run scripts/bump_version.py`) to update both manifests together.
+Run `just bump minor` or `just bump patch` (`uv run scripts/bump_version.py`) to update all three manifests together.
 
 The documentation site in `docs/` uses VitePress, managed with pnpm:
 

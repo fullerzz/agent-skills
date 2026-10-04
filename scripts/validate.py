@@ -197,7 +197,7 @@ def validate_plugin(root: Path, fail: Fail) -> None:
             if (
                 manifest.get("skills") != "./skills/"
                 or manifest.get("name") != "zstack"
-                # Both hosts share one pre-1.0 version; see the README versioning policy.
+                # Native hosts share one pre-1.0 version; see the README versioning policy.
                 or not re.fullmatch(r"0\.\d+\.\d+", manifest.get("version", ""))
             ):
                 fail(".codex-plugin/plugin.json", "Invalid native plugin identity")
@@ -242,6 +242,30 @@ def validate_claude_plugin(root: Path, fail: Fail) -> None:
             fail(".claude-plugin/marketplace.json", str(error))
 
 
+def validate_hermes_plugin(root: Path, fail: Fail) -> None:
+    relative = "plugin.yaml"
+    try:
+        manifest = load_yaml((root / relative).read_text(encoding="utf-8"))
+        reference = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        if (
+            not isinstance(manifest, dict)
+            or manifest.get("name") != "zstack"
+            or not isinstance(manifest.get("version"), str)
+            or not re.fullmatch(r"0\.\d+\.\d+", manifest["version"])
+            or manifest["version"] != reference.get("version")
+        ):
+            fail(relative, "Invalid native plugin identity or shared version")
+        if not isinstance(manifest, dict) or manifest.get("license") != "MIT":
+            fail(relative, "Missing MIT license declaration")
+        for resource in ("__init__.py", "LICENSE"):
+            if not (root / resource).is_file():
+                fail(relative, f"Missing Hermes plugin resource: {resource}")
+        if not (root / "skills").is_dir():
+            fail(relative, "Missing shared skills")
+    except (OSError, ValueError, TypeError, AttributeError, yaml.YAMLError) as error:
+        fail(relative, str(error))
+
+
 def validate(root: Path) -> tuple[int, list[str]]:
     failures: list[str] = []
     names: set[str] = set()
@@ -264,6 +288,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
     validate_helpers(root, fail)
     validate_plugin(root, fail)
     validate_claude_plugin(root, fail)
+    validate_hermes_plugin(root, fail)
     return len(names), failures
 
 

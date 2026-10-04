@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: zstack
-  text: Engineering workflows for Codex and Claude Code
-  tagline: A personal skill library adapted from Lauren Tan's pstack. Shared skills, native Codex and Claude Code plugins, and linked installation for both hosts.
+  text: Engineering workflows for Codex, Claude Code, and Hermes
+  tagline: A personal skill library adapted from Lauren Tan's pstack. Shared skills and native plugins for three hosts, plus linked installation for Codex and Claude Code.
   image:
     src: /logo.svg
     alt: Stacked layers logo
@@ -22,12 +22,12 @@ hero:
 features:
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
     title: Shared skills
-    details: 49 skills, 24 engineering principles, and 23 workflow playbooks live once in skills/ and serve both hosts.
+    details: 50 skills, 24 engineering principles, and 23 workflow playbooks live once in skills/ and serve all three hosts.
     link: /skills
     linkText: Browse the catalog
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg>
     title: Native plugins
-    details: Namespaced skills and a session hook for explicitly selected z-mode, in Codex and Claude Code.
+    details: Namespaced skills for Codex, Claude Code, and Hermes. Codex and Claude Code also provide a session hook for explicitly selected z-mode.
     link: /guide/01-setup#install
     linkText: Choose a plugin
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -61,7 +61,14 @@ codex plugin marketplace add "$PWD"
 codex plugin add zstack@zstack-local
 ```
 
+```sh [Hermes plugin]
+hermes plugins install fullerzz/agent-skills --no-enable
+hermes plugins enable zstack
+```
+
 :::
+
+In Hermes, ask to load `zstack:how` with `skill_view`. Decline any Node dependency prompt; the plugin does not need the docs site's dependencies. See [Hermes setup](./hosts/hermes.md) for installation from a draft PR and manual checks.
 
 Select `zstack:how` in the Codex skill picker or invoke `/zstack:how` in Claude Code to check discovery. Review Codex hook trust separately; installation does not activate z-mode. See plugin setup, updates, and removal for [Codex](./hosts/codex.md#native-plugin) and [Claude Code](./hosts/claude-code.md#native-plugin).
 

@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Native Hermes plugin
+
+On 2026-10-04, added a root `plugin.yaml` and `__init__.py` using Hermes' documented `ctx.register_skill(name, path)` API. All 50 skills remain in the shared tree. The adapter registers only skills; z-mode activation stays conversational, and Hermes gets no Codex/Claude hooks, recorder, or native role files. The three host manifests now share version `0.2.0` and the bump helper updates them together.
+
+Reference review used the official [native plugin guide](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins), [installation guide](https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins), and the upstream `PluginContext.register_skill` and installer source. The setup guide documents the optional Node-dependency prompt caused by this repository's docs-only `package.json`.
+
+On this macOS host:
+
+- `uv run scripts/validate.py`: 50 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 13 tests passed. `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 89 tests passed.
+- Ruff lint and format checks passed for all six changed Python files; project mypy passed for 25 files. VitePress build and `git diff --check` passed. Checks used installed uv/Node binaries directly because the mise shims could not access their runtime normally inside the sandbox.
+
+New registration tests load the actual entrypoint with a narrow recording context from a temporary package containing spaces, a separate working directory, and a symlinked install. They verify the complete shared skill inventory, sibling resources, playbooks and helpers, rejection of a missing skills tree, and skipping non-skill entries. Manifest/version regressions cover Hermes drift, missing entrypoints, and refusing partial bumps when the YAML version field cannot be rewritten.
+
+These are local contract tests, not a live Hermes loader or model run. Hermes is not installed on this host; `hermes plugins doctor`, real installation/enablement, `skill_view`, model behavior, delegation, and native Windows execution remain unverified. The [Hermes manual checklist](hosts/hermes.md#invoke-and-verify) is for the user's testing before merging the draft PR. No personal Hermes installation or configuration was changed.
+
 ## Shared v0 plugin versioning <Badge type="info" text="2026-10-04" />
 
 The Codex and Claude Code manifests share one `0.MINOR.PATCH` version. Validation now rejects a Codex version outside `0.x` (Claude must already match it), and `scripts/bump_version.py`, exposed as `just bump minor|patch`, rewrites both manifests in place after refusing drift, non-v0 versions, or unknown parts. The README records the bump policy. Installed caches on this host are keyed by version: `~/.codex/plugins/cache/zstack-local/zstack/0.1.0` and Claude's `installPath` `~/.claude/plugins/cache/zstack-local/zstack/0.1.0`.
