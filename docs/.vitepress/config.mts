@@ -39,6 +39,7 @@ export default defineConfig({
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
   rewrites: { 'guide/README.md': 'guide/index.md' },
   markdown: {
+    theme: { light: 'catppuccin-latte', dark: 'catppuccin-macchiato' },
     config(md) {
       // Docs link to skills and LICENSE outside docs/. Skill and playbook files go to the
       // catalog; anything else, or a link into a section, goes to GitHub.
@@ -119,7 +120,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: repo }],
     editLink: { pattern: `${repo}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     footer: {
-      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>.`,
+      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode).`,
       copyright: 'Copyright © 2026 Lauren Tan',
     },
     search: {
