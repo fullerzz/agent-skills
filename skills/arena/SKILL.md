@@ -8,11 +8,11 @@ disable-model-invocation: true
 
 Produce independent candidates, choose a base, adapt useful ideas, and verify. Use the [native contract](../z-mode/references/native-hosts.md).
 
-1. Define the artifact and 3-6 success criteria. Choose 2-3 native candidates unless the user specifies another useful count. Inherit models; report actual identities if exposed.
-2. Give each the same task/grounding, exclusive output or worktree, and artifact plus rationale. Queue within native limits.
+1. Define the artifact and 3-6 success criteria. Choose 2-3 candidates through the selected execution method unless the user specifies another useful count. Follow its model semantics; report actual identities if exposed.
+2. Give each the same task/grounding, exclusive output or worktree, and artifact plus rationale. Queue within host limits.
 3. Wait for terminal results and read every artifact. A dropout remains a gap.
 4. A fresh read-only judge scores completed candidates. It must not be a writer. If unavailable, label the judgment parent-only.
 5. Pick by criteria and reconcile disagreements. Adapt ideas coherently; convergence needs no forced graft.
 6. Verify the synthesis. Record base, grafts, rejections, reviewer identities, gaps, and evidence.
 
-Same-model independent runs are useful but do not satisfy cross-provider comparison, which is outside this release.
+Same-model independent runs are useful but do not satisfy cross-provider comparison. A requested cross-provider comparison requires verified provider identities and available execution capabilities; report missing coverage.

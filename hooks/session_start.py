@@ -1,4 +1,4 @@
-"""Shared host context and explicit, session-scoped z-mode controls."""
+"""Shared host context and session-scoped mode and execution controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
 # ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
@@ -18,8 +18,17 @@ def state_path(data_dir: str, session_id: str) -> str:
     return os.path.join(data_dir, "z-mode", session_id + ".json")
 
 
-def set_active(path: str, active: bool) -> None:
-    if not active:
+def read_state(path: str) -> tuple[bool, str]:
+    try:
+        with open(path, encoding="utf-8") as file:
+            state = json.load(file)
+        return state.get("active") is True, "herdr" if state.get("execution") == "herdr" else "native"
+    except (OSError, ValueError, AttributeError):
+        return False, "native"
+
+
+def write_state(path: str, active: bool, execution: str) -> None:
+    if not active and execution == "native":
         try:
             os.unlink(path)
         except FileNotFoundError:
@@ -30,37 +39,47 @@ def set_active(path: str, active: bool) -> None:
 
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=directory, delete=False) as file:
-        temporary = file.name
-        json.dump({"active": True}, file)
+    state: dict[str, object] = {"active": active}
+    if execution == "herdr":
+        state["execution"] = execution
+    temporary = None
     try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=directory, delete=False) as file:
+            temporary = file.name
+            json.dump(state, file)
         os.replace(temporary, path)
     finally:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
+        if temporary is not None:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
 
 
-def restore_state(path: str, source: str) -> tuple[bool, str | None]:
+def set_active(path: str, active: bool) -> None:
+    # Re-selecting the mode preserves execution; stopping it clears both preferences.
+    write_state(path, active, read_state(path)[1] if active else "native")
+
+
+def set_execution(path: str, execution: str) -> None:
+    if execution not in ("herdr", "native"):
+        raise ValueError("Invalid execution selection")
+    write_state(path, read_state(path)[0], execution)
+
+
+def restore_state(path: str, source: str) -> tuple[bool, str, str | None]:
     clear_error = None
     if source == "clear":
         try:
             set_active(path, False)
         except OSError:
             clear_error = (
-                "z-mode state could not be removed on clear. This session is inactive, "
+                "z-mode state could not be removed on clear. Mode and Herdr execution are inactive, "
                 "but a later resume may see stale stored activation. Retry Disable "
                 "and preserve this opt-out in resume notes; user opt-out always takes precedence."
             )
-    active = False
-    if source != "clear":
-        try:
-            with open(path, encoding="utf-8") as state:
-                active = json.load(state).get("active") is True
-        except (OSError, ValueError, AttributeError):
-            pass
-    return active, clear_error
+    active, execution = read_state(path) if source != "clear" else (False, "native")
+    return active, execution, clear_error
 
 
 def control_command(arguments: list[str], shell: str) -> str:
@@ -128,10 +147,10 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     if source not in ("startup", "resume", "clear", "compact", "fork"):
         raise ValueError("Invalid context source")
     path = state_path(data_dir, session_id)
-    active, clear_error = restore_state(path, source)
+    active, execution, clear_error = restore_state(path, source)
     helper = os.path.realpath(__file__)
     controls: dict[str, dict[str, str]] = {"posix": {}, "powershell": {}}
-    for action in ("enable", "disable"):
+    for action in ("enable", "disable", "herdr", "native"):
         arguments = [
             "uv",
             "run",
@@ -150,19 +169,21 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         for shell, commands in controls.items():
             commands[action] = control_command(arguments, shell)
     context = (
-        "The zstack plugin provides engineering skills. Use only skills whose "
-        "invocation policy permits the current request. Installation does not enable z-mode. "
+        "zstack provides engineering skills; respect invocation policy. "
+        "Installation activates neither z-mode nor Herdr. "
         "These controls supersede any controls inherited from a parent or forked conversation; "
         "never run another session's controls. Parent activation does not activate a fork. "
-        "These controls apply only to this session; use them only when the user "
-        "explicitly selects z-mode or opts out/switches style:\n"
-        "Use the variant matching the shell executing the control.\n"
+        "Only explicit selection/opt-out permits controls: Enable selects z-mode; Disable clears both; "
+        "Herdr selects execution only; Native clears execution only. Preferences do not control processes. "
+        "Match the executing shell:\n"
         f"POSIX sh Enable: {controls['posix']['enable']}\nPOSIX sh Disable: {controls['posix']['disable']}\n"
         f"PowerShell Enable: {controls['powershell']['enable']}\n"
         f"PowerShell Disable: {controls['powershell']['disable']}\n"
-        "On stop z-mode or another selected style, disable before continuing and "
-        "record the opt-out in resume notes. Hook state is a reminder, never authority "
-        "to override a later user instruction. Installation does not authorize "
+        f"POSIX sh Herdr: {controls['posix']['herdr']}\nPOSIX sh Native: {controls['posix']['native']}\n"
+        f"PowerShell Herdr: {controls['powershell']['herdr']}\n"
+        f"PowerShell Native: {controls['powershell']['native']}\n"
+        "On stop z-mode/style switch, run Disable and record opt-out in resume notes. "
+        "Later user instructions override stored state. No added authority for "
         "delegation, commits, publication, messages, or tracker writes.\n"
     )
     if active:
@@ -175,6 +196,14 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         context += "z-mode is inactive for this cleared context."
     else:
         context += "No stored z-mode activation exists for this session."
+    if execution == "herdr":
+        skill = os.path.join(os.path.dirname(os.path.dirname(helper)), "skills/herdr-workflow/SKILL.md")
+        context += (
+            f"\nHerdr execution was explicitly enabled for this session. Read {skill}; "
+            "apply it alongside the selected playbook. Later user instructions override stored state."
+        )
+    else:
+        context += "\nHerdr execution is not enabled."
     if os.environ.get("ZSTACK_XRAY") == "1":
         context += xray_context(host, session_id, data_dir, helper, 4000 - len(context) - len(clear_error or "") - 1)
     if clear_error:
@@ -214,19 +243,26 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("enable", "disable"))
+    parser.add_argument("action", choices=("enable", "disable", "herdr", "native"))
     parser.add_argument("--host", choices=("codex", "claude", "hermes"))
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--data-dir", required=True)
     args = parser.parse_args()
     try:
         path = state_path(args.data_dir, args.session_id)
-        set_active(path, args.action == "enable")
+        if args.action in ("enable", "disable"):
+            set_active(path, args.action == "enable")
+        else:
+            set_execution(path, args.action)
     except (ValueError, OSError) as error:
         record_xray(args.host, args.session_id, args.data_dir, args.action, "state_change_failed")
         parser.exit(1, f"z-mode state not changed: {error}\n")
     record_xray(
-        args.host, args.session_id, args.data_dir, args.action, "enabled" if args.action == "enable" else "disabled"
+        args.host,
+        args.session_id,
+        args.data_dir,
+        args.action,
+        "enabled" if args.action in ("enable", "herdr") else "disabled",
     )
 
 

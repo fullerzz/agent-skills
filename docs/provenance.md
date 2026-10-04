@@ -6,7 +6,9 @@ The port keeps the portable engineering principles, reference prompts, decision 
 
 The Cursor plugin manifest, branding assets, `make-bot-ui`, and dormant `automations/benny` pack are retired. The latter two require Cursor routines, secret cards, webhooks, or an automation runtime unavailable in this library. Recover their original sources from upstream if a replacement runtime becomes a concrete project. They are not installed or advertised as working here.
 
-The native Codex plugin packages shared skills and a session hook through a local marketplace. The Claude Code plugin loads the same skills, hook, and agent roles in place through its own local marketplace. Cross-provider orchestration, public marketplace publication, and a replacement agent daemon remain outside this release.
+The native Codex plugin packages shared skills and a session hook through a local marketplace. The Claude Code plugin loads the same skills, hook, and agent roles in place through its own local marketplace. Public marketplace publication and a replacement agent daemon remain outside this release.
+
+The Herdr integration is zstack-specific coordination guidance based on Herdr's [agent guide](https://herdr.dev/agent-guide.md), [concepts](https://herdr.dev/docs/concepts/), [working guide](https://herdr.dev/docs/how-to-work/), [automation documentation](https://herdr.dev/docs/agent-automation/), and [upstream operational skill](https://raw.githubusercontent.com/herdrdev/herdr/master/skills/herdr/SKILL.md), reviewed 2026-10-04. It references upstream operations rather than vendoring that skill. Explicit Herdr execution applies across existing playbooks; launching a requested CLI does not establish cross-provider consensus or inherited host configuration.
 
 The personal naming migration uses `zstack`, `z-mode`, `setup-zstack`, and `z-agent`. Upstream names and URLs remain in attribution and historical baseline records.
 

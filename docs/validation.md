@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Herdr execution integration — 2026-10-04
+
+Version `0.4.0` adds explicit Herdr execution selection alongside existing playbooks. The shared Codex/Claude/Hermes state helper remembers execution separately from mode activation in the existing per-session JSON. Native remains the default for legacy records. Herdr selection alone does not activate z-mode; enabling z-mode preserves execution; Native clears only the execution preference; Disable and clear/reset remove both. No hook launches or probes Herdr.
+
+Local validation on macOS:
+
+- `uv run scripts/validate.py`: 51 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 13 tests passed, including isolated installation and documentation reference coverage.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 114 tests passed. New regressions cover preference roundtrips, same-ID restore, child isolation, opt-out, legacy/invalid state, failed atomic writes, Hermes restart/reset behavior, and xray event reading. The added selection tests failed against the old helper before implementation.
+- Ruff lint and format checks passed for the four changed Python files; project mypy passed for 27 source files. `pnpm docs:build` and `git diff --check` passed.
+- An isolated Git fixture packaged the current resources, including all three new Herdr skill files, and verified byte equality plus relocated hook-to-skill references with paths containing spaces. This did not stage the working tree, refresh an installed plugin, or modify personal host configuration. Normal packaging includes tracked resources only, so the new skill must be tracked before packaging from the real checkout.
+
+Actual Herdr checks: `HERDR_ENV=1` was present. Installed CLI help confirmed the documented pane and agent command surfaces. `herdr status` reported client/server `0.9.3`, private protocol `22`, compatible endpoint, and no restart required. Both `herdr pane current --current` and `herdr pane layout --current` returned `pane_not_found`. The attempted pane smoke stopped at caller resolution; no pane was created, no focus was changed, and no agent was launched. The operations reference now explicitly treats an unresolved caller as a blocker even when the environment flag is present.
+
+The automated checks prove state/packaging contracts, not model adherence or live Herdr orchestration. Fresh installed-host selection, a valid-caller pane run/read/cleanup, agent startup/prompt/wait/blocked recovery, detach/pickup, remote coordination, and Windows PowerShell execution remain unverified. PowerShell quoting is covered by serialization tests only. Live checks should run in a disposable caller pane with task-owned resources and preserve unrelated work.
+
 ## Native Hermes plugin
 
 ### Correlation-ID review fix — 2026-10-04

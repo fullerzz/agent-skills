@@ -2,7 +2,7 @@
 
 Zach's updated personal engineering skill library for Codex, Claude Code, and Hermes Agent, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
-Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 50 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 51 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 ## Install
 
@@ -83,6 +83,10 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 
 ## Workflows
 
+Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode Use Herdr execution for this session` in Claude Code's plugin, or ask Hermes to load `zstack:z-mode` with Herdr enabled. Existing bug-fix, feature, investigation, review, and queue workflows then use Herdr for their authorized delegated agents and useful long-running processes. Small work stays direct. Herdr must be available inside the calling pane (`HERDR_ENV=1`); enabling the preference does not attach an outside session.
+
+"Disable Herdr execution" restores native execution while retaining z-mode. "Stop z-mode" clears both preferences. The shared native hooks remember them for the same session ID; new sessions and children require their own selection. With linked skills or older hooks, selection remains conversational. See [Herdr workflow](docs/reference/workflow-skills.md#herdr-workflow) for mechanics, limits, and resume behavior.
+
 - Understand with how, why, teach, recall, and blast-radius.
 - Design and review with architect, arena, swarm, interrogate, and no-comments.
 - Build with z-mode's bug, feature, refactoring, performance, and prototype playbooks.
@@ -92,7 +96,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 - Inspect observable zstack activity in the current session with explicitly invoked [xray-session](docs/reference/workflow-skills.md#xray-session), a chronological ledger and ASCII diagram with history coverage gaps.
 - Publish or merge only when the user's request authorizes those actions.
 
-Cross-provider orchestration, public marketplace publication, and the old automation runtime are outside this release. Native independent runs may use the same model.
+Herdr can launch a requested supported agent CLI with its own configuration; independent runs do not establish provider diversity or consensus. Public marketplace publication and the old automation runtime remain outside this release.
 
 ## Maintain
 

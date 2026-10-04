@@ -32,6 +32,10 @@ The launcher explicitly selects the Claude host, so state lives in `CLAUDE_PLUGI
 
 The hook supplies labeled POSIX sh and PowerShell enable/disable commands. Use the variant matching the executing tool: POSIX sh for Bash, PowerShell for the PowerShell tool. This preserves paths containing apostrophes in either shell without guessing which tool is active. Claude can use PowerShell on Windows without Git Bash and can enable it on other platforms; see the [PowerShell tool reference](https://code.claude.com/docs/en/tools-reference#powershell-tool). Controls write outside the project, so Claude Code may ask for permission first. Missing or corrupt state means inactive. The hook does not authorize delegation or external actions.
 
+### Herdr execution
+
+For [Herdr execution](../reference/workflow-skills.md#herdr-workflow), explicitly request "use z-mode with Herdr". The shared hook also supplies Herdr/Native controls in both shells. Herdr changes execution without activating z-mode; Native disables Herdr while retaining the mode. Enable preserves execution; Disable, style switch, and clear reset both. The same-ID preference is stored in the existing mode JSON and does not transfer to children. The hook never launches agents or probes Herdr. Operation requires `HERDR_ENV=1` and remains subject to Claude permissions; older installed hooks retain selection conversationally until refreshed.
+
 ### Optional xray recording
 
 Start the host with `ZSTACK_XRAY=1` to retain minimal supported event metadata under `CLAUDE_PLUGIN_DATA/xray/claude/`. Recording is independent of mode activation and disabled by default. The user-only xray-session skill combines those records with transcript evidence. See [collection setup and limits](../reference/workflow-skills.md#optional-event-collection).

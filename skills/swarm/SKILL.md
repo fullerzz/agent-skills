@@ -10,7 +10,7 @@ Partition coverage, race identical briefs, or mix both. Declare the done predica
 
 Use the smallest useful count. Each brief names slice, read/write scope, exclusive output, checks, and PASS / ISSUES / BLOCKED report with evidence. Measurement/commit checks name exact SHAs, workload, samples, and method.
 
-Run native local workers within exposed limits. Do not assume cloud VMs or placement arguments. Isolate worktrees, data, and ports where needed.
+Run workers through the selected execution method within exposed limits. Herdr agents use the explicitly selected endpoint; do not assume cloud VMs or placement arguments. Isolate worktrees, data, and ports where needed.
 
 Wait for terminal results and inspect receipts. Missing required SHAs/method invalidate measurement: respawn that worker once with a consolidated brief under the [agent lifecycle rules](../z-mode/references/native-hosts.md#agent-lifecycle), then record a gap after a second miss. A first-pass race still cancels or drains remaining writers.
 

@@ -1,10 +1,42 @@
 # Workflow skills
 
-These entries describe the 26 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 27 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
-Delegated workflows use native host agents, inherited models, bounded concurrency, and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
+Delegated workflows use native host agents by default, or [Herdr execution](#herdr-workflow) when explicitly enabled. Native agents inherit model configuration; Herdr-launched CLIs use their own settings. Both retain bounded concurrency and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
+
+## Herdr workflow {#herdr-workflow}
+
+You want existing workflows to run their agents and useful long-running supporting processes visibly in Herdr.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$z-mode Use Herdr execution for this session, then fix the reconnect bug.` |
+| Claude Code | `/zstack:z-mode Use Herdr execution for this session, then fix the reconnect bug.` |
+| Hermes | `Load zstack:z-mode with skill_view and enable Herdr execution for this session.` |
+
+For execution selection without activating z-mode, invoke `herdr-workflow` explicitly and ask to enable it. A one-off request such as `$herdr-workflow Inspect the agents assigned to this task` does not persist a session preference.
+
+### How it works
+
+Z-mode selects the normal task playbook, then loads this companion when Herdr is enabled. The playbook determines work, ownership, and acceptance; Herdr supplies agent launch, prompt submission, lifecycle waits, terminal inspection, and useful supporting panes. A small task still runs directly. The coordinator maintains task-to-agent/pane assignments and accepts artifacts only after the workflow's checks.
+
+The session hook supplies Herdr and Native controls alongside Enable and Disable. Herdr changes execution only; Native disables Herdr while preserving z-mode. Enable selects z-mode and retains an existing execution preference; Disable clears both. These are preference writes, not process controls. Explicit pause drains or stops assigned workers; client detach leaves processes running.
+
+### Expected result
+
+The original workflow's deliverable, visible task-owned agents/processes, verified results, and a reconciled roster or handoff. Reports distinguish agent readiness from task acceptance and name incomplete evidence.
+
+### Dependencies and limits
+
+Herdr control requires `HERDR_ENV=1`, a compatible CLI/server, and the selected agent CLI. The installed CLI's help determines syntax. Missing capabilities require a disclosed, user-selected fallback; host restrictions and combined worker limits still apply. The upstream [agent guide](https://herdr.dev/agent-guide.md), [concepts](https://herdr.dev/docs/concepts/), [working guide](https://herdr.dev/docs/how-to-work/), and [automation docs](https://herdr.dev/docs/agent-automation/) describe Herdr itself.
+
+New CLI sessions do not inherit the coordinator's context, model settings, permissions, or activation. Panes alone do not isolate filesystem writes. Use existing task authority for exclusive files or requested worktrees, and supply consolidated briefs. Server restart is different from detach: conversation restoration depends on native integrations and does not prove work continued.
+
+The preference is stored with mode state in each native host's plugin data directory and restored only for the same session ID. Stop/style switch and clear/reset remove both; new children and rotated IDs start without either. Without the new hooks, record selection and opt-out conversationally. No installation, permission changes, server restarts, publication, or extra delegation follow merely from enabling it.
+
+[Full herdr-workflow instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/herdr-workflow/SKILL.md)
 
 ## Benchmark checklist {#benchmark-checklist}
 
@@ -316,7 +348,7 @@ You want evidence-driven engineering for the current conversation.
 
 ### How it works
 
-The mode grounds work in runtime flow and callers, selects only the relevant playbook, and loads principles when they change a decision. Simple tasks run directly. Requested delegation uses bounded native agents with exclusive write scopes, terminal results, and artifact inspection. Checks target the real outcome.
+The mode grounds work in runtime flow and callers, selects only the relevant playbook, and loads principles when they change a decision. Simple tasks run directly. Requested delegation uses the selected execution method with exclusive write scopes, terminal results, and artifact inspection. Enable [Herdr](#herdr-workflow) once for the session to use it alongside existing playbooks; native execution remains the default. Checks target the real outcome.
 
 ### Expected result
 
