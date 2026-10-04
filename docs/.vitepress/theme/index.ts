@@ -1,4 +1,4 @@
-import DefaultTheme from 'vitepress/theme'
+import DefaultTheme from 'vitepress/theme-without-fonts'
 import type { Theme } from 'vitepress'
 import Workflow from './Workflow.vue'
 import '@fontsource-variable/schibsted-grotesk'
