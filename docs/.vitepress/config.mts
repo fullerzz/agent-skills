@@ -33,7 +33,7 @@ function catalogSearchHtml() {
 
 export default defineConfig({
   title: "zstack",
-  description: 'A personal engineering skill library for Codex and Claude Code.',
+  description: 'A personal engineering skill library for Codex, Claude Code, and Hermes Agent.',
   cleanUrls: true,
   lastUpdated: true,
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
@@ -77,6 +77,7 @@ export default defineConfig({
         text: 'Hosts',
         items: [
           { text: 'Claude Code', link: '/hosts/claude-code' },
+          { text: 'Hermes Agent', link: '/hosts/hermes' },
           { text: 'Codex', link: '/hosts/codex' },
           { text: 'Native Codex plugin', link: '/hosts/codex#native-plugin' },
         ],
@@ -103,6 +104,7 @@ export default defineConfig({
           { text: 'Playbooks', link: '/reference/playbooks' },
           { text: 'Principles', link: '/reference/principles' },
           { text: 'Claude Code', link: '/hosts/claude-code' },
+          { text: 'Hermes Agent', link: '/hosts/hermes' },
           { text: 'Codex', link: '/hosts/codex' },
           { text: 'Native Codex plugin', link: '/hosts/codex#native-plugin' },
         ],

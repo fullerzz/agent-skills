@@ -13,6 +13,11 @@ class ValidateTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.write("plugin.yaml", "name: zstack\nversion: 0.1.0\nlicense: MIT\n")
+        self.write("__init__.py", "")
+        self.write("LICENSE", "MIT")
+        for resource in ("hooks/hermes.py", "hooks/session_start.py", "hooks/xray.py"):
+            self.write(resource, "")
         self.write(".claude-plugin/plugin.json", json.dumps({"name": "zstack", "version": "0.1.0", "agents": []}))
         self.write(
             ".claude-plugin/marketplace.json",
@@ -267,7 +272,27 @@ class ValidateTests(unittest.TestCase):
                 failures = validate(self.root)[1]
                 for path, content in saved.items():
                     self.write(path, content)
-                self.assertEqual(failures, [f"{path}: Missing required Claude plugin file" for path in missing])
+                self.assertEqual(
+                    [failure for failure in failures if not failure.startswith("plugin.yaml:")],
+                    [f"{path}: Missing required Claude plugin file" for path in missing],
+                )
+
+    def test_hermes_manifest_identity_version_and_resources(self) -> None:
+        self.assertEqual(validate(self.root), (0, []))
+        for manifest in (
+            "name: other\nversion: 0.1.0\nlicense: MIT\n",
+            "name: zstack\nversion: 0.2.0\nlicense: MIT\n",
+            "name: zstack\nversion: 1\nlicense: MIT\n",
+            "[]\n",
+        ):
+            with self.subTest(manifest=manifest):
+                self.write("plugin.yaml", manifest)
+                self.assertIn("plugin.yaml: Invalid native plugin identity or shared version", validate(self.root)[1])
+        self.write("plugin.yaml", "name: zstack\nversion: 0.1.0\nlicense: MIT\n")
+        (self.root / "__init__.py").unlink()
+        self.assertIn("plugin.yaml: Missing Hermes plugin resource: __init__.py", validate(self.root)[1])
+        (self.root / "plugin.yaml").unlink()
+        self.assertTrue(any(failure.startswith("plugin.yaml:") for failure in validate(self.root)[1]))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 ## First-time setup
 
-Install Git, [uv](https://docs.astral.sh/uv/), and the host you intend to use: Codex or Claude Code. Use mise or brew for missing tools. The installer requires Python 3.14+; `uv run` resolves that version and its inline Rich dependency. Node.js 20+ is needed for repository integration tests and the documentation site. The bundled plan validator, worktree audit, orchestration CLI, and PR watcher use uv-managed Python 3.12+ and the standard library.
+Install Git, [uv](https://docs.astral.sh/uv/), and the host you intend to use: Codex, Claude Code, or Hermes Agent. Use mise or brew for missing tools. The installer requires Python 3.14+; `uv run` resolves that version and its inline Rich dependency. Node.js 20+ is needed for repository integration tests and the documentation site. The bundled plan validator, worktree audit, orchestration CLI, and PR watcher use uv-managed Python 3.12+ and the standard library.
 
 Clone the library to a stable location, then run all installer commands from that checkout:
 
@@ -21,6 +21,7 @@ Choose one installation method per host.
 | --- | --- | --- |
 | [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
 | [Native Claude Code plugin](../hosts/claude-code.md#native-plugin) | Namespaced skills, agent roles, and a session hook, loaded in place | You want plugin management and session-scoped mode persistence in Claude Code. |
+| [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills and session hooks | You want Hermes plugin management, session-scoped mode controls, and optional xray recording. |
 | Linked installer | Skill links and copied native agent roles | You need project-scoped installs or installer-managed Codex roles. |
 
 ### Native Codex plugin
@@ -49,6 +50,10 @@ claude plugin install zstack@zstack-local
 Start a new session and invoke `/zstack:how` for a small read-only question. Every skill except `setup-zstack` stays explicit in Claude Code. Installation does not activate z-mode.
 
 If you already use linked Claude Code skills, follow the [migration steps](../hosts/claude-code.md#native-plugin) first to avoid duplicates. The plugin registers `zstack:z-agent` and `zstack:comment-sicko`. It loads in place, so checkout edits apply at the next session or `/reload-plugins`; see [plugin update and removal](../hosts/claude-code.md#plugin-update-and-removal).
+
+### Native Hermes plugin
+
+Install the repository with `hermes plugins install fullerzz/agent-skills --no-enable`, then `hermes plugins enable zstack`. Ask Hermes to load `zstack:how` with `skill_view` for a small read-only question. Installation does not activate z-mode. See [Hermes setup](../hosts/hermes.md) for draft-PR installation, the optional Node dependency prompt, resource loading, and manual validation.
 
 ### Linked installer
 
