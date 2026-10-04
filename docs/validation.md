@@ -16,6 +16,8 @@ On this macOS host, `pnpm docs:build` passed. Playwright (Chromium) runs against
 
 ## Python helper migration <Badge type="info" text="2026-10-03" />
 
+PR #21 review repair: inbox pointer reads now explicitly decode UTF-8, matching the writer. A regression with a simulated CP1252 default reproduced mojibake before the fix and verifies non-ASCII agent, unit, status, and report fields through both peek and drain afterward. All 78 Python tests, mypy (21 files), and Ruff lint/format passed on macOS. This simulation is not a native Windows run.
+
 The `just mypy` recipe runs the uv command with Rich, PyYAML, and PyYAML stubs; invoking the recipe on this macOS host passed with no issues in all 21 source files.
 
 Naming and type-check follow-up: renamed the three Python entrypoints to `check_plan.py`, `worktree_audit.py`, and `watch_pr.py`, including callers and fixtures. Removed the pytest-specific Ruff `PT` rules and obsolete unittest exemptions. Added `mypy.ini` covering all 21 project Python files in `scripts/`, `hooks/`, and the bundled helpers, with local import paths and checking of untyped function bodies. Fixed annotations, dynamic test-module declarations, optional loader/executable handling, and hook metadata narrowing. Existing callback aliases (`Stamp`, `Emit`, and `Fail`) now use Python's `type` statement. Mypy reports no issues; Ruff lint/format, ty, all 77 Python tests, 13 Node tests, whitespace checks, and structural validation (50 skills, zero problems) passed on this macOS host.

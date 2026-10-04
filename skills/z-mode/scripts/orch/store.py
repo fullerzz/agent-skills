@@ -418,7 +418,7 @@ class Store:
         for path in sorted(inbox.iterdir()):
             if path.suffix != ".tsv" or not path.is_file() or path.is_symlink():
                 continue
-            raw = re.sub(r"\r?\n$", "", path.read_text())
+            raw = re.sub(r"\r?\n$", "", path.read_text(encoding="utf-8"))
             cells = raw.split("\t")
             if "\r" in raw or "\n" in raw or len(cells) != 5:
                 raise UserError(f"inbox pointer {path.name} is malformed")

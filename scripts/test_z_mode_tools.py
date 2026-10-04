@@ -102,6 +102,18 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(s.standing_show(), [{"number": 1, "line": "Never force push."}])
         self.assertIn("| release | resolved | Ship? |", (self.path / "status.md").read_text())
 
+    def test_inbox_unicode_round_trip_with_non_utf8_default(self) -> None:
+        read_text = Path.read_text
+
+        def legacy_read(path: Path, encoding: str | None = None, errors: str | None = None) -> str:
+            return read_text(path, encoding=encoding or "cp1252", errors=errors)
+
+        with patch.object(Path, "read_text", legacy_read):
+            pointer = self.store.inbox_push("作業者", "étape", "完了", "résumé/報告.md")["pointer"]
+            self.assertEqual(self.store.inbox_peek(), [pointer])
+            self.assertEqual(self.store.inbox_drain(), [pointer])
+            self.assertEqual(self.store.inbox_count(), 0)
+
     def test_lock_read_only_force_and_dead_holder(self) -> None:
         self.store.close()
         lock = self.path / ".orch.lock"
