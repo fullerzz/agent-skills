@@ -1,6 +1,69 @@
 # Claude Code setup
 
+## Native plugin
+
+This checkout is also a Claude Code plugin. `.claude-plugin/plugin.json` registers the shared `skills/`, the `hooks/hooks.json` session hook, and the two `agents/claude/` roles. `.claude-plugin/marketplace.json` lists it as `zstack@zstack-local` with source `./`, so Claude Code loads the plugin in place from this checkout. There is no packaging step. The hook needs uv on the execution host.
+
+If you already installed linked skills, preview and apply removal using the original scope first:
+
+```sh
+uv run scripts/install.py uninstall --host claude
+uv run scripts/install.py uninstall --host claude --apply
+```
+
+Include the original `--home` or `--project` option if used, and preserve the same `CLAUDE_CONFIG_DIR` value for both commands if used. Keeping both installations enabled duplicates every skill and agent role.
+
+From this checkout, register the local marketplace and install the plugin:
+
+```sh
+claude plugin marketplace add "$PWD"
+claude plugin install zstack@zstack-local
+```
+
+Start a new session. Skills appear as `/zstack:how`, `/zstack:z-mode`, and so on; agent roles appear as `zstack:z-agent` and `zstack:comment-sicko`. Every skill except `setup-zstack` keeps `disable-model-invocation: true`, so `how`, `why`, z-mode, and the other workflows remain explicit in Claude Code; `setup-zstack` permits automatic selection there. Installation does not activate z-mode.
+
+### Session hook
+
+Claude Code runs the shared `SessionStart` Python helper through `hooks/hooks.json`. Its exec-form command passes `${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py` directly to uv as one argument, without shell expansion, including on Windows without Git Bash. Codex uses its own launcher in `hooks/codex.json`. Claude Code runs an enabled plugin's hooks without a separate trust review, so read `hooks/hooks.json` and `hooks/session_start.py` before installing. See Claude's [exec-form hook reference](https://code.claude.com/docs/en/hooks#exec-form-and-shell-form).
+
+The hook supplies session-specific enable/disable commands. On explicit z-mode invocation the skill runs enable; on `stop z-mode` or a style switch it runs disable. Activation is restored on resume and compaction. Forked sessions (`--fork-session`, `/branch`) get child-scoped controls and do not inherit activation. Clearing resets it. Later user instructions take precedence over stored state.
+
+The launcher explicitly selects the Claude host, so state lives in `CLAUDE_PLUGIN_DATA/z-mode/<session-id>.json`, by default `~/.claude/plugins/data/zstack-zstack-local/`, even when the environment contains an unrelated `PLUGIN_DATA`. Uninstalling the plugin deletes that directory unless you pass `--keep-data`.
+
+The hook supplies labeled POSIX sh and PowerShell enable/disable commands. Use the variant matching the executing tool: POSIX sh for Bash, PowerShell for the PowerShell tool. This preserves paths containing apostrophes in either shell without guessing which tool is active. Claude can use PowerShell on Windows without Git Bash and can enable it on other platforms; see the [PowerShell tool reference](https://code.claude.com/docs/en/tools-reference#powershell-tool). Controls write outside the project, so Claude Code may ask for permission first. Missing or corrupt state means inactive. The hook does not authorize delegation or external actions.
+
+### Plugin update and removal
+
+Because the plugin loads in place, checkout edits take effect at the next session start or after `/reload-plugins`. No version bump is needed. Keep the checkout at a stable path, because the marketplace records it.
+
+```sh
+claude plugin uninstall zstack@zstack-local
+claude plugin marketplace remove zstack-local
+```
+
+Removing the marketplace also uninstalls its plugins. These commands manage the native plugin; the Python uninstall command manages the linked installation.
+
+### Check the plugin and troubleshoot
+
+```sh
+claude plugin validate . --strict
+claude plugin list
+```
+
+Confirm `zstack@zstack-local` is enabled. In a new session, run `/agents` to confirm the namespaced roles and check the command list for namespaced skills.
+
+| Symptom | Check |
+| --- | --- |
+| Duplicate `/how` and `/zstack:how` | Remove the old linked installation in its original scope. |
+| `claude plugin details zstack` reports `Agents (0)` | On Claude Code 2.1.288 the inventory omits agents listed in the manifest. Check `/agents`; the session still loads both roles. |
+| Skills load but mode persistence is unavailable | Check that uv is on `PATH`, then look for hook errors in `/plugin` or a `claude --debug` log. |
+| New agent file is missing | `plugin.json` must list every `agents/claude/*.md` file; `uv run scripts/validate.py` reports omissions. |
+
+Enabled status proves registration, not skill execution. See the [validation record](../validation.md) for observed host behavior and remaining gaps.
+
 ## Install
+
+The linked installation remains available for hosts without plugin support and for project-scoped installs. Use one method, not both.
 
 Install Git, uv, and Claude Code, then [clone to a stable location](../guide/01-setup.md#first-time-setup). From the library checkout, preview the personal installation, inspect the output, then apply it:
 

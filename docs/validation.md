@@ -6,6 +6,47 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Claude controls and state isolation <Badge type="info" text="2026-10-03" />
+
+Fixed the two follow-up PR #15 findings. Each launcher now supplies an explicit host marker: Claude reads only `CLAUDE_PLUGIN_DATA`, while Codex reads only `PLUGIN_DATA`. The hook emits labeled POSIX sh and PowerShell enable/disable commands and instructs choosing the executing shell's variant. PowerShell literal quoting doubles straight and curly apostrophes and preserves dollar signs and backticks. Host selection no longer depends on inherited environment-variable precedence, and shell selection does not rely on a platform guess.
+
+On this macOS host, structural validation reported 49 skills and zero problems; all 25 Python tests and 13 Node tests passed, along with Ruff lint/format and whitespace checks. Regressions cover inherited absolute and relative `PLUGIN_DATA` in Claude, unrelated Claude variables in Codex, Windows-path PowerShell serialization, and POSIX execution from a path with apostrophes and shell metacharacters. Existing enable/disable, clear, fork, and session-isolation checks remain green.
+
+Claude Code 2.1.288 passed strict validation of both manifests. An isolated, unauthenticated `--init-only --plugin-dir` run with `PLUGIN_DATA=unrelated-relative` loaded 49 skills and both agents, then successfully executed `SessionStart:startup`. Its 2,007-character context contained both shell variants and the isolated `CLAUDE_PLUGIN_DATA` path. No inference ran or personal configuration changed. An independent `gpt-6.1-sol` review found no actionable issues. Neither PowerShell nor Windows is available on this host, so PowerShell quoting has fixture and static-review coverage only; live PowerShell execution and a live Codex session remain unverified. The changed Codex launcher requires reviewing hook trust after updating.
+
+## Claude plugin PR review fixes <Badge type="info" text="2026-10-03" />
+
+Addressed all three PR #15 findings. Validation now reports a missing Claude manifest and marketplace independently; regression cases for either missing file and both missing files failed before the fix and pass afterward. Migration instructions now preserve the original `CLAUDE_CONFIG_DIR` for both uninstall commands.
+
+Replaced the shared POSIX fallback launcher with separate host configurations. Claude's default `hooks/hooks.json` uses exec-form `command` and `args`, passing the plugin path without a shell. The Codex manifest points to `hooks/codex.json`, which retains the `PLUGIN_ROOT` shell command and context limit. Both launch the unchanged shared Python helper. The hook regression executes Claude's argument vector from a plugin path containing spaces, an apostrophe, a dollar sign, and backticks, then exercises its emitted enable control. The Codex regression reads its manifest's hook path and succeeds even with an unrelated `CLAUDE_PLUGIN_ROOT` present.
+
+On this macOS host, Claude Code 2.1.288 passed strict validation of both manifests. An isolated, unauthenticated `CLAUDE_CONFIG_DIR` and `--init-only --plugin-dir` run loaded 49 skills, both agent files, and exactly one configured hook. Debug output confirmed successful `SessionStart:startup` execution and valid additional context from the exec-form launcher. No inference ran or personal configuration changed. Windows execution and a live Codex loader/session rerun remain unverified; the Windows fix follows Claude's documented exec-form contract.
+
+Structural validation (49 skills, zero problems), all 24 Python tests, all 13 Node tests, Ruff lint/format checks, the VitePress build, and whitespace checks passed. A six-pair Codex benchmark smoke run against the PR head completed all scenarios with zero failures; this is compatibility evidence, not a new performance claim. Packaging with a temporary Git index and object directory included the new Codex configuration, and the packaged manifest resolved it successfully. The real Git index was unchanged. Commands used `MISE_CACHE_DIR=/private/tmp/zstack-pr15-mise` because the default mise cache was unavailable in the sandbox.
+
+## Claude Code plugin <Badge type="info" text="2026-10-03" />
+
+Added `.claude-plugin/plugin.json` and a `zstack-local` marketplace whose plugin source is the checkout root. The manifest lists both `agents/claude` roles; skills and `hooks/hooks.json` use Claude's default locations. The shared hook command now resolves `${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}`, and the script reads `PLUGIN_DATA`, falling back to `CLAUDE_PLUGIN_DATA`. The z-mode activation rule and agent references name both hosts. The validator requires matching plugin versions and a manifest entry for every Claude agent file.
+
+Claude Code 2.1.288 ran with a temporary `CLAUDE_CONFIG_DIR`, unauthenticated, so no inference ran and no personal configuration changed. `claude plugin validate . --strict` passed for the marketplace and the plugin manifest. A probe plugin showed that hooks receive `CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA`, and `CLAUDE_PROJECT_DIR`, but not `PLUGIN_ROOT` or `PLUGIN_DATA`. The previous hook command would therefore have failed. The probe also showed that the `${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}` fallback resolves, and that Claude tolerates the Codex `additionalContextLimit` field and the anchored matcher.
+
+After install, debug logs showed the plugin loading from the checkout: 48 skills, both agent files, and the hook, which returned 1,493 characters of context. `--agent zstack:z-agent` and `--agent zstack:comment-sicko` resolved, while an unknown name listed both roles as available. An emitted enable control wrote state under `plugins/data/zstack-zstack-local/z-mode/`. `--resume` then reported source `resume` with z-mode enabled. `--resume --fork-session` reported source `fork` with no stored activation, and the parent state was unchanged. `claude plugin details` reported `Agents (0)` for manifest-listed agents, even though the session loaded them. Install also copied the full checkout into the plugin cache, but the session loaded from the source path.
+
+Structural validation passed (48 skills, zero problems). All 13 Node tests passed. All 22 Python tests passed, including a hook run with only Claude variables set and a validator check for omitted agents. Ruff, the VitePress build, and a `dist/zstack` rebuild also passed. The Codex hook command changed, so the existing trust no longer matches and must be reviewed again. The fixture still runs that command with only `PLUGIN_*` variables. No live Codex session was run after this change.
+
+These checks did not include model-driven skill invocation, executing controls from natural language, live `/clear` or compaction, interactive `/agents` output, or Bash-tool permission prompts for the controls.
+
+Review follow-up:
+- The hook benchmark now finds the helper path in both old and new command forms and ignores inherited `CLAUDE_PLUGIN_*` variables. Six-pair smoke runs against `HEAD` and the pre-rename baseline `2b873c9` each completed every scenario with zero failures. These were compatibility checks, not new performance results.
+- The docs now say that `setup-zstack` permits automatic selection in Claude Code, which matches its frontmatter.
+- The home-page plugin card now links to the installation choices for both hosts.
+- The Codex docs now say to trust the changed hook again.
+- The validator now requires a `zstack-local` marketplace with a root-source `zstack` plugin.
+
+After these changes, structural validation (48 skills, zero problems), 13 Node tests, 23 Python tests, Ruff, `claude plugin validate . --strict`, the VitePress build, and the whitespace check passed.
+
+After rebasing onto PR #14, which added the `correct` skill, structural validation reported 49 skills and zero problems. All 13 Node tests and 23 Python tests passed. Ruff, `claude plugin validate . --strict`, and the VitePress build also passed. The isolated Claude session loaded 49 plugin skills, and its startup hook ran successfully.
+
 ## Correct skill <Badge type="info" text="2026-10-03" />
 
 PR #14 review remediation explicitly gates rule-table updates and rule cleanup on authorized repository edits. Review-only invocations return the proposed table and rule changes in the report without modifying files. Structural validation passed (49 skills, zero problems), and whitespace checks passed. A direct instruction walkthrough checked both review-only and authorized-edit paths; this is prose verification, not a live model-driven run.

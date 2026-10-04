@@ -1,0 +1,13 @@
+{
+  "name": "zstack-local",
+  "description": "Local zstack checkout for Claude Code.",
+  "owner": { "name": "Zach Fuller" },
+  "plugins": [
+    {
+      "name": "zstack",
+      "source": "./",
+      "description": "Evidence-driven engineering workflows, scoped agents, and task-sized verification.",
+      "category": "productivity"
+    }
+  ]
+}

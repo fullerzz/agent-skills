@@ -11,16 +11,17 @@ git clone https://github.com/fullerzz/agent-skills.git "$HOME/Code/agent-skills"
 cd "$HOME/Code/agent-skills"
 ```
 
-Linked installations refer back to this checkout. The native Codex plugin uses a cached package, with this checkout supplying local marketplace updates.
+Linked installations and the Claude Code plugin refer back to this checkout. The native Codex plugin uses a cached package, with this checkout supplying local marketplace updates.
 
 ## Install
 
-Choose one Codex installation method. Claude Code uses the linked installer.
+Choose one installation method per host.
 
 | Method | Includes | Use when |
 | --- | --- | --- |
 | [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
-| Linked installer | Skill links and copied native agent roles | You use Claude Code or need installer-managed Codex roles. |
+| [Native Claude Code plugin](../hosts/claude-code.md#native-plugin) | Namespaced skills, agent roles, and a session hook, loaded in place | You want plugin management and session-scoped mode persistence in Claude Code. |
+| Linked installer | Skill links and copied native agent roles | You need project-scoped installs or installer-managed Codex roles. |
 
 ### Native Codex plugin
 
@@ -35,6 +36,19 @@ codex plugin add zstack@zstack-local
 Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. Only `how` and `why` permit automatic selection in Codex.
 
 If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; workflows use available roles or disclose a fallback. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
+
+### Native Claude Code plugin
+
+From the checkout, register its local marketplace and install the plugin:
+
+```sh
+claude plugin marketplace add "$PWD"
+claude plugin install zstack@zstack-local
+```
+
+Start a new session and invoke `/zstack:how` for a small read-only question. Every skill except `setup-zstack` stays explicit in Claude Code. Installation does not activate z-mode.
+
+If you already use linked Claude Code skills, follow the [migration steps](../hosts/claude-code.md#native-plugin) first to avoid duplicates. The plugin registers `zstack:z-agent` and `zstack:comment-sicko`. It loads in place, so checkout edits apply at the next session or `/reload-plugins`; see [plugin update and removal](../hosts/claude-code.md#plugin-update-and-removal).
 
 ### Linked installer
 
@@ -138,7 +152,7 @@ Receipts record the source path. Moving first leaves broken links and causes rec
 
 ## Host differences
 
-The table and [installation maps](visual-guide.md#from-checkout-to-host) describe linked installations. Native Codex plugin skills come from the plugin cache and use names such as `zstack:how`; the plugin does not register agent roles.
+The table and [installation maps](visual-guide.md#from-checkout-to-host) describe linked installations. Native Codex plugin skills come from the plugin cache and use names such as `zstack:how`; the plugin does not register agent roles. Claude Code plugin skills and roles load from the checkout as `/zstack:how` and `zstack:z-agent`.
 
 | | Claude Code | Codex |
 | --- | --- | --- |
@@ -170,5 +184,5 @@ $z-mode explain the retry path; no edits
 :::
 
 ::: tip Mode persistence
-The mode remains selected until "stop z-mode" or a style switch. With the trusted Codex plugin hook, explicit activation is stored for that session and restored on resume or compaction; forks do not inherit activation, and clearing resets it. Without the hook, preserve the selection or opt-out in conversation context and resume notes. Installation alone never activates the mode.
+The mode remains selected until "stop z-mode" or a style switch. With the plugin hook (trusted in Codex, enabled in Claude Code), explicit activation is stored for that session and restored on resume or compaction; forks do not inherit activation, and clearing resets it. Without the hook, preserve the selection or opt-out in conversation context and resume notes. Installation alone never activates the mode.
 :::

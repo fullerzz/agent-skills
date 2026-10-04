@@ -6,7 +6,7 @@ Shared instructions live in `skills/`. Each host uses its own native agents and 
 
 ## Install
 
-Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. Only `how` and `why` permit automatic selection in Codex; z-mode and the other workflows remain explicit. Claude Code continues to use the installer below.
+Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. Only `how` and `why` permit automatic selection in Codex; z-mode and the other workflows remain explicit.
 
 From this checkout, stage and install the native Codex plugin:
 
@@ -17,6 +17,15 @@ codex plugin add zstack@zstack-local
 ```
 
 Start a new session and select `zstack:how` from the skill picker. Review hook trust separately. The plugin packages skills and the hook; it does not register native agent roles.
+
+Claude Code loads the same checkout in place as a native plugin: shared skills, the same `SessionStart` hook, and both agent roles. See [Claude Code plugin setup](docs/hosts/claude-code.md#native-plugin) for migration from linked skills and hook behavior. Every skill except `setup-zstack` stays explicit in Claude Code.
+
+```sh
+claude plugin marketplace add "$PWD"
+claude plugin install zstack@zstack-local
+```
+
+Start a new session and invoke `/zstack:how`. Checkout edits apply at the next session or `/reload-plugins`.
 
 ### Linked installation
 
@@ -50,7 +59,7 @@ See [Codex setup](docs/hosts/codex.md), [Claude Code setup](docs/hosts/claude-co
 
 ## Remove
 
-For the native Codex plugin, run `codex plugin remove zstack@zstack-local`. See [plugin updates and marketplace removal](docs/hosts/codex.md#plugin-update-and-removal).
+For the native Codex plugin, run `codex plugin remove zstack@zstack-local`. See [plugin updates and marketplace removal](docs/hosts/codex.md#plugin-update-and-removal). For the Claude Code plugin, run `claude plugin uninstall zstack@zstack-local`; see [Claude plugin removal](docs/hosts/claude-code.md#plugin-update-and-removal).
 
 For linked installations:
 
@@ -71,7 +80,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Publish or merge only when the user's request authorizes those actions.
 
-Cross-provider orchestration, public marketplace publication, the Claude plugin, and the old automation runtime are outside this release. Native independent runs may use the same model.
+Cross-provider orchestration, public marketplace publication, and the old automation runtime are outside this release. Native independent runs may use the same model.
 
 ## Maintain
 

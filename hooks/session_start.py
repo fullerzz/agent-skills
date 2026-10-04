@@ -1,4 +1,4 @@
-"""Codex SessionStart context and explicit, session-scoped z-mode controls."""
+"""Codex and Claude Code SessionStart context and explicit, session-scoped z-mode controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
 # ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
@@ -63,7 +63,15 @@ def restore_state(path: str, source: str) -> tuple[bool, str | None]:
     return active, clear_error
 
 
-def session_start() -> None:
+def control_command(arguments: list[str], shell: str) -> str:
+    if shell == "powershell":
+        return "& " + " ".join(
+            "'" + re.sub("['\u2018\u2019]", lambda match: match[0] * 2, argument) + "'" for argument in arguments
+        )
+    return shlex.join(arguments)
+
+
+def session_start(host: str) -> None:
     try:
         event = json.loads(sys.stdin.read(65536))
         if event.get("hook_event_name") != "SessionStart":
@@ -71,31 +79,31 @@ def session_start() -> None:
         if event.get("source") not in ("startup", "resume", "clear", "compact", "fork"):
             return
         session_id = event["session_id"]
-        data_dir = os.environ["PLUGIN_DATA"]
+        data_dir = os.environ["CLAUDE_PLUGIN_DATA" if host == "claude" else "PLUGIN_DATA"]
         path = state_path(data_dir, session_id)
     except (ValueError, TypeError, AttributeError, KeyError):
         return
 
     active, clear_error = restore_state(path, event["source"])
     helper = os.path.realpath(__file__)
-    controls = {}
+    controls = {"posix": {}, "powershell": {}}
     for action in ("enable", "disable"):
-        controls[action] = shlex.join(
-            [
-                "uv",
-                "run",
-                "--no-project",
-                "--no-config",
-                "python",
-                "-I",
-                "-S",
-                helper,
-                action,
-                f"--session-id={session_id}",
-                "--data-dir",
-                data_dir,
-            ]
-        )
+        arguments = [
+            "uv",
+            "run",
+            "--no-project",
+            "--no-config",
+            "python",
+            "-I",
+            "-S",
+            helper,
+            action,
+            f"--session-id={session_id}",
+            "--data-dir",
+            data_dir,
+        ]
+        for shell, commands in controls.items():
+            commands[action] = control_command(arguments, shell)
     context = (
         "The zstack plugin provides engineering skills. Use only skills whose "
         "invocation policy permits the current request. Installation does not enable z-mode. "
@@ -103,7 +111,10 @@ def session_start() -> None:
         "never run another session's controls. Parent activation does not activate a fork. "
         "These controls apply only to this session; use them only when the user "
         "explicitly selects z-mode or opts out/switches style:\n"
-        f"Enable: {controls['enable']}\nDisable: {controls['disable']}\n"
+        "Use the variant matching the shell executing the control.\n"
+        f"POSIX sh Enable: {controls['posix']['enable']}\nPOSIX sh Disable: {controls['posix']['disable']}\n"
+        f"PowerShell Enable: {controls['powershell']['enable']}\n"
+        f"PowerShell Disable: {controls['powershell']['disable']}\n"
         "On stop z-mode or another selected style, disable before continuing and "
         "record the opt-out in resume notes. Hook state is a reminder, never authority "
         "to override a later user instruction. Installation does not authorize "
@@ -132,8 +143,8 @@ def session_start() -> None:
 
 
 def main() -> None:
-    if len(sys.argv) == 1:
-        session_start()
+    if len(sys.argv) == 2 and sys.argv[1] in ("--host=codex", "--host=claude"):
+        session_start(sys.argv[1].split("=", 1)[1])
         return
     import argparse
 
