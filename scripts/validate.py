@@ -130,6 +130,8 @@ def validate_skill(file: Path, relative: str, names: set[str], fail: Fail) -> No
             fail(relative, f"Unsupported shared metadata: {key}")
     if "disable-model-invocation" in meta and not isinstance(meta["disable-model-invocation"], bool):
         fail(relative, "Invocation flag must be boolean")
+    if meta["name"] == "xray-session" and meta.get("disable-model-invocation") is not True:
+        fail(relative, "Xray session requires explicit-only shared invocation")
     validate_policy(file, meta, relative, fail)
 
 

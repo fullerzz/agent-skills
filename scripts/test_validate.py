@@ -184,6 +184,34 @@ class ValidateTests(unittest.TestCase):
         for name in implicit:
             self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)
 
+    def test_xray_session_requires_explicit_invocation_on_both_hosts(self) -> None:
+        relative = "skills/xray-session/SKILL.md"
+        header = "---\nname: xray-session\ndescription: Inspect current session\n"
+        self.write(relative, header + "disable-model-invocation: true\n---\n")
+        self.write("skills/xray-session/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.assertEqual(validate(self.root), (1, []))
+        for marker in ("", "disable-model-invocation: false\n", "disable-model-invocation: 'true'\n"):
+            with self.subTest(shared_marker=marker):
+                self.write(relative, header + marker + "---\n")
+                self.assertIn(
+                    f"{relative}: Xray session requires explicit-only shared invocation",
+                    validate(self.root)[1],
+                )
+        self.write(relative, header + "disable-model-invocation: true\n---\n")
+        for policy in (
+            None,
+            "{}",
+            "policy:\n  allow_implicit_invocation: true\n",
+            "policy:\n  allow_implicit_invocation: 'false'\n",
+        ):
+            with self.subTest(codex_policy=policy):
+                policy_file = self.root / "skills/xray-session/agents/openai.yaml"
+                if policy is None:
+                    policy_file.unlink()
+                else:
+                    self.write("skills/xray-session/agents/openai.yaml", policy)
+                self.assertIn(f"{relative}: Explicit-only Codex policy missing", validate(self.root)[1])
+
     def test_native_plugin_requires_packaged_hook_and_license(self) -> None:
         manifest = {
             "skills": "./skills/",

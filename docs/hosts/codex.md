@@ -37,6 +37,10 @@ Forked sessions receive new child-scoped controls that supersede inherited paren
 
 The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Both startup and emitted mode controls use the same isolated launch options.
 
+### Optional xray recording
+
+Start the host with `ZSTACK_XRAY=1` and trust the updated hook definition to retain minimal supported event metadata under `PLUGIN_DATA/xray/codex/`. Recording is independent of mode activation and disabled by default. The user-only xray-session skill combines those records with transcript evidence. See [collection setup and limits](../reference/workflow-skills.md#optional-event-collection).
+
 ### Native agents
 
 This package does not register `agents/codex/` as plugin roles. Existing native agent copies may still be used; otherwise workflows disclose a built-in or direct fallback. Use the linked installation below if you need the installer-managed native roles, and disable/remove the plugin to avoid duplicate skills. See [OpenAI's conversion guidance](https://developers.openai.com/plugins/guides/submit-claude-plugin) for the distinction between reusable plugin skills and agent files.

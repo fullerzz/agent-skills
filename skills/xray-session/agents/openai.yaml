@@ -1,0 +1,6 @@
+interface:
+  display_name: "Xray Session"
+  short_description: "Trace session zstack activity with evidence and an ASCII tree"
+  default_prompt: "Use $xray-session to reconstruct observable zstack activity in this session through this invocation."
+policy:
+  allow_implicit_invocation: false

@@ -26,6 +26,8 @@ Local edits, commits, pushes, PRs, messages, tickets, merges, deployment, and ch
 
 Read only the selected playbook. Resolve companion skills through the catalog or real sibling directories. Explicit-only companions may be read as instructions for this user-selected workflow; that does not enable automatic selection.
 
+Never select xray-session automatically, including as a z-mode companion. It requires a direct user request naming xray-session.
+
 - [Investigation](playbooks/investigation.md)
 - [Bug fix](playbooks/bug-fix.md)
 - [Feature](playbooks/feature.md)

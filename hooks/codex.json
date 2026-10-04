@@ -1,5 +1,5 @@
 {
-  "description": "Orient each session and restore explicitly enabled z-mode.",
+  "description": "Orient sessions, restore explicitly enabled z-mode, and optionally record xray metadata.",
   "hooks": {
     "SessionStart": [
       {
@@ -9,6 +9,78 @@
             "type": "command",
             "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/session_start.py\" --host=codex",
             "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }

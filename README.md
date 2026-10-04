@@ -2,7 +2,7 @@
 
 Zach's updated personal engineering skill library for Codex and Claude Code, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
-Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 49 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Each host uses its own native agents and model configuration. The library includes 50 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 ## Install
 
@@ -78,6 +78,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 - Verify with project harnesses and create-verification-skill.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
+- Inspect observable zstack activity in the current session with explicitly invoked [xray-session](docs/reference/workflow-skills.md#xray-session), a chronological ledger and ASCII diagram with history coverage gaps.
 - Publish or merge only when the user's request authorizes those actions.
 
 Cross-provider orchestration, public marketplace publication, and the old automation runtime are outside this release. Native independent runs may use the same model.

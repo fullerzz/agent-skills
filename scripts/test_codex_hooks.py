@@ -13,12 +13,175 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "hooks/session_start.py"
 
 
 class CodexHooksTests(unittest.TestCase):
+    def test_xray_is_loaded_only_with_explicit_opt_in_and_host(self) -> None:
+        record = runpy.run_path(str(HELPER))["record_xray"]
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "0"}), patch("runpy.run_path") as loader:
+            record("codex", "session-a", str(self.data), "enable", "enabled")
+            loader.assert_not_called()
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "1"}), patch("runpy.run_path") as loader:
+            record(None, "session-a", str(self.data), "enable", "enabled")
+            loader.assert_not_called()
+            record("codex", "session-a", str(self.data), "enable", "enabled")
+            loader.return_value["record_internal"].assert_called_once_with(
+                "codex", "session-a", str(self.data), "enable", "enabled"
+            )
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "1"}), patch("runpy.run_path", side_effect=OSError):
+            record("codex", "session-a", str(self.data), "enable", "enabled")
+
+    def test_opt_in_context_has_current_session_read_controls(self) -> None:
+        self.env["ZSTACK_XRAY"] = "1"
+        context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("host codex, session session-a", context)
+        self.assertIn("--read --host=codex --session-id=session-a", context)
+        self.assertIn("PowerShell Read xray:", context)
+        self.assertLess(len(context), 4000)
+        self.assertIn("No stored z-mode", context)
+        self.assertIn("--host=codex", context)
+        read_command = next(
+            line.split(": ", 1)[1] for line in context.splitlines() if line.startswith("POSIX sh Read xray:")
+        )
+        result = subprocess.run(  # noqa: S603 - Command emitted by trusted isolated fixture.
+            shlex.split(read_command),
+            check=True,
+            capture_output=True,
+            text=True,
+            env=self.env,
+        )
+        records = json.loads(result.stdout)["records"]
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["kind"], "session_start")
+        self.assertEqual(records[0]["attribution"], "zstack")
+        self.assertEqual(records[0]["source"], "startup")
+
+    def test_internal_records_follow_actual_control_results(self) -> None:
+        fixture = self.data / "plugin"
+        (fixture / "hooks").mkdir(parents=True)
+        helper = fixture / "hooks/session_start.py"
+        helper.write_bytes(HELPER.read_bytes())
+        recorder = fixture / "hooks/xray.py"
+        recorder.write_text(
+            "import json, os\n"
+            "def record_internal(host, session_id, data_dir, action, outcome):\n"
+            "    with open(os.path.join(data_dir, 'recorded.jsonl'), 'a') as stream:\n"
+            "        stream.write(json.dumps([host, session_id, action, outcome]) + '\\n')\n"
+        )
+        env = dict(self.env, ZSTACK_XRAY="1")
+        arguments = [sys.executable, "-I", "-S", str(helper)]
+        for action in ("enable", "disable"):
+            subprocess.run(  # noqa: S603 - Isolated fixture helper.
+                [*arguments, action, "--host=claude", "--session-id=session-a", "--data-dir", str(self.data)],
+                check=True,
+                env=env,
+                capture_output=True,
+            )
+        state = self.data / "z-mode/session-a.json"
+        state.mkdir()
+        failed = subprocess.run(  # noqa: S603 - Isolated fixture helper.
+            [*arguments, "disable", "--host=claude", "--session-id=session-a", "--data-dir", str(self.data)],
+            check=False,
+            env=env,
+            capture_output=True,
+        )
+        self.assertEqual(failed.returncode, 1)
+        records = [json.loads(line) for line in (self.data / "recorded.jsonl").read_text().splitlines()]
+        self.assertEqual(
+            records,
+            [
+                ["claude", "session-a", "enable", "enabled"],
+                ["claude", "session-a", "disable", "disabled"],
+                ["claude", "session-a", "disable", "state_change_failed"],
+            ],
+        )
+        subprocess.run(  # noqa: S603 - Legacy invocation has no host and does not record.
+            [*arguments, "enable", "--session-id=legacy", "--data-dir", str(self.data)],
+            check=True,
+            env=env,
+            capture_output=True,
+        )
+        self.assertEqual(len((self.data / "recorded.jsonl").read_text().splitlines()), 3)
+
+    def test_xray_context_uses_complete_fallback_with_fixed_budget(self) -> None:
+        context = runpy.run_path(str(HELPER))["xray_context"]
+        arguments = ("codex", "session-a", "/data", "/plugin/hooks/session_start.py")
+        full = context(*arguments, budget=4000)
+        self.assertIn("Read xray:", full)
+        fallback = context(*arguments, budget=400)
+        self.assertLessEqual(len(fallback), 400)
+        self.assertIn("recorded-events reference", fallback)
+        self.assertNotIn("Read xray:", fallback)
+        self.assertEqual(context(*arguments, budget=0), "")
+
+    def test_metadata_hook_manifest_events_and_host_isolation(self) -> None:
+        shared = {
+            "PreToolUse",
+            "PostToolUse",
+            "SubagentStart",
+            "SubagentStop",
+            "SessionEnd",
+            "PreCompact",
+            "PostCompact",
+        }
+        for host, filename in (("codex", "codex.json"), ("claude", "hooks.json")):
+            hooks = json.loads((ROOT / "hooks" / filename).read_text())["hooks"]
+            expected = shared | {"SessionStart"}
+            if host == "claude":
+                expected |= {"PostToolUseFailure", "UserPromptExpansion"}
+            self.assertEqual(set(hooks), expected)
+            self.assertEqual(len(hooks["SessionStart"][0]["hooks"]), 1)
+            for event in expected - {"SessionStart"}:
+                hook = hooks[event][0]["hooks"][0]
+                command = hook["command"] if host == "codex" else " ".join(hook["args"])
+                self.assertIn("xray.py", command)
+                self.assertIn(f"--host={host}", command)
+                self.assertNotIn("session_start.py", command)
+
+    def test_disabled_codex_recorders_never_launch_uv(self) -> None:
+        # A sentinel executable proves the manifest gate runs before uv, even
+        # with malformed stdin and paths containing shell metacharacters.
+        launcher = self.data / "uv"
+        launcher.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\ncat\n')
+        launcher.chmod(0o700)
+        hooks = json.loads((ROOT / "hooks/codex.json").read_text())["hooks"]
+        plugin_root = str(self.data / "plugin's $root `literal`")
+        for event, groups in hooks.items():
+            if event == "SessionStart":
+                continue
+            for value in (None, "", "0", "true", "1"):
+                with self.subTest(event=event, value=value):
+                    env = dict(self.env, PATH=f"{self.data}:/bin", PLUGIN_ROOT=plugin_root)
+                    if value is not None:
+                        env["ZSTACK_XRAY"] = value
+                    result = subprocess.run(  # noqa: S602 - Trusted manifest and isolated sentinel.
+                        groups[0]["hooks"][0]["command"],
+                        shell=True,
+                        input="malformed input",
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                        env=env,
+                    )
+                    self.assertEqual(result.stderr, "")
+                    expected = (
+                        f"run\n--no-project\n--no-config\npython\n-I\n-S\n{plugin_root}/hooks/xray.py\n"
+                        "--host=codex\nmalformed input"
+                    )
+                    self.assertEqual(result.stdout, expected if value == "1" else "")
+
+    def test_claude_tool_recorders_are_nonblocking_exec_hooks(self) -> None:
+        hooks = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]
+        for event, groups in hooks.items():
+            hook = groups[0]["hooks"][0]
+            self.assertEqual(hook["command"], "uv")
+            self.assertIsInstance(hook["args"], list)
+            self.assertEqual(hook.get("async", False), event in {"PreToolUse", "PostToolUse", "PostToolUseFailure"})
+
     def test_shell_serialization_preserves_apostrophes_and_metacharacters(self) -> None:
         serialize = runpy.run_path(str(HELPER))["control_command"]
         arguments = ["uv", "C:\\Users\\O'Neil\\plugin $root `literal`\\session_start.py", "--data-dir", "C:\\O'Neil"]
@@ -35,8 +198,12 @@ class CodexHooksTests(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory(prefix="zstack hook ")
         self.addCleanup(self.directory.cleanup)
-        self.data = Path(self.directory.name)
-        inherited = {key: value for key, value in os.environ.items() if not key.startswith("CLAUDE_PLUGIN_")}
+        self.data = Path(self.directory.name).resolve()
+        inherited = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("CLAUDE_PLUGIN_") and key != "ZSTACK_XRAY"
+        }
         self.env = dict(inherited, PLUGIN_ROOT=str(ROOT), PLUGIN_DATA=str(self.data))
 
     def hook(self, session: str = "session-a", source: str = "startup") -> str:
@@ -54,7 +221,12 @@ class CodexHooksTests(unittest.TestCase):
             check=True,
             env=self.env,
         )
-        self.assertEqual(result.stderr, "")
+        self.assertIn(
+            result.stderr,
+            ("", "zstack xray: metadata capture unavailable; continuing\n")
+            if self.env.get("ZSTACK_XRAY") == "1"
+            else ("",),
+        )
         return result.stdout
 
     def control(self, action: str, session: str = "session-a", check: bool = True) -> subprocess.CompletedProcess[str]:
