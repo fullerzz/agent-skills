@@ -1,6 +1,19 @@
 name: zstack
-version: 0.2.0
+version: 0.3.0
 description: Evidence-driven engineering skills and task-sized verification for Hermes Agent.
 author: Zach Fuller
 license: MIT
 homepage: https://github.com/fullerzz/agent-skills
+provides_hooks:
+  - pre_llm_call
+  - on_session_reset
+  - on_session_start
+  - on_session_end
+  - on_session_finalize
+  - post_llm_call
+  - pre_tool_call
+  - post_tool_call
+  - subagent_start
+  - subagent_stop
+  - pre_auxiliary_call
+  - post_auxiliary_call

@@ -1,4 +1,4 @@
-"""Codex and Claude Code SessionStart context and explicit, session-scoped z-mode controls."""
+"""Shared host context and explicit, session-scoped z-mode controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
 # ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
@@ -121,20 +121,14 @@ def xray_context(host: str, session_id: str, data_dir: str, helper: str, budget:
     return recording_context if len(recording_context) <= budget else ""
 
 
-def session_start(host: str) -> None:
-    try:
-        event = json.loads(sys.stdin.read(65536))
-        if event.get("hook_event_name") != "SessionStart":
-            return
-        if event.get("source") not in ("startup", "resume", "clear", "compact", "fork"):
-            return
-        session_id = event["session_id"]
-        data_dir = os.environ["CLAUDE_PLUGIN_DATA" if host == "claude" else "PLUGIN_DATA"]
-        path = state_path(data_dir, session_id)
-    except (ValueError, TypeError, AttributeError, KeyError):
-        return
-
-    active, clear_error = restore_state(path, event["source"])
+def build_context(host: str, session_id: str, data_dir: str, source: str) -> tuple[str, str | None]:
+    """Restore scoped state and render controls without emitting output or recording."""
+    if host not in ("codex", "claude", "hermes"):
+        raise ValueError("Invalid host")
+    if source not in ("startup", "resume", "clear", "compact", "fork"):
+        raise ValueError("Invalid context source")
+    path = state_path(data_dir, session_id)
+    active, clear_error = restore_state(path, source)
     helper = os.path.realpath(__file__)
     controls: dict[str, dict[str, str]] = {"posix": {}, "powershell": {}}
     for action in ("enable", "disable"):
@@ -183,11 +177,25 @@ def session_start(host: str) -> None:
         context += "No stored z-mode activation exists for this session."
     if os.environ.get("ZSTACK_XRAY") == "1":
         context += xray_context(host, session_id, data_dir, helper, 4000 - len(context) - len(clear_error or "") - 1)
+    if clear_error:
+        context += "\n" + clear_error
+    return context, clear_error
+
+
+def session_start(host: str) -> None:
+    try:
+        event = json.loads(sys.stdin.read(65536))
+        if event.get("hook_event_name") != "SessionStart":
+            return
+        session_id = event["session_id"]
+        data_dir = os.environ["CLAUDE_PLUGIN_DATA" if host == "claude" else "PLUGIN_DATA"]
+        context, clear_error = build_context(host, session_id, data_dir, event["source"])
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return
     hook_output = {"hookEventName": "SessionStart", "additionalContext": context}
     output: dict[str, object] = {"hookSpecificOutput": hook_output}
     if clear_error:
         output["systemMessage"] = clear_error
-        hook_output["additionalContext"] += "\n" + clear_error
     print(json.dumps(output))
     record_xray(
         host,
@@ -207,7 +215,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("enable", "disable"))
-    parser.add_argument("--host", choices=("codex", "claude"))
+    parser.add_argument("--host", choices=("codex", "claude", "hermes"))
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--data-dir", required=True)
     args = parser.parse_args()

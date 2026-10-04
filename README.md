@@ -34,7 +34,7 @@ hermes plugins install fullerzz/agent-skills --no-enable
 hermes plugins enable zstack
 ```
 
-These commands use the merged default branch. See [Hermes setup](docs/hosts/hermes.md) for draft-PR installation at an exact commit, verification, and removal. Decline any Node dependency prompt: `package.json` is for the docs site. Ask Hermes to load `zstack:z-mode` with `skill_view` to select the mode. Hermes uses conversational mode persistence and native delegation fallbacks; this package registers no Hermes hooks or agent roles.
+These commands use the merged default branch. See [Hermes setup](docs/hosts/hermes.md) for draft-PR installation at an exact commit, verification, and removal. Decline any Node dependency prompt: `package.json` is for the docs site. Ask Hermes to load `zstack:z-mode` with `skill_view` to select the mode. Native hooks provide session-scoped mode controls and optional xray recording. Hermes uses native delegation fallbacks; the package registers no agent roles. See the setup guide for compaction and session-ID limits.
 
 ### Linked installation
 

@@ -20,6 +20,178 @@ XRAY = runpy.run_path(str(HELPER))
 
 
 class XrayTests(unittest.TestCase):
+    def test_hermes_metadata_privacy_roundtrip_and_host_isolation(self) -> None:
+        canary = "/PRIVATE_PROMPT_RESULT_COMMAND_PATH_CANARY"
+        native_ids = {
+            "parent_session_id": "parent",
+            "child_session_id": "child",
+            "child_subagent_id": "child-agent",
+            "parent_subagent_id": "parent-agent",
+            "task_id": "task",
+            "turn_id": "turn",
+            "parent_turn_id": "parent-turn",
+            "tool_call_id": "tool",
+            "agent_id": "actor",
+            "api_request_id": "request",
+        }
+        payload = {
+            "session_id": "parent",
+            **native_ids,
+            "tool_name": "skill_view",
+            "status": "ok",
+            "args": {"name": "zstack:how", "path": canary},
+            "result": canary,
+            "error": canary,
+            "prompt": canary,
+            "messages": [canary],
+            "cwd": canary,
+            "tool_input": {"skill": canary},
+            "aux_task": "compression",
+        }
+        with patch.dict(os.environ, self.env):
+            for hook in XRAY["HERMES_KINDS"]:
+                self.assertTrue(XRAY["record_hermes"](hook, payload, self.data))
+        records = self.read("hermes", "parent")["records"]
+        self.assertEqual(len(records), len(XRAY["HERMES_KINDS"]))
+        self.assertNotIn(canary, json.dumps(records))
+        self.assertEqual(self.read("codex", "parent")["records"], [])
+        self.assertEqual(self.read("claude", "parent")["records"], [])
+        self.assertEqual(self.read("hermes", "child")["records"], [])
+        for record in records:
+            for key, value in native_ids.items():
+                self.assertEqual(record[key], value)
+            self.assertEqual(record["tool_use_id"], "tool")
+            if record["kind"] in ("PreToolUse", "PostToolUse"):
+                self.assertEqual(record["skill_name"], "zstack:how")
+                self.assertEqual(record["tool_name"], "skill_view")
+        read = subprocess.run(  # noqa: S603 - Fixed helper and isolated capture.
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                str(HELPER),
+                "--read",
+                "--host=hermes",
+                "--session-id=parent",
+                "--data-dir",
+                self.data,
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(json.loads(read.stdout)["records"], records)
+
+    def test_hermes_subagents_use_parent_scope_without_invented_identity(self) -> None:
+        payload = {"session_id": "child", "parent_session_id": "parent", "task_id": "task"}
+        with patch.dict(os.environ, self.env):
+            self.assertTrue(XRAY["record_hermes"]("subagent_start", payload, self.data))
+        record = self.read("hermes", "parent")["records"][0]
+        self.assertEqual(record["task_id"], "task")
+        self.assertNotIn("agent_id", record)
+        self.assertNotIn("turn_id", record)
+        self.assertNotIn("child_session_id", record)
+        self.assertEqual(self.read("hermes", "child")["records"], [])
+
+    def test_hermes_tool_outcomes_and_missing_pair_identity(self) -> None:
+        with patch.dict(os.environ, self.env):
+            for status in ("ok", "error", "blocked", "cancelled", "unexpected"):
+                payload = {"session_id": "session", "tool_call_id": status, "status": status}
+                for hook in ("pre_tool_call", "post_tool_call"):
+                    self.assertTrue(XRAY["record_hermes"](hook, payload, self.data))
+        result = self.read("hermes")
+        self.assertEqual(result["coverage"]["ambiguous_tool_ids"], 4)
+        self.assertEqual(result["coverage"]["unpaired_tool_ids"], 1)
+        self.assertEqual(
+            {record["status"] for record in result["records"]},
+            {"started", "returned", "failed", "blocked", "cancelled", "unknown"},
+        )
+
+    def test_hermes_rejects_unverified_attribution_and_invalid_identifiers(self) -> None:
+        for tool, args in (
+            ("skill_view", {"name": "how"}),
+            ("skill_view", {"name": "zstack:how/path"}),
+            ("terminal", {"name": "zstack:how"}),
+            ("Skill", {"name": "zstack:how"}),
+        ):
+            record = XRAY["normalize_hermes"](
+                "pre_tool_call",
+                {
+                    "session_id": "session",
+                    "tool_name": tool,
+                    "args": args,
+                    "tool_input": {"skill": "zstack:how"},
+                    **dict.fromkeys(XRAY["IDENTIFIER_FIELDS"], "/private/path"),
+                },
+            )
+            self.assertEqual(record["attribution"], "unknown")
+            self.assertNotIn("skill_name", record)
+            self.assertFalse(set(record) & set(XRAY["IDENTIFIER_FIELDS"]))
+
+    def test_hermes_disabled_and_fail_open(self) -> None:
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "0"}):
+            self.assertFalse(XRAY["record_hermes"]("unknown", {}, self.data))
+        self.assertEqual(list(Path(self.data).iterdir()), [])
+
+        with patch.dict(os.environ, self.env), contextlib.redirect_stderr(io.StringIO()) as errors:
+            for hook, payload in (
+                ("unknown", {}),
+                ("pre_tool_call", {"session_id": "../private"}),
+                ("subagent_start", {"session_id": "child", "parent_session_id": "../private"}),
+            ):
+                self.assertFalse(XRAY["record_hermes"](hook, payload, self.data))
+        self.assertNotIn("private", errors.getvalue())
+        self.assertEqual(list(Path(self.data).iterdir()), [])
+        with (
+            patch.dict(os.environ, self.env),
+            patch("os.lstat", side_effect=PermissionError("/PRIVATE_STORAGE_PATH")),
+            contextlib.redirect_stderr(io.StringIO()) as errors,
+        ):
+            self.assertFalse(XRAY["record_hermes"]("pre_tool_call", {"session_id": "session"}, self.data))
+        self.assertNotIn("PRIVATE", errors.getvalue())
+        self.assertIn("continuing", errors.getvalue())
+
+    def test_hermes_compression_observes_only_model_calls(self) -> None:
+        with patch.dict(os.environ, self.env), contextlib.redirect_stderr(io.StringIO()):
+            for task in (None, "title", "memory"):
+                self.assertFalse(
+                    XRAY["record_hermes"](
+                        "pre_auxiliary_call",
+                        {
+                            "session_id": "session",
+                            "aux_task": task,
+                        },
+                        self.data,
+                    )
+                )
+            for hook, error in (
+                ("pre_auxiliary_call", None),
+                ("post_auxiliary_call", None),
+                ("post_auxiliary_call", "/PRIVATE_ERROR"),
+            ):
+                self.assertTrue(
+                    XRAY["record_hermes"](
+                        hook,
+                        {
+                            "session_id": "session",
+                            "aux_task": "compression",
+                            "error": error,
+                            "api_request_id": "request",
+                            "retry_count": 123,
+                            "messages": "/PRIVATE_PROMPT",
+                        },
+                        self.data,
+                    )
+                )
+        records = self.read("hermes")["records"]
+        self.assertEqual(
+            [record["kind"] for record in records], ["PreCompressionCall", "PostCompressionCall", "PostCompressionCall"]
+        )
+        self.assertEqual([record["status"] for record in records], ["started", "returned", "failed"])
+        self.assertNotIn("PRIVATE", json.dumps(records))
+        self.assertTrue(all(record["api_request_id"] == "request" for record in records))
+        self.assertTrue(all("retry_count" not in record for record in records))
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

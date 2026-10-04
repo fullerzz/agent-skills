@@ -27,7 +27,7 @@ features:
     linkText: Browse the catalog
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg>
     title: Native plugins
-    details: Namespaced skills for Codex, Claude Code, and Hermes. Codex and Claude Code also provide a session hook for explicitly selected z-mode.
+    details: Namespaced skills and native session hooks for Codex, Claude Code, and Hermes. Mode activation remains an explicit choice.
     link: /guide/01-setup#install
     linkText: Choose a plugin
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>

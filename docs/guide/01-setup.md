@@ -21,7 +21,7 @@ Choose one installation method per host.
 | --- | --- | --- |
 | [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
 | [Native Claude Code plugin](../hosts/claude-code.md#native-plugin) | Namespaced skills, agent roles, and a session hook, loaded in place | You want plugin management and session-scoped mode persistence in Claude Code. |
-| [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills | You want Hermes plugin management and conversational z-mode persistence. |
+| [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills and session hooks | You want Hermes plugin management, session-scoped mode controls, and optional xray recording. |
 | Linked installer | Skill links and copied native agent roles | You need project-scoped installs or installer-managed Codex roles. |
 
 ### Native Codex plugin

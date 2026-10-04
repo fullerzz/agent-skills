@@ -257,7 +257,7 @@ def validate_hermes_plugin(root: Path, fail: Fail) -> None:
             fail(relative, "Invalid native plugin identity or shared version")
         if not isinstance(manifest, dict) or manifest.get("license") != "MIT":
             fail(relative, "Missing MIT license declaration")
-        for resource in ("__init__.py", "LICENSE"):
+        for resource in ("__init__.py", "LICENSE", "hooks/hermes.py", "hooks/session_start.py", "hooks/xray.py"):
             if not (root / resource).is_file():
                 fail(relative, f"Missing Hermes plugin resource: {resource}")
         if not (root / "skills").is_dir():

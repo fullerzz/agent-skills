@@ -16,6 +16,8 @@ class ValidateTests(unittest.TestCase):
         self.write("plugin.yaml", "name: zstack\nversion: 0.1.0\nlicense: MIT\n")
         self.write("__init__.py", "")
         self.write("LICENSE", "MIT")
+        for resource in ("hooks/hermes.py", "hooks/session_start.py", "hooks/xray.py"):
+            self.write(resource, "")
         self.write(".claude-plugin/plugin.json", json.dumps({"name": "zstack", "version": "0.1.0", "agents": []}))
         self.write(
             ".claude-plugin/marketplace.json",

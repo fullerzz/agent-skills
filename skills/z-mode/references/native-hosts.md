@@ -43,7 +43,9 @@ The native Hermes plugin registers the shared library through `ctx.register_skil
 
 Resolve resources from the loaded skill's actual directory. Use namespaced sibling skill loads where available, and the host's file-reading tool for playbooks and other relative resources. Keep helper commands in the target repository. The plugin provides no Hermes agent-role files: use the available native delegation tool with the same scoped brief and inherited configuration, disclose the role fallback, and report missing delegation when unavailable.
 
-The Hermes package registers no session controls or xray collector. Preserve mode activation or opt-out in conversation context and resume notes; never execute controls inherited from a different host or session. Explicit xray-session requests use available transcript evidence and label coverage gaps.
+The Hermes pre_llm_call hook supplies current-session controls on each user turn. Explicit activation persists under the active profile's plugin-data directory; resume and compaction that retain the session ID restore it. Reset clears the replacement session's state. Never execute controls inherited from a different host or session, and never infer activation for a new child or branch from its parent. Hermes can rotate session IDs during compaction without a native plugin transition hook; the new ID starts inactive and needs explicit selection again. Preserve this limitation and the user's selection or opt-out in resume notes.
+
+Optional `ZSTACK_XRAY=1` recording uses native lifecycle observers and the shared metadata-only recorder. Read only the current session using its injected command on an explicit xray-session request. Compression model-call observations do not establish a completed compaction, and missing hooks or session-ID transitions are coverage gaps.
 
 ## Scope and persistence
 

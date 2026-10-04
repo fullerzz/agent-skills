@@ -8,7 +8,26 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Native Hermes plugin
 
-On 2026-10-04, added a root `plugin.yaml` and `__init__.py` using Hermes' documented `ctx.register_skill(name, path)` API. All 50 skills remain in the shared tree. The adapter registers only skills; z-mode activation stays conversational, and Hermes gets no Codex/Claude hooks, recorder, or native role files. The three host manifests now share version `0.2.0` and the bump helper updates them together.
+### Native hooks — 2026-10-04
+
+The follow-up adds 12 native hooks to the Hermes plugin and bumps all three manifests to `0.3.0`. It shares the existing session control renderer and metadata recorder with Codex/Claude. Explicit activation survives same-ID resumes, process restarts, and same-ID compaction; reset clears only Hermes' replacement ID, and new children/branches do not inherit activation. Xray stays default-off and independent of mode selection. Its native observers retain bounded identities and outcomes while excluding raw event content, and observer failures cannot block a tool.
+
+Contract research used the official [plugin guide](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins), [observer hooks](https://hermes-agent.nousresearch.com/docs/developer-guide/observer-hooks), [gateway hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks), and upstream Hermes source pinned at [`439334127f012e1ee0685acd5dba288e459af0ec`](https://github.com/NousResearch/hermes-agent/tree/439334127f012e1ee0685acd5dba288e459af0ec). The adapter uses the documented profile-aware `plugin_data_dir("zstack")` API. No native completed-compaction hook connects old/new IDs: compression auxiliary calls are recorded as model-call boundaries only, and rotated IDs need explicit mode selection again. Persistence-disabled background forks skip the context hook and remain a coverage gap.
+
+On this macOS host:
+
+- Structural validation: 50 skills, zero problems. All 106 Python tests and 13 Node tests passed, including existing Codex/Claude regressions. The 12 Hermes tests passed again after the final type-checking changes.
+- Ruff lint/format passed on all 10 affected Python files; project mypy passed for 27 files.
+- A temporary staged plugin was loaded by the pinned upstream Hermes **Plugin Doctor**: 50 skills, 12 hooks, zero findings, version `0.3.0`. The check used `doctor_plugin` and the Doctor's isolated runtime from an upstream source checkout, not an installed personal Hermes CLI.
+- An isolated integration harness invoked callbacks through Hermes' actual `PluginManager`: activation, same-ID subsequent-turn restoration, opt-out, reset, child isolation, qualified skill-tool capture, compression request capture, and unload cleanup passed. The generated control and read commands ran as subprocesses with their exact helper arguments; the parent capture contained 20 sanitized records, zero invalid records, and none of the private payload canaries. No model inference ran.
+
+Unit fixtures additionally cover a new adapter restoring persisted activation, corrupt state, profile separation, invalid identities, failed clear and retry, default-off recording, fail-open observers, statuses including blocked/cancelled, native parent/child identifiers, and missing-identity ambiguity. VitePress build and `git diff --check` passed. Installed uv/Node binaries were used directly where mise shims could not access their runtime in the sandbox.
+
+No personal Hermes installation or configuration changed. Real installation/enablement, model-driven `skill_view` and control execution, actual CLI/gateway resume/reset/compaction/fork flows, live delegation, and Windows remain for the user's [manual checklist](hosts/hermes.md#invoke-and-verify) before merge. Native loader/dispatcher checks establish callback integration, not those live behaviors.
+
+### Initial skills-only package — 2026-10-04
+
+The initial implementation added a root `plugin.yaml` and `__init__.py` using Hermes' documented `ctx.register_skill(name, path)` API. All 50 skills remained in the shared tree. That first adapter registered only skills, without Hermes hooks, recording, or native role files. The three host manifests shared version `0.2.0` and the bump helper updated them together. The hook follow-up above supersedes these initial behavior limits.
 
 Reference review used the official [native plugin guide](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins), [installation guide](https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins), and the upstream `PluginContext.register_skill` and installer source. The setup guide documents the optional Node-dependency prompt caused by this repository's docs-only `package.json`.
 
@@ -20,7 +39,7 @@ On this macOS host:
 
 New registration tests load the actual entrypoint with a narrow recording context from a temporary package containing spaces, a separate working directory, and a symlinked install. They verify the complete shared skill inventory, sibling resources, playbooks and helpers, rejection of a missing skills tree, and skipping non-skill entries. Manifest/version regressions cover Hermes drift, missing entrypoints, and refusing partial bumps when the YAML version field cannot be rewritten.
 
-These are local contract tests, not a live Hermes loader or model run. Hermes is not installed on this host; `hermes plugins doctor`, real installation/enablement, `skill_view`, model behavior, delegation, and native Windows execution remain unverified. The [Hermes manual checklist](hosts/hermes.md#invoke-and-verify) is for the user's testing before merging the draft PR. No personal Hermes installation or configuration was changed.
+These initial checks were local contract tests, not a live Hermes loader or model run. Hermes was not installed on this host and no personal installation or configuration was changed. The subsequent native loader checks and remaining manual gaps are recorded above.
 
 ## Shared v0 plugin versioning <Badge type="info" text="2026-10-04" />
 

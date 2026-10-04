@@ -17,6 +17,33 @@ MAX_INPUT = 262144
 MAX_EVENTS = 10000
 MAX_EVENT_BYTES = 4096
 ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+IDENTIFIER_FIELDS = (
+    "agent_id",
+    "turn_id",
+    "tool_use_id",
+    "parent_session_id",
+    "child_session_id",
+    "child_subagent_id",
+    "parent_subagent_id",
+    "task_id",
+    "parent_turn_id",
+    "tool_call_id",
+    "api_request_id",
+)
+HERMES_KINDS = {
+    "on_session_start": "SessionStart",
+    "on_session_end": "SessionEnd",
+    "on_session_finalize": "SessionFinalize",
+    "on_session_reset": "SessionReset",
+    "pre_llm_call": "PreLLMCall",
+    "post_llm_call": "PostLLMCall",
+    "pre_tool_call": "PreToolUse",
+    "post_tool_call": "PostToolUse",
+    "subagent_start": "SubagentStart",
+    "subagent_stop": "SubagentStop",
+    "pre_auxiliary_call": "PreCompressionCall",
+    "post_auxiliary_call": "PostCompressionCall",
+}
 KINDS = {
     "SessionStart",
     "SessionEnd",
@@ -29,6 +56,7 @@ KINDS = {
     "UserPromptExpansion",
     "PreCompact",
     "PostCompact",
+    *HERMES_KINDS.values(),
 }
 LIMITS = [
     "The 10,000-event soft cap may be exceeded by simultaneous hooks; capped captures stop and warn.",
@@ -50,7 +78,7 @@ def identifier(value: object) -> str | None:
 
 
 def directory(data_dir: str, host: str, session_id: str, create: bool = False) -> str:
-    if host not in ("codex", "claude") or not identifier(session_id):
+    if host not in ("codex", "claude", "hermes") or not identifier(session_id):
         raise ValueError("invalid scope")
     if not isinstance(data_dir, str) or not os.path.isabs(data_dir):
         raise ValueError("invalid directory")
@@ -127,7 +155,7 @@ def normalize(event: object, host: str) -> dict[str, object]:  # noqa: C901 - Ex
         raise ValueError("unsupported event")
     status = {"PreToolUse": "started", "PostToolUse": "returned", "PostToolUseFailure": "failed"}.get(kind, "unknown")
     record = base(host, event["session_id"], kind, status)
-    for key in ("agent_id", "turn_id", "tool_use_id"):
+    for key in IDENTIFIER_FIELDS:
         if identifier(event.get(key)):
             record[key] = event[key]
     if kind in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
@@ -147,6 +175,52 @@ def normalize(event: object, host: str) -> dict[str, object]:  # noqa: C901 - Ex
             record["attribution"] = "zstack"
             record["skill_name"] = command
     return record
+
+
+def normalize_hermes(hook: str, payload: dict[str, object]) -> dict[str, object]:
+    """Translate documented Hermes observer metadata; never retain event content."""
+    if hook not in HERMES_KINDS or not isinstance(payload, dict):
+        raise ValueError("unsupported Hermes event")
+    if hook in ("pre_auxiliary_call", "post_auxiliary_call") and payload.get("aux_task") != "compression":
+        raise ValueError("unsupported Hermes auxiliary task")
+    # Subagent notifications belong to the parent's capture, not the child's.
+    session_id = payload.get("session_id")
+    if hook in ("subagent_start", "subagent_stop") and "parent_session_id" in payload:
+        session_id = payload["parent_session_id"]
+    event = {**payload, "session_id": session_id, "hook_event_name": HERMES_KINDS[hook]}
+    # Only skill_view's documented name argument can establish attribution.
+    event.pop("tool_input", None)
+    record = normalize(event, "hermes")
+    arguments = payload.get("args")
+    if record.get("tool_name") == "skill_view" and isinstance(arguments, dict):
+        skill = arguments.get("name")
+        if isinstance(skill, str) and re.fullmatch(r"zstack:[A-Za-z0-9_-]{1,64}", skill):
+            record["attribution"] = "zstack"
+            record["skill_name"] = skill
+    if identifier(payload.get("tool_call_id")):
+        record["tool_use_id"] = payload["tool_call_id"]
+    if hook == "post_tool_call":
+        status = payload.get("status")
+        record["status"] = {"ok": "returned", "error": "failed", "blocked": "blocked", "cancelled": "cancelled"}.get(
+            status if isinstance(status, str) else "", "unknown"
+        )
+    elif hook == "pre_auxiliary_call":
+        record["status"] = "started"
+    elif hook == "post_auxiliary_call":
+        record["status"] = "failed" if payload.get("error") else "returned"
+    return record
+
+
+def record_hermes(hook: str, payload: dict[str, object], data_dir: str) -> bool:
+    """Opt-in, fail-open boundary for Hermes native Python observers."""
+    if os.environ.get("ZSTACK_XRAY") != "1":
+        return False
+    try:
+        write_record(data_dir, normalize_hermes(hook, payload))
+        return True
+    except Exception:  # noqa: BLE001 - Optional hooks must fail open at this boundary.
+        warn()
+        return False
 
 
 def record_internal(
@@ -224,6 +298,7 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
                     "skill_name",
                     "outcome",
                     "source",
+                    *IDENTIFIER_FIELDS,
                 }
                 if (
                     not isinstance(record, dict)
@@ -246,6 +321,8 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
                     "returned",
                     "failed",
                     "unknown",
+                    "blocked",
+                    "cancelled",
                 }:
                     raise ValueError("kind/status")
                 normalized.update({key: record[key] for key in ("event_id", "captured_at", "status")})
@@ -286,11 +363,14 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
             pairs.setdefault(pair, set()).add(record["status"])
     # A shared absent identity is not evidence of a shared actor or turn.
     ambiguous = sum(
-        (actor is None or turn is None) and "started" in statuses and bool(statuses & {"returned", "failed"})
+        (actor is None or turn is None)
+        and "started" in statuses
+        and bool(statuses & {"returned", "failed", "blocked", "cancelled"})
         for (actor, turn, _tool_id), statuses in pairs.items()
     )
     unpaired = sum(
-        not ("started" in statuses and bool(statuses & {"returned", "failed"})) for statuses in pairs.values()
+        not ("started" in statuses and bool(statuses & {"returned", "failed", "blocked", "cancelled"}))
+        for statuses in pairs.values()
     )
     return {
         "schema_version": 1,
@@ -313,11 +393,13 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", required=True, choices=("codex", "claude"))
+    parser.add_argument("--host", required=True, choices=("codex", "claude", "hermes"))
     parser.add_argument("--read", action="store_true")
     parser.add_argument("--session-id")
     parser.add_argument("--data-dir")
     args = parser.parse_args()
+    if args.host == "hermes" and not args.read:
+        parser.error("Hermes records through its native Python hooks; CLI supports --read only")
     try:
         if args.read:
             print(json.dumps(read_records(args.host, args.session_id, args.data_dir)))

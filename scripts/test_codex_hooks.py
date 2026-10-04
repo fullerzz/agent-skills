@@ -2,6 +2,8 @@
 
 """Exercise explicit Codex mode controls without personal configuration."""
 
+import contextlib
+import io
 import json
 import os
 import re
@@ -19,6 +21,63 @@ HELPER = ROOT / "hooks/session_start.py"
 
 
 class CodexHooksTests(unittest.TestCase):
+    def test_shared_renderer_matches_native_wrapper_without_observer_side_effects(self) -> None:
+        render = runpy.run_path(str(HELPER))["build_context"]
+        for active in (False, True):
+            if active:
+                self.control("enable")
+            for source in ("startup", "resume", "compact", "fork"):
+                with patch.dict(os.environ, self.env, clear=True), contextlib.redirect_stdout(io.StringIO()) as output:
+                    context, error = render("codex", "session-a", str(self.data), source)
+                self.assertEqual(output.getvalue(), "")
+                self.assertIsNone(error)
+                self.assertEqual(
+                    context, json.loads(self.hook(source=source))["hookSpecificOutput"]["additionalContext"]
+                )
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "1"}), contextlib.redirect_stdout(io.StringIO()) as output:
+            context, error = render("hermes", "session-a", str(self.data), "resume")
+        self.assertIn("--host=hermes", context)
+        self.assertIn("was explicitly enabled", context)
+        self.assertIn("Optional xray recording", context)
+        self.assertIsNone(error)
+        self.assertEqual(output.getvalue(), "")
+        self.assertFalse((self.data / "xray").exists())
+        with patch.dict(os.environ, self.env, clear=True):
+            context, error = render("hermes", "session-a", str(self.data), "clear")
+        self.assertIn("No stored", context)
+        self.assertIsNone(error)
+        self.assertFalse((self.data / "z-mode/session-a.json").exists())
+        for host, session, directory, source in (
+            ("unknown", "session", str(self.data), "startup"),
+            ("hermes", "../escape", str(self.data), "startup"),
+            ("hermes", "session", "relative", "startup"),
+            ("hermes", "session", str(self.data), "unknown"),
+        ):
+            with self.assertRaises(ValueError):
+                render(host, session, directory, source)
+
+    def test_hermes_controls_record_explicit_activation_only(self) -> None:
+        for action in ("enable", "disable"):
+            subprocess.run(  # noqa: S603 - Fixed local helper and isolated directory.
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    str(HELPER),
+                    action,
+                    "--host=hermes",
+                    "--session-id=session-a",
+                    "--data-dir",
+                    str(self.data),
+                ],
+                check=True,
+                capture_output=True,
+                env=dict(self.env, ZSTACK_XRAY="1"),
+            )
+        records = runpy.run_path(str(ROOT / "hooks/xray.py"))["read_records"]("hermes", "session-a", str(self.data))
+        self.assertEqual([record["outcome"] for record in records["records"]], ["enabled", "disabled"])
+        self.assertFalse((self.data / "z-mode/session-a.json").exists())
+
     def test_xray_is_loaded_only_with_explicit_opt_in_and_host(self) -> None:
         record = runpy.run_path(str(HELPER))["record_xray"]
         with patch.dict(os.environ, {"ZSTACK_XRAY": "0"}), patch("runpy.run_path") as loader:

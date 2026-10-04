@@ -3,10 +3,15 @@
 # ruff: noqa: N999 -- Hermes loads this directory entrypoint under its own module name.
 
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from hooks.hermes import HookRegistry, register_hooks
+else:
+    from .hooks.hermes import HookRegistry, register_hooks
 
 
-class SkillRegistry(Protocol):
+class SkillRegistry(HookRegistry, Protocol):
     """The documented Hermes context surface this plugin needs."""
 
     def register_skill(self, name: str, path: Path) -> object: ...
@@ -19,3 +24,4 @@ def register(ctx: SkillRegistry) -> None:
         skill_md = child / "SKILL.md"
         if child.is_dir() and skill_md.is_file():
             ctx.register_skill(child.name, skill_md)
+    register_hooks(ctx)
