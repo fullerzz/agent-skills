@@ -28,11 +28,11 @@ class XrayTests(unittest.TestCase):
             "child_subagent_id": "child-agent",
             "parent_subagent_id": "parent-agent",
             "task_id": "task",
-            "turn_id": "turn",
-            "parent_turn_id": "parent-turn",
-            "tool_call_id": "tool",
+            "turn_id": "parent:task_123:01234567",
+            "parent_turn_id": "ancestor:task_456:abcdef01",
+            "tool_call_id": "call:tool_123",
             "agent_id": "actor",
-            "api_request_id": "request",
+            "api_request_id": "parent:task_123:01234567:api:1",
         }
         payload = {
             "session_id": "parent",
@@ -60,7 +60,7 @@ class XrayTests(unittest.TestCase):
         for record in records:
             for key, value in native_ids.items():
                 self.assertEqual(record[key], value)
-            self.assertEqual(record["tool_use_id"], "tool")
+            self.assertEqual(record["tool_use_id"], native_ids["tool_call_id"])
             if record["kind"] in ("PreToolUse", "PostToolUse"):
                 self.assertEqual(record["skill_name"], "zstack:how")
                 self.assertEqual(record["tool_name"], "skill_view")
@@ -81,6 +81,45 @@ class XrayTests(unittest.TestCase):
             capture_output=True,
         )
         self.assertEqual(json.loads(read.stdout)["records"], records)
+
+    def test_hermes_tool_correlation_keeps_native_turn_boundaries(self) -> None:
+        first = {
+            "session_id": "session",
+            "agent_id": "actor",
+            "turn_id": "session:task_1:01234567",
+            "tool_call_id": "reused_call",
+            "status": "ok",
+        }
+        second = {**first, "turn_id": "session:task_2:abcdef01"}
+        with patch.dict(os.environ, self.env):
+            self.assertTrue(XRAY["record_hermes"]("pre_tool_call", first, self.data))
+            self.assertTrue(XRAY["record_hermes"]("post_tool_call", second, self.data))
+            self.assertEqual(self.read("hermes")["coverage"]["unpaired_tool_ids"], 2)
+            self.assertTrue(XRAY["record_hermes"]("post_tool_call", first, self.data))
+            self.assertTrue(XRAY["record_hermes"]("pre_tool_call", second, self.data))
+        coverage = self.read("hermes")["coverage"]
+        self.assertEqual(coverage["unpaired_tool_ids"], 0)
+        self.assertEqual(coverage["ambiguous_tool_ids"], 0)
+
+    def test_metadata_ids_are_bounded_and_cannot_be_used_as_storage_scope(self) -> None:
+        composite = f"{'s' * 128}:{'t' * 128}:01234567:api:1"
+        record = XRAY["normalize_hermes"](
+            "post_auxiliary_call",
+            {"session_id": "session", "aux_task": "compression", "api_request_id": composite},
+        )
+        self.assertEqual(record.get("api_request_id"), composite)
+        for invalid in ("", "x" * 513, "/private/path", r"C:\private", "private text", "id\n", None):
+            record = XRAY["normalize_hermes"](
+                "pre_tool_call",
+                {"session_id": "session", **dict.fromkeys(XRAY["IDENTIFIER_FIELDS"], invalid)},
+            )
+            self.assertFalse(set(record) & set(XRAY["IDENTIFIER_FIELDS"]))
+        for invalid_session in ("session:task:suffix", composite, "../session"):
+            with self.assertRaises(ValueError):
+                XRAY["directory"](self.data, "hermes", invalid_session, True)
+            with self.assertRaises(ValueError):
+                XRAY["normalize_hermes"]("pre_tool_call", {"session_id": invalid_session})
+        self.assertEqual(list(Path(self.data).iterdir()), [])
 
     def test_hermes_subagents_use_parent_scope_without_invented_identity(self) -> None:
         payload = {"session_id": "child", "parent_session_id": "parent", "task_id": "task"}

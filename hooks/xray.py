@@ -17,6 +17,7 @@ MAX_INPUT = 262144
 MAX_EVENTS = 10000
 MAX_EVENT_BYTES = 4096
 ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+METADATA_ID = re.compile(r"[A-Za-z0-9_:-]{1,512}\Z")
 IDENTIFIER_FIELDS = (
     "agent_id",
     "turn_id",
@@ -75,6 +76,11 @@ def warn() -> None:
 
 def identifier(value: object) -> str | None:
     return value if isinstance(value, str) and ID.fullmatch(value) else None
+
+
+def metadata_identifier(value: object) -> str | None:
+    """Correlation IDs may contain colons; never use them as filesystem components."""
+    return value if isinstance(value, str) and METADATA_ID.fullmatch(value) else None
 
 
 def directory(data_dir: str, host: str, session_id: str, create: bool = False) -> str:
@@ -156,7 +162,7 @@ def normalize(event: object, host: str) -> dict[str, object]:  # noqa: C901 - Ex
     status = {"PreToolUse": "started", "PostToolUse": "returned", "PostToolUseFailure": "failed"}.get(kind, "unknown")
     record = base(host, event["session_id"], kind, status)
     for key in IDENTIFIER_FIELDS:
-        if identifier(event.get(key)):
+        if metadata_identifier(event.get(key)):
             record[key] = event[key]
     if kind in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
         tool = event.get("tool_name")
@@ -197,7 +203,7 @@ def normalize_hermes(hook: str, payload: dict[str, object]) -> dict[str, object]
         if isinstance(skill, str) and re.fullmatch(r"zstack:[A-Za-z0-9_-]{1,64}", skill):
             record["attribution"] = "zstack"
             record["skill_name"] = skill
-    if identifier(payload.get("tool_call_id")):
+    if metadata_identifier(payload.get("tool_call_id")):
         record["tool_use_id"] = payload["tool_call_id"]
     if hook == "post_tool_call":
         status = payload.get("status")

@@ -8,6 +8,12 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Native Hermes plugin
 
+### Correlation-ID review fix — 2026-10-04
+
+Version `0.3.1` separates bounded metadata identifiers from filesystem-safe session identifiers. The pinned Hermes source below builds turn IDs as `session:task:suffix` and request IDs as `turn:api:n`; the original recorder rejected those colons. Metadata IDs now accept colons and up to 512 characters so compound IDs survive both capture and sanitized reading. Storage scopes retain the existing 128-character restriction and reject colons, traversal, and path separators.
+
+The regression failed before the fix: native turn IDs disappeared, and a start/result from different turns with the same tool ID was incorrectly paired. After the fix, all 22 xray tests passed, including native ID roundtrips through the read CLI, distinct-turn correlation, long composite IDs, rejected malformed metadata, and strict filesystem scopes. Full validation passed on macOS: 108 Python tests, 13 Node tests, 50 skills with zero structural problems, Ruff lint/format, project mypy (27 files), and whitespace checks. These are isolated tests; no live model session or personal Hermes installation was exercised for this repair.
+
 ### Native hooks — 2026-10-04
 
 The follow-up adds 12 native hooks to the Hermes plugin and bumps all three manifests to `0.3.0`. It shares the existing session control renderer and metadata recorder with Codex/Claude. Explicit activation survives same-ID resumes, process restarts, and same-ID compaction; reset clears only Hermes' replacement ID, and new children/branches do not inherit activation. Xray stays default-off and independent of mode selection. Its native observers retain bounded identities and outcomes while excluding raw event content, and observer failures cannot block a tool.
