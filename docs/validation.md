@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Agent-resistant design and performance mantras <Badge type="info" text="2026-10-03" />
+
+Ported upstream a586282 and e43c7ee. Architect screens candidates as an agent contributor would change them and adds split-ownership, two-ways, importable-internals, and hand-synced-list red flags. Perf issue replaces its strategy list with seven ordered performance mantras and stops at the first that meets the target, keeping the local requirement that the trace supports each attempt. Hillclimb borrows only the mantra order for perf metrics; benchmark-checklist's cross-reference follows. Upstream version bumps have no local equivalent.
+
+On this macOS host, structural validation reported 50 skills and zero problems; all 13 Node tests and 47 Python tests passed, and the whitespace check passed. These are prose-only changes; no live model-driven architect or perf run was performed.
+
 ## Optional xray event collection <Badge type="info" text="2026-10-03" />
 
 Additional PR #17 repairs: directory validation now uses `lstat` and scanning catches only missing directories, preserving access failures for the CLI's sanitized `coverage.unavailable` response. Deterministic injected permission failures cover both ancestor inspection and directory listing, including private-error redaction; missing stores still read as empty. The context fallback test now uses a fixed budget instead of OS-dependent temporary-path length. File-mode assertions run only on POSIX, and privileged Windows symlink cases are isolated and skipped without dropping corruption/session-scope coverage. All 47 Python tests, 13 Node tests, structural validation, and Ruff checks passed on macOS. No live Linux or Windows run was performed; these test portability changes do not establish native Windows support.

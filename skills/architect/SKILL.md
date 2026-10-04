@@ -16,7 +16,7 @@ Trace runtime flow and callers with how where useful. Use why when changing owne
 
 Write caller usage first, then derive types, signatures, ownership, and invariants. For contested/novel designs compare structurally distinct candidates with arena and the [runner prompt](references/runner-prompt.md). A constrained mechanical change needs one sketch and the constraint.
 
-Use the [rationale template](references/rationale-template.md) at the task's scale; screen [red flags](references/design-red-flags.md). Prefer a small interface hiding meaningful complexity. Separate shared writes before synchronizing.
+Use the [rationale template](references/rationale-template.md) at the task's scale; screen [red flags](references/design-red-flags.md). Assume the next contributor is an agent that sees only the files it opened, copies the nearest example, and takes the shortest path that compiles. Prefer the design where a change that looks right from one file is right for the whole repo. Prefer a small interface hiding meaningful complexity. Separate shared writes before synchronizing.
 
 ## Phase C: Agree
 
