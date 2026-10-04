@@ -20,11 +20,11 @@ class ValidateTests(unittest.TestCase):
             json.dumps({"name": "zstack-local", "plugins": [{"name": "zstack", "source": "./"}]}),
         )
         for relative in (
-            "skills/z-mode/scripts/check-plan.mjs",
+            "skills/z-mode/scripts/check-plan.py",
             "skills/z-mode/scripts/worktree-audit.sh",
-            "skills/z-mode/scripts/worktree-audit.mjs",
-            "skills/z-mode/scripts/watch-pr/watch-pr",
-            "skills/z-mode/scripts/orch/orch.ts",
+            "skills/z-mode/scripts/worktree-audit.py",
+            "skills/z-mode/scripts/watch-pr/watch-pr.py",
+            "skills/z-mode/scripts/orch/orch.py",
             "skills/show-me-your-work/scripts/log.sh",
         ):
             self.write(relative, "").chmod(0o755)
@@ -126,12 +126,12 @@ class ValidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid identifier"):
             frontmatter(file)
         file.write_text("No frontmatter\n")
-        (self.root / "skills/z-mode/scripts/check-plan.mjs").unlink()
+        (self.root / "skills/z-mode/scripts/check-plan.py").unlink()
         (self.root / "skills/show-me-your-work/scripts/log.sh").unlink()
         count, failures = validate(self.root)
         self.assertEqual(count, 0)
         self.assertIn("skills/example/SKILL.md: Missing YAML frontmatter", failures)
-        self.assertIn("scripts/check-plan.mjs: Missing tool entrypoint", failures)
+        self.assertIn("scripts/check-plan.py: Missing tool entrypoint", failures)
         self.assertTrue(any(failure.startswith("skills/show-me-your-work/scripts/log.sh:") for failure in failures))
 
     def test_codex_read_only_activation_preserves_claude_policy(self) -> None:

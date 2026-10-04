@@ -1,6 +1,4 @@
-#!/usr/bin/env bun
-import { ensureDependenciesInstalled } from "../bootstrap.ts";
-
-ensureDependenciesInstalled();
-const { main } = await import("./cli.ts");
-process.exitCode = await main(process.argv.slice(2));
+#!/usr/bin/env sh
+set -eu
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+exec uv run "$script_dir/watch-pr.py" "$@"

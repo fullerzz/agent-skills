@@ -10,6 +10,6 @@ Planning produces a plan; implementation begins only when requested.
    - H2 Risks with real uncertainties or an explicit "None identified".
    - H2 Handoff with current state, resume point, and who handles publication/merge.
 3. Name realistic verification commands, surface, and expected evidence for each phase. Include live, performance, screenshots, and independent reviewers only when they prove a relevant requirement. Explain a missing required capability.
-4. Resolve and run the bundled scripts/check-plan.mjs from this skill's real directory, preserving target cwd.
+4. Resolve and run the bundled scripts/check-plan.py with uv run from this skill's real directory, preserving target cwd.
 5. Return the path, dependencies, tradeoffs, and validator result. Stop at a requested review checkpoint.
 No fixed lane counts, overnight runtime promises, or automatic PRs.

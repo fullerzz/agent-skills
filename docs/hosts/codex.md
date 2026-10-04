@@ -2,7 +2,7 @@
 
 ## Native plugin
 
-The staged Codex package contains `.codex-plugin/plugin.json`, shared `skills/`, `hooks/`, and the license. It needs uv for the hook and the existing Node/Bun dependencies for optional helpers. Installation does not install those runtimes or grant hook trust.
+The staged Codex package contains `.codex-plugin/plugin.json`, shared `skills/`, `hooks/`, and the license. It needs uv for the hook and optional Python helpers. Installation does not install uv or grant hook trust.
 
 If you already installed linked skills, preview and apply removal using the original scope before enabling the plugin:
 
@@ -21,7 +21,7 @@ codex plugin marketplace add "$PWD"
 codex plugin add zstack@zstack-local
 ```
 
-The packaging command requires a Git checkout and refreshes `dist/zstack` from tracked resource files, using their current working-tree contents. Add intended new resources to Git before packaging; untracked and ignored personal files are excluded, along with Git history and installed dependencies. The marketplace installs that staged directory. Optional Bun tools install their locked dependencies at their installed resource location when used.
+The packaging command requires a Git checkout and refreshes `dist/zstack` from tracked resource files, using their current working-tree contents. Add intended new resources to Git before packaging; untracked and ignored personal files are excluded, along with Git history and installed dependencies. The marketplace installs that staged directory. Optional helpers run with uv and the Python standard library; no dependency installation occurs in the packaged resource directory.
 
 The source and staged package use the native manifest because CLI 0.160.0 discovered its hook there, while a portable root manifest's OpenAI extension did not expose the hook on that tested host.
 

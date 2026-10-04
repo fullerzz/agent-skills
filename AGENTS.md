@@ -7,6 +7,6 @@ For file searches and greps in this git-indexed repository, use fff MCP tools.
 
 Use ordinary web search for static documentation. Use Camofox for interactive, authenticated, or JavaScript websites; use Obscura for lightweight extraction or compatible-site fallback. Open, snapshot, act, snapshot after changes, and close tabs. Do not import cookies or expose authenticated sessions unless explicitly requested.
 
-Run `uv run scripts/validate.py`, `node --test scripts/*.test.mjs`, and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` after structural changes. For changes to bundled Bun tools, run their test and typecheck scripts. Record actual host checks in `docs/validation.md`. A static pass is not a live behavior result.
+Run `uv run scripts/validate.py`, `node --test scripts/*.test.mjs`, and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` after structural changes. Bundled Python helper tests are included in the unittest discovery command. Record actual host checks in `docs/validation.md`. A static pass is not a live behavior result.
 
 Skill authoring does not authorize commits, publication, messages, or tracker writes. Spawn agents only when the user or an applicable instruction requests delegation. Keep installer tests isolated from real personal configuration.
