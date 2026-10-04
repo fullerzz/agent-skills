@@ -89,7 +89,10 @@ def base(host: str, session_id: str, kind: str, status: str) -> dict[str, object
 
 
 def write_record(data_dir: str, record: dict[str, object]) -> None:
-    events = directory(data_dir, record["host"], record["session_id"], True)
+    host, session_id, event_id = record["host"], record["session_id"], record["event_id"]
+    if not isinstance(host, str) or not isinstance(session_id, str) or not isinstance(event_id, str):
+        raise ValueError("invalid record identity")
+    events = directory(data_dir, host, session_id, True)
     # Soft admission cap: simultaneous hooks may exceed it by their concurrency.
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     if len([name for name in os.listdir(events) if name.endswith(".json")]) >= MAX_EVENTS:
@@ -102,8 +105,8 @@ def write_record(data_dir: str, record: dict[str, object]) -> None:
     encoded = json.dumps(record, separators=(",", ":")).encode()
     if len(encoded) > MAX_EVENT_BYTES:
         raise ValueError("event too large")
-    temporary = os.path.join(events, "." + record["event_id"] + ".tmp")
-    final = os.path.join(events, record["event_id"] + ".json")
+    temporary = os.path.join(events, "." + event_id + ".tmp")
+    final = os.path.join(events, event_id + ".json")
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow, 0o600)
     try:
         with os.fdopen(fd, "wb") as stream:
@@ -228,7 +231,8 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
                     or record.get("schema_version") != 1
                     or record.get("host") != host
                     or record.get("session_id") != session_id
-                    or record.get("event_id") + ".json" != name
+                    or not isinstance(record.get("event_id"), str)
+                    or record["event_id"] + ".json" != name
                 ):
                     raise ValueError("schema")
                 # Rebuild from known metadata to keep manually corrupted data private.
@@ -275,7 +279,7 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
                 records.append(normalized)
             except (OSError, ValueError, TypeError, KeyError):
                 invalid += 1
-    pairs = {}
+    pairs: dict[tuple[object, object, object], set[object]] = {}
     for record in records:
         if record.get("tool_use_id"):
             pair = (record.get("agent_id"), record.get("turn_id"), record["tool_use_id"])

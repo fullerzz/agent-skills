@@ -66,7 +66,7 @@ def frontmatter(file: Path) -> dict[str, object]:
     return meta
 
 
-Fail = Callable[[str, str], None]
+type Fail = Callable[[str, str], None]
 
 
 def walk(directory: Path, root: Path) -> Iterator[Path]:
@@ -167,17 +167,17 @@ def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
 
 def validate_helpers(root: Path, fail: Fail) -> None:
     for path in (
-        "scripts/check-plan.mjs",
+        "scripts/check_plan.py",
         "scripts/worktree-audit.sh",
-        "scripts/worktree-audit.mjs",
-        "scripts/watch-pr/watch-pr",
-        "scripts/orch/orch.ts",
+        "scripts/worktree_audit.py",
+        "scripts/watch-pr/watch_pr.py",
+        "scripts/orch/orch.py",
     ):
         if not (root / "skills/z-mode" / path).exists():
             fail(path, "Missing tool entrypoint")
     for relative in (
         "skills/show-me-your-work/scripts/log.sh",
-        "skills/z-mode/scripts/watch-pr/watch-pr",
+        "skills/z-mode/scripts/watch-pr/watch_pr.py",
     ):
         try:
             if not (root / relative).stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):

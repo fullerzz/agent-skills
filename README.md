@@ -29,7 +29,7 @@ Start a new session and invoke `/zstack:how`. Checkout edits apply at the next s
 
 ### Linked installation
 
-Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the helper tests; Bun runs the optional orchestration and PR tools. Install missing tools with mise or brew.
+Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the repository integration tests. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
 
@@ -89,11 +89,11 @@ Cross-provider orchestration, public marketplace publication, and the old automa
 uv run scripts/validate.py
 node --test scripts/*.test.mjs
 uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
-cd skills/z-mode/scripts
-bun install --frozen-lockfile
-bun run test
-bun run typecheck
+uv run --with ty ty check skills/z-mode/scripts --extra-search-path skills/z-mode/scripts/orch --extra-search-path skills/z-mode/scripts/watch-pr
+uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
 ```
+
+Run `just mypy` as a shortcut for the project-wide mypy check.
 
 The documentation site in `docs/` uses VitePress, managed with pnpm:
 

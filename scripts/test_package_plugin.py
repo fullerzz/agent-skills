@@ -1,5 +1,4 @@
 # Retain the stdlib unittest runner used by the repository.
-# ruff: noqa: PT009, PT027
 
 import subprocess
 import tempfile

@@ -79,7 +79,7 @@ def benchmark(baseline: str, pairs: int) -> dict[str, object]:
 
         results = {}
         for scenario in ("inactive", "active", "clear"):
-            samples = {label: [] for label in variants}
+            samples: dict[str, list[float]] = {label: [] for label in variants}
 
             # Independently warm both commands, including their interpreter imports.
             for _ in range(2):

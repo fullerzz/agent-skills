@@ -13,6 +13,10 @@ lint-python:
 format-python:
     uv run ruff format .
 
+# type-check all project Python scripts
+mypy:
+    uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
+
 # lint and format python files
 check:
     @just format-python

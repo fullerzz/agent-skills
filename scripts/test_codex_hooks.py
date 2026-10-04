@@ -1,5 +1,4 @@
 # Retain the stdlib unittest runner used by the repository.
-# ruff: noqa: PT009
 
 """Exercise explicit Codex mode controls without personal configuration."""
 
