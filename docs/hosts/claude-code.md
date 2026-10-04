@@ -38,7 +38,7 @@ Start the host with `ZSTACK_XRAY=1` to retain minimal supported event metadata u
 
 ### Plugin update and removal
 
-Because the plugin loads in place, checkout edits take effect at the next session start or after `/reload-plugins`. No version bump is needed. Keep the checkout at a stable path, because the marketplace records it.
+Because the plugin loads in place, checkout edits take effect at the next session start or after `/reload-plugins`. You do not need a version bump to pick up local edits, but changes to packaged content still bump the shared version under the README versioning policy. Keep the checkout at a stable path, because the marketplace records it.
 
 ```sh
 claude plugin uninstall zstack@zstack-local
