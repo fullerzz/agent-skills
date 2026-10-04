@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 25 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 26 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -557,6 +557,71 @@ Edited text that matches the intended tone without changing its claims.
 A style rewrite does not establish facts or authorize editing unrelated files. Pattern rules are stable identifiers used by companion skills.
 
 [Full unslop instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/unslop/SKILL.md)
+
+## Xray session {#xray-session}
+
+You want to inspect observable zstack skills, plugin operations, hooks, and bundled helpers in the current session.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$xray-session Show this session's zstack activity in chronological order with an ASCII diagram.` |
+| Claude Code | `/xray-session Show this session's zstack activity in chronological order with an ASCII diagram.` |
+
+For native plugins, select `zstack:xray-session` through the Codex skill picker or invoke `/zstack:xray-session` in Claude Code.
+
+### How it works
+
+The agent reviews available evidence from this session through your invocation, which becomes the report cutoff. It builds a chronological ledger with stable event IDs, positions, actors, outcomes, and sanitized evidence references. It preserves repeated occurrences and failed attempts, then renders an ASCII diagram whose parent links require recorded causal evidence. Report-generation operations fall after the cutoff.
+
+### Expected result
+
+A coverage statement, chronological ledger, ASCII diagram, and explicit gaps. This abbreviated example is illustrative; an actual report includes only supported events:
+
+```text
+Scope: current session, through xray-session invocation
+Coverage: partial; earlier turns unavailable
+
+ID   Position  Kind    Action                Outcome / evidence
+E01  turn 4    skill   z-mode invoked        observed / turn 4 request
+E02  turn 5    helper  bundled helper        failed   / turn 5 call 1
+E03  turn 5    helper  bundled helper retry  success  / turn 5 call 3
+E04  turn 8    skill   xray-session invoked  observed / turn 8 request
+
+CURRENT SESSION
++-- E01 skill: z-mode
+|   +-- E02 helper: attempt [failed]
+|   \-- E03 helper: retry [success]
+\-- E04 skill: xray-session [report cutoff]
+
+Gap: no evidence available for turns 1-3.
+```
+
+### Dependencies and limits
+
+Strictly explicit-only on both hosts, including inside z-mode: only a direct user request naming xray-session activates it. Generic session questions and transcript mentions do not. The report is read-only and stays in chat; invoking it does not enable collection, persist a transcript, or authorize delegation.
+
+Uses z-mode's scoped history evidence guidance for this one current session. Complete coverage requires the full transcript through the cutoff; digests and compaction summaries cannot establish exhaustive counts. Unrecorded hooks and unavailable child-session detail remain gaps. Skill file reads, reported applications, hook context, and confirmed execution retain distinct labels. Sensitive arguments and hidden reasoning are excluded from the report.
+
+### Optional event collection
+
+For a native plugin installation, launch the host with `ZSTACK_XRAY=1` to record future supported hook events independently of z-mode. For example, in a POSIX shell:
+
+```sh
+ZSTACK_XRAY=1 codex
+ZSTACK_XRAY=1 claude
+```
+
+In PowerShell, set `$env:ZSTACK_XRAY = '1'` before starting the host. A desktop or remote host must receive the variable in its actual execution environment; setting it in an unrelated terminal does not update an already-running app. Review the updated Codex hook definition through its native trust flow. Linked skills alone do not install these hooks.
+
+Collection stores sanitized event metadata locally under the host's plugin data directory, in `xray/<host>/<session-id>/events/`. It does not store raw prompts, commands, arguments, tool results, or transcripts. Generic tool records retain identifiers for later correlation; their presence does not make them zstack operations. Claude's direct command expansion and model `Skill` calls are separate paths; unsupported paths remain coverage gaps.
+
+Startup context provides a current-session read command when collection is enabled, or a compact reference when long paths would exceed the context budget. Xray merges records with available transcript evidence, pairs tool starts/results by native call IDs, and avoids counting the same operation twice. It reports partial capture, unsupported paths, malformed records, and unresolved calls. Missing actor or turn identity is separately flagged as ambiguous. Record timestamps describe capture time; they do not establish a global execution order.
+
+To stop future collection, unset `ZSTACK_XRAY` and restart the host. Existing records remain available to xray. Delete only the intended `xray/<host>/<session-id>` directory in the verified plugin data root to remove a session's records; no automatic deletion occurs on clear or z-mode opt-out. Collection begins when enabled and cannot recover earlier activity. Hook processes still have launch overhead when collection is disabled, but the recorder exits without reading input or writing records. A collector error must not block the user's tool operation.
+
+The recorder limits each input to 256 KiB and each record to 4 KiB, with a soft cap of 10,000 event files per host/session; concurrent writes can exceed that cap by the number of simultaneous handlers. Hitting the cap leaves a coverage marker. Interrupted writes and malformed records are reported on read. Other failures warn without raw payloads; an unwritable store cannot reliably record its own failure, so a clean read never proves complete capture. Files request owner-only permissions; Windows access also depends on the host's ACLs. Symlinked data paths are refused.
+
+[Full xray-session instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/xray-session/SKILL.md)
 
 ## Why {#why}
 

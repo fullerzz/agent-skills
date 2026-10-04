@@ -1,5 +1,5 @@
 {
-  "description": "Orient each session and restore explicitly enabled z-mode.",
+  "description": "Orient sessions, restore explicitly enabled z-mode, and optionally record xray metadata.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,7 +8,199 @@
           {
             "type": "command",
             "command": "uv",
-            "args": ["run", "--no-project", "--no-config", "python", "-I", "-S", "${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py", "--host=claude"]
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--no-project",
+              "--no-config",
+              "python",
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
+              "--host=claude"
+            ]
           }
         ]
       }

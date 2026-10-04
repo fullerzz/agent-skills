@@ -71,6 +71,56 @@ def control_command(arguments: list[str], shell: str) -> str:
     return shlex.join(arguments)
 
 
+def record_xray(
+    host: str | None, session_id: str, data_dir: str, action: str, outcome: str, *, source: str | None = None
+) -> None:
+    if host is None or os.environ.get("ZSTACK_XRAY") != "1":
+        return
+    try:
+        import runpy
+
+        recorder = runpy.run_path(os.path.join(os.path.dirname(os.path.realpath(__file__)), "xray.py"))
+        if source is None:
+            recorder["record_internal"](host, session_id, data_dir, action, outcome)
+        else:
+            recorder["record_internal"](host, session_id, data_dir, action, outcome, source=source)
+    except Exception:  # noqa: BLE001 - Optional recorder failures must never alter host execution.
+        print("zstack xray: metadata capture unavailable; continuing", file=sys.stderr)
+
+
+def xray_context(host: str, session_id: str, data_dir: str, helper: str, budget: int) -> str:
+    read_arguments = [
+        "uv",
+        "run",
+        "--no-project",
+        "--no-config",
+        "python",
+        "-I",
+        "-S",
+        os.path.join(os.path.dirname(helper), "xray.py"),
+        "--read",
+        f"--host={host}",
+        f"--session-id={session_id}",
+        "--data-dir",
+        data_dir,
+    ]
+    recording_context = (
+        f"\nOptional xray recording is enabled for host {host}, session {session_id}, "
+        f"plugin data {data_dir}. It does not activate z-mode. Read this session's metadata only "
+        "when requested, using the command matching your shell:\n"
+        f"POSIX sh Read xray: {control_command(read_arguments, 'posix')}\n"
+        f"PowerShell Read xray: {control_command(read_arguments, 'powershell')}"
+    )
+    if len(recording_context) > budget:
+        recording_context = (
+            f"\nOptional xray recording is enabled for host {host}, session {session_id}; "
+            "it does not activate z-mode. On an explicit xray-session request, use the skill's "
+            "recorded-events reference. The data directory and session ID are the same as the "
+            "controls above; the read helper is their sibling xray.py."
+        )
+    return recording_context if len(recording_context) <= budget else ""
+
+
 def session_start(host: str) -> None:
     try:
         event = json.loads(sys.stdin.read(65536))
@@ -98,6 +148,7 @@ def session_start(host: str) -> None:
             "-S",
             helper,
             action,
+            f"--host={host}",
             f"--session-id={session_id}",
             "--data-dir",
             data_dir,
@@ -130,6 +181,8 @@ def session_start(host: str) -> None:
         context += "z-mode is inactive for this cleared context."
     else:
         context += "No stored z-mode activation exists for this session."
+    if os.environ.get("ZSTACK_XRAY") == "1":
+        context += xray_context(host, session_id, data_dir, helper, 4000 - len(context) - len(clear_error or "") - 1)
     output = {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
@@ -140,6 +193,14 @@ def session_start(host: str) -> None:
         output["systemMessage"] = clear_error
         output["hookSpecificOutput"]["additionalContext"] += "\n" + clear_error
     print(json.dumps(output))
+    record_xray(
+        host,
+        session_id,
+        data_dir,
+        "session_start",
+        "clear_state_failed" if clear_error else "context_emitted",
+        source=event["source"],
+    )
 
 
 def main() -> None:
@@ -150,6 +211,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("enable", "disable"))
+    parser.add_argument("--host", choices=("codex", "claude"))
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--data-dir", required=True)
     args = parser.parse_args()
@@ -157,7 +219,11 @@ def main() -> None:
         path = state_path(args.data_dir, args.session_id)
         set_active(path, args.action == "enable")
     except (ValueError, OSError) as error:
+        record_xray(args.host, args.session_id, args.data_dir, args.action, "state_change_failed")
         parser.exit(1, f"z-mode state not changed: {error}\n")
+    record_xray(
+        args.host, args.session_id, args.data_dir, args.action, "enabled" if args.action == "enable" else "disabled"
+    )
 
 
 if __name__ == "__main__":
