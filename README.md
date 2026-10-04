@@ -95,6 +95,16 @@ uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
 
 Run `just mypy` as a shortcut for the project-wide mypy check.
 
+### Versioning
+
+The Codex and Claude Code plugins share one `0.MINOR.PATCH` version in `.codex-plugin/plugin.json` and `.claude-plugin/plugin.json`. Validation fails if the manifests differ or leave `0.x`; reaching `1.0.0` is a deliberate change to that rule.
+
+- Bump MINOR for incompatible or new behavior: added, removed, or renamed skills and agents, changed invocation policy, and hook or stored-state contract changes.
+- Bump PATCH for compatible fixes and wording changes to packaged content.
+- Changes that ship nothing to either plugin, such as tests or the docs site, need no bump.
+
+Run `just bump minor` or `just bump patch` (`uv run scripts/bump_version.py`) to update both manifests together.
+
 The documentation site in `docs/` uses VitePress, managed with pnpm:
 
 ```sh

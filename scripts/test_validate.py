@@ -223,6 +223,10 @@ class ValidateTests(unittest.TestCase):
         self.write("hooks/codex.json", '{"hooks": {}}')
         self.write("LICENSE", "MIT")
         self.assertEqual(validate(self.root), (0, []))
+        for version in ("1.0.0", "0.1", "v0.1.0"):
+            with self.subTest(version=version):
+                self.write(".codex-plugin/plugin.json", json.dumps({**manifest, "version": version}))
+                self.assertIn(".codex-plugin/plugin.json: Invalid native plugin identity", validate(self.root)[1])
         manifest["hooks"] = "../outside.json"
         self.write(".codex-plugin/plugin.json", json.dumps(manifest))
         self.assertIn(".codex-plugin/plugin.json: Missing bundled hook configuration", validate(self.root)[1])
