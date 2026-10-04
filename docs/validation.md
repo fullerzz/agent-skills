@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Catppuccin wiki theme <Badge type="info" text="2026-10-03" />
+
+PR #20 maps the VitePress color tokens onto Catppuccin Macchiato (dark) and Latte (light), switches Shiki to the matching Catppuccin themes, recolors the logo, and credits Catppuccin in the home-page footer. Hex values match `@catppuccin/palette` 1.8.0. VitePress shows the footer only on pages without a sidebar, so the credit appears on the home page alone.
+
+Review follow-up: raw Latte accents fell below 4.5:1 as text on their own 14% tints and on mantle. Examples are the mauve tip badge at 3.93:1, yellow at 2.07:1, and green at 2.57:1. Latte now darkens the text-role (`-1`) shades with black: 85% for mauve, red, and blue, 65% for green, and 60% for yellow. Macchiato keeps its raw accents, which already passed (4.70:1 minimum). Fills and tints still use the raw palette.
+
+On this macOS host, `pnpm docs:build` passed. Playwright (Chromium) runs against `vitepress preview` covered the home page, footer, `/skills`, `/guide/01-setup`, and `/guide/04-long-work` in both modes. Computed contrast against the composited background was: Latte tip badge 5.03:1, links 6.13:1, inline code 5.31:1, and tip titles 5.80:1. Macchiato measured 5.20, 6.84, 5.50, and 7.54. The yellow, red, green, and blue text shades were computed offline at 4.67:1 or higher on their tints. No rendered warning or danger callout or badge was measured, and no browser other than Chromium was checked. Structural validation reported 50 skills and zero problems. All 13 Node tests and 47 Python tests passed, along with the whitespace check.
+
 ## Agent-resistant design and performance mantras <Badge type="info" text="2026-10-03" />
 
 PR #18 follow-up repairs make measurement and correctness checks an explicit per-mantra loop, with advancement after an unmet target and a report when supported options are exhausted. Reused results require invalidation for mutable inputs or proven input immutability throughout the cache's scoped lifetime. On this macOS host, structural validation reported 50 skills and zero problems; all 13 Node tests, 47 Python tests, and whitespace checks passed using `MISE_CACHE_DIR=/private/tmp/skills-review-mise`. These checks validate the repository and prose structure, not live model-driven optimization behavior.

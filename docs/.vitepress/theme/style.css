@@ -1,42 +1,117 @@
+/* Catppuccin (https://catppuccin.com/palette/): Latte in light mode, Macchiato in dark mode. */
+
 :root {
   --vp-font-family-base: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --vp-font-family-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --vp-c-text-1: #1b2430;
-  --vp-c-bg-alt: #f6f8f8;
-  --vp-c-bg-soft: #f4f7f7;
-  --vp-c-divider: #e1e7e6;
+  --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39;
+  --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b;
+  --ctp-blue: #1e66f5;
+  --ctp-text: #4c4f69;
+  --ctp-subtext0: #6c6f85;
+  --ctp-overlay1: #8c8fa1;
+  --ctp-surface2: #acb0be;
+  --ctp-surface1: #bcc0cc;
+  --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
 
-  --vp-c-brand-1: #0b6b61;
-  --vp-c-brand-2: #0f8577;
-  --vp-c-brand-3: #14a394;
-  --vp-c-brand-soft: rgba(15, 133, 119, 0.12);
-
-  --vp-button-brand-bg: #0b6b61;
-  --vp-button-brand-hover-bg: #095a52;
-  --vp-button-brand-active-bg: #084c45;
-
-  --vp-home-hero-name-color: var(--vp-c-brand-1);
-  --vp-home-hero-name-background: none;
-  --z-contour: rgba(15, 133, 119, 0.22);
+  /* Text shades: raw Latte accents fall below 4.5:1 on Latte backgrounds, so darken them for text only. */
+  --ctp-mauve-ink: color-mix(in srgb, var(--ctp-mauve) 85%, black);
+  --ctp-red-ink: color-mix(in srgb, var(--ctp-red) 85%, black);
+  --ctp-yellow-ink: color-mix(in srgb, var(--ctp-yellow) 60%, black);
+  --ctp-green-ink: color-mix(in srgb, var(--ctp-green) 65%, black);
+  --ctp-blue-ink: color-mix(in srgb, var(--ctp-blue) 85%, black);
 }
 
 .dark {
-  --vp-c-text-1: #e6ecec;
-  --vp-c-bg-alt: #15191b;
-  --vp-c-bg-soft: #1d2326;
-  --vp-c-divider: #2a3133;
+  --ctp-mauve: #c6a0f6;
+  --ctp-red: #ed8796;
+  --ctp-yellow: #eed49f;
+  --ctp-green: #a6da95;
+  --ctp-blue: #8aadf4;
+  --ctp-text: #cad3f5;
+  --ctp-subtext0: #a5adcb;
+  --ctp-overlay1: #8087a2;
+  --ctp-surface2: #5b6078;
+  --ctp-surface1: #494d64;
+  --ctp-surface0: #363a4f;
+  --ctp-base: #24273a;
+  --ctp-mantle: #1e2030;
+  --ctp-crust: #181926;
 
-  --vp-c-brand-1: #2dd4bf;
-  --vp-c-brand-2: #14b8a6;
-  --vp-c-brand-3: #0d9488;
-  --vp-c-brand-soft: rgba(45, 212, 191, 0.14);
+  --ctp-mauve-ink: var(--ctp-mauve);
+  --ctp-red-ink: var(--ctp-red);
+  --ctp-yellow-ink: var(--ctp-yellow);
+  --ctp-green-ink: var(--ctp-green);
+  --ctp-blue-ink: var(--ctp-blue);
+}
 
-  --vp-button-brand-bg: #14b8a6;
-  --vp-button-brand-hover-bg: #2dd4bf;
-  --vp-button-brand-active-bg: #0d9488;
-  --vp-button-brand-text: #042f2e;
-  --z-contour: rgba(45, 212, 191, 0.2);
+/* Map VitePress tokens onto the active flavor. This block follows the default theme, so it also wins over its .dark values. */
+
+:root {
+  --vp-c-bg: var(--ctp-base);
+  --vp-c-bg-alt: var(--ctp-mantle);
+  --vp-c-bg-elv: var(--ctp-mantle);
+  --vp-c-bg-soft: var(--ctp-mantle);
+
+  --vp-c-border: var(--ctp-surface1);
+  --vp-c-divider: var(--ctp-surface0);
+  --vp-c-gutter: var(--ctp-crust);
+
+  --vp-c-text-1: var(--ctp-text);
+  --vp-c-text-2: var(--ctp-subtext0);
+  --vp-c-text-3: var(--ctp-overlay1);
+
+  --vp-c-gray-1: var(--ctp-surface2);
+  --vp-c-gray-2: var(--ctp-surface1);
+  --vp-c-gray-3: var(--ctp-surface0);
+  --vp-c-gray-soft: color-mix(in srgb, var(--ctp-overlay1) 16%, transparent);
+
+  --vp-c-indigo-1: var(--ctp-blue-ink);
+  --vp-c-indigo-2: var(--ctp-blue);
+  --vp-c-indigo-3: var(--ctp-blue);
+  --vp-c-indigo-soft: color-mix(in srgb, var(--ctp-blue) 14%, transparent);
+
+  --vp-c-purple-1: var(--ctp-mauve-ink);
+  --vp-c-purple-2: var(--ctp-mauve);
+  --vp-c-purple-3: var(--ctp-mauve);
+  --vp-c-purple-soft: color-mix(in srgb, var(--ctp-mauve) 14%, transparent);
+
+  --vp-c-green-1: var(--ctp-green-ink);
+  --vp-c-green-2: var(--ctp-green);
+  --vp-c-green-3: var(--ctp-green);
+  --vp-c-green-soft: color-mix(in srgb, var(--ctp-green) 14%, transparent);
+
+  --vp-c-yellow-1: var(--ctp-yellow-ink);
+  --vp-c-yellow-2: var(--ctp-yellow);
+  --vp-c-yellow-3: var(--ctp-yellow);
+  --vp-c-yellow-soft: color-mix(in srgb, var(--ctp-yellow) 14%, transparent);
+
+  --vp-c-red-1: var(--ctp-red-ink);
+  --vp-c-red-2: var(--ctp-red);
+  --vp-c-red-3: var(--ctp-red);
+  --vp-c-red-soft: color-mix(in srgb, var(--ctp-red) 14%, transparent);
+
+  /* Mauve accent; -1 is text on -soft, and the hover shade moves toward the text color in both flavors. */
+  --vp-c-brand-1: var(--ctp-mauve-ink);
+  --vp-c-brand-2: color-mix(in srgb, var(--ctp-mauve-ink) 80%, var(--ctp-text));
+  --vp-c-brand-3: var(--ctp-mauve);
+  --vp-c-brand-soft: color-mix(in srgb, var(--ctp-mauve) 14%, transparent);
+
+  --vp-button-brand-text: var(--ctp-base);
+  --vp-button-brand-hover-text: var(--ctp-base);
+  --vp-button-brand-active-text: var(--ctp-base);
+  --vp-button-brand-bg: var(--ctp-mauve);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-bg: var(--vp-c-brand-2);
+
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+  --vp-home-hero-name-background: none;
+  --z-contour: color-mix(in srgb, var(--ctp-mauve) 22%, transparent);
 }
 
 /* Type */
