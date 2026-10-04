@@ -31,9 +31,9 @@ class HermesHookTests(unittest.TestCase):
         self.addCleanup(environment.stop)
 
     def control(self, context: str, action: str) -> None:
-        prefix = f"POSIX sh {action}: "
-        command = next(line.removeprefix(prefix) for line in context.splitlines() if line.startswith(prefix))
-        argv = shlex.split(command)
+        template = next(line for line in context.splitlines() if line.startswith("POSIX sh control: "))
+        argv = shlex.split(template.removeprefix("POSIX sh control: "))
+        argv[-1] = action.lower()
         # Exercise the exact generated helper arguments without invoking a second uv resolver.
         result = subprocess.run(  # noqa: S603 - Generated isolated helper, explicit argv, no shell.
             [sys.executable, *argv[argv.index("-I") :]],
@@ -120,7 +120,7 @@ class HermesHookTests(unittest.TestCase):
         for invalid in (None, "", "../parent", "parent:child", 12):
             context = self.hooks.pre_llm_call(session_id=invalid, task_id="task", parent_session_id="parent")["context"]
             self.assertIn("controls", context)
-            self.assertNotIn("POSIX sh Enable:", context)
+            self.assertNotIn("POSIX sh control:", context)
         self.assertEqual(list(Path(self.data).iterdir()), [])
 
     def test_corrupt_state_is_inactive_and_profile_state_is_isolated(self) -> None:

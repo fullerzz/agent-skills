@@ -22,6 +22,19 @@ Actual Herdr checks: `HERDR_ENV=1` was present. Installed CLI help confirmed the
 
 The automated checks prove state/packaging contracts, not model adherence or live Herdr orchestration. Fresh installed-host selection, a valid-caller pane run/read/cleanup, agent startup/prompt/wait/blocked recovery, detach/pickup, remote coordination, and Windows PowerShell execution remain unverified. PowerShell quoting is covered by serialization tests only. Live checks should run in a disposable caller pane with task-owned resources and preserve unrelated work.
 
+### Review fixes: context size, control race, style switch — 2026-10-04
+
+The SessionStart context now emits one control template per shell (`ACTION` replaced by enable, disable, herdr, or native) instead of eight full commands. With xray on and a realistic Codex data path, context went from 3924 to 2353 characters and keeps the full xray read commands. Herdr selection is a `<session>.herdr` marker beside `<session>.json`, so each control writes one file and parallel Enable/Herdr no longer lose a preference; read errors on the mode JSON no longer rewrite execution. Disable on a style switch is scoped to active z-mode, so a Herdr-only selection survives.
+
+Local validation on macOS:
+
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 117 tests passed. New regressions for parallel controls, real-length install paths under 4000 characters with full xray commands, and the scoped style-switch instruction all failed against the previous helper (the parallel test reproduced the lost Herdr preference).
+- `uv run scripts/validate.py`: 51 skills, zero structural problems. `node --test scripts/*.test.mjs`: all 13 passed. Ruff lint/format, mypy on the helper, and `git diff --check` passed.
+
+A Codex review flagged that sessions saved by the previous helper as `{"active": true, "execution": "herdr"}` would lose Herdr after upgrade. Reads now honor that legacy field, and every control first moves it into the marker and strips it from the JSON, so Native clears it for good. The upgrade regression failed against the unmigrated helper; afterwards 118 Python tests, 13 node tests, `validate.py`, ruff, mypy, and `git diff --check` passed.
+
+Not verified: a live Codex session reading the new template, model adherence to `ACTION` substitution, and Windows PowerShell execution.
+
 ## Native Hermes plugin
 
 ### Correlation-ID review fix — 2026-10-04

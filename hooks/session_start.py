@@ -1,7 +1,7 @@
 """Shared host context and session-scoped mode and execution controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
-# ruff: noqa: PTH103, PTH105, PTH108, PTH117, PTH118, PTH120, PTH123, SIM105
+# ruff: noqa: PTH103, PTH105, PTH108, PTH113, PTH117, PTH118, PTH120, PTH122, PTH123, SIM105
 
 import json
 import os
@@ -18,68 +18,100 @@ def state_path(data_dir: str, session_id: str) -> str:
     return os.path.join(data_dir, "z-mode", session_id + ".json")
 
 
-def read_state(path: str) -> tuple[bool, str]:
+def execution_path(path: str) -> str:
+    # A separate marker keeps each control a single-file write, so parallel controls cannot drop each other.
+    return os.path.splitext(path)[0] + ".herdr"
+
+
+def load_mode(path: str) -> dict[str, object]:
     try:
         with open(path, encoding="utf-8") as file:
             state = json.load(file)
-        return state.get("active") is True, "herdr" if state.get("execution") == "herdr" else "native"
-    except (OSError, ValueError, AttributeError):
-        return False, "native"
+    except (OSError, ValueError):
+        return {}
+    return state if isinstance(state, dict) else {}
 
 
-def write_state(path: str, active: bool, execution: str) -> None:
-    if not active and execution == "native":
-        try:
-            os.unlink(path)
-        except FileNotFoundError:
-            pass
-        return
+def read_state(path: str) -> tuple[bool, str]:
+    state = load_mode(path)
+    # Earlier releases stored execution in the mode JSON; honor it until a control migrates it.
+    herdr = state.get("execution") == "herdr" or os.path.isfile(execution_path(path))
+    return state.get("active") is True, "herdr" if herdr else "native"
 
+
+def unlink(path: str) -> None:
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+
+
+def write_active(path: str) -> None:
     import tempfile
 
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
-    state: dict[str, object] = {"active": active}
-    if execution == "herdr":
-        state["execution"] = execution
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", dir=directory, delete=False) as file:
             temporary = file.name
-            json.dump(state, file)
+            json.dump({"active": True}, file)
         os.replace(temporary, path)
     finally:
         if temporary is not None:
-            try:
-                os.unlink(temporary)
-            except FileNotFoundError:
-                pass
+            unlink(temporary)
+
+
+def migrate_legacy(path: str) -> None:
+    # Move a legacy execution field into the marker first, so an interrupted migration still reads as Herdr.
+    state = load_mode(path)
+    if "execution" not in state:
+        return
+    if state["execution"] == "herdr":
+        open(execution_path(path), "a").close()
+    if state.get("active") is True:
+        write_active(path)
+    else:
+        unlink(path)
 
 
 def set_active(path: str, active: bool) -> None:
     # Re-selecting the mode preserves execution; stopping it clears both preferences.
-    write_state(path, active, read_state(path)[1] if active else "native")
+    if not active:
+        unlink(path)
+        unlink(execution_path(path))
+        return
+    migrate_legacy(path)
+    write_active(path)
 
 
 def set_execution(path: str, execution: str) -> None:
     if execution not in ("herdr", "native"):
         raise ValueError("Invalid execution selection")
-    write_state(path, read_state(path)[0], execution)
+    migrate_legacy(path)
+    if execution == "native":
+        unlink(execution_path(path))
+    else:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(execution_path(path), "a").close()
 
 
 def restore_state(path: str, source: str) -> tuple[bool, str, str | None]:
-    clear_error = None
-    if source == "clear":
-        try:
-            set_active(path, False)
-        except OSError:
-            clear_error = (
+    if source != "clear":
+        return (*read_state(path), None)
+    try:
+        set_active(path, False)
+    except OSError:
+        return (
+            False,
+            "native",
+            (
                 "z-mode state could not be removed on clear. Mode and Herdr execution are inactive, "
                 "but a later resume may see stale stored activation. Retry Disable "
                 "and preserve this opt-out in resume notes; user opt-out always takes precedence."
-            )
-    active, execution = read_state(path) if source != "clear" else (False, "native")
-    return active, execution, clear_error
+            ),
+        )
+    return False, "native", None
 
 
 def control_command(arguments: list[str], shell: str) -> str:
@@ -149,25 +181,22 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     path = state_path(data_dir, session_id)
     active, execution, clear_error = restore_state(path, source)
     helper = os.path.realpath(__file__)
-    controls: dict[str, dict[str, str]] = {"posix": {}, "powershell": {}}
-    for action in ("enable", "disable", "herdr", "native"):
-        arguments = [
-            "uv",
-            "run",
-            "--no-project",
-            "--no-config",
-            "python",
-            "-I",
-            "-S",
-            helper,
-            action,
-            f"--host={host}",
-            f"--session-id={session_id}",
-            "--data-dir",
-            data_dir,
-        ]
-        for shell, commands in controls.items():
-            commands[action] = control_command(arguments, shell)
+    # One template per shell keeps the context inside Codex's 4000-character limit with real paths.
+    arguments = [
+        "uv",
+        "run",
+        "--no-project",
+        "--no-config",
+        "python",
+        "-I",
+        "-S",
+        helper,
+        f"--host={host}",
+        f"--session-id={session_id}",
+        "--data-dir",
+        data_dir,
+        "ACTION",
+    ]
     context = (
         "zstack provides engineering skills; respect invocation policy. "
         "Installation activates neither z-mode nor Herdr. "
@@ -175,16 +204,12 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         "never run another session's controls. Parent activation does not activate a fork. "
         "Only explicit selection/opt-out permits controls: Enable selects z-mode; Disable clears both; "
         "Herdr selects execution only; Native clears execution only. Preferences do not control processes. "
-        "Match the executing shell:\n"
-        f"POSIX sh Enable: {controls['posix']['enable']}\nPOSIX sh Disable: {controls['posix']['disable']}\n"
-        f"PowerShell Enable: {controls['powershell']['enable']}\n"
-        f"PowerShell Disable: {controls['powershell']['disable']}\n"
-        f"POSIX sh Herdr: {controls['posix']['herdr']}\nPOSIX sh Native: {controls['posix']['native']}\n"
-        f"PowerShell Herdr: {controls['powershell']['herdr']}\n"
-        f"PowerShell Native: {controls['powershell']['native']}\n"
-        "On stop z-mode/style switch, run Disable and record opt-out in resume notes. "
-        "Later user instructions override stored state. No added authority for "
-        "delegation, commits, publication, messages, or tracker writes.\n"
+        "Run the executing shell's control with ACTION replaced by enable, disable, herdr, or native:\n"
+        f"POSIX sh control: {control_command(arguments, 'posix')}\n"
+        f"PowerShell control: {control_command(arguments, 'powershell')}\n"
+        "When active z-mode stops or yields to another style, run Disable and record opt-out in resume notes; "
+        "Herdr selected without z-mode stays until Native. Later user instructions override stored state. "
+        "No added authority for delegation, commits, publication, messages, or tracker writes.\n"
     )
     if active:
         skill = os.path.join(os.path.dirname(os.path.dirname(helper)), "skills/z-mode/SKILL.md")

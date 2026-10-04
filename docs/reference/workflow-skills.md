@@ -34,7 +34,7 @@ Herdr control requires `HERDR_ENV=1`, a compatible CLI/server, and the selected 
 
 New CLI sessions do not inherit the coordinator's context, model settings, permissions, or activation. Panes alone do not isolate filesystem writes. Use existing task authority for exclusive files or requested worktrees, and supply consolidated briefs. Server restart is different from detach: conversation restoration depends on native integrations and does not prove work continued.
 
-The preference is stored with mode state in each native host's plugin data directory and restored only for the same session ID. Stop/style switch and clear/reset remove both; new children and rotated IDs start without either. Without the new hooks, record selection and opt-out conversationally. No installation, permission changes, server restarts, publication, or extra delegation follow merely from enabling it.
+The preference is a marker beside mode state in each native host's plugin data directory and restored only for the same session ID. Stopping or switching away from active z-mode and clear/reset remove both; a Herdr-only selection survives a style switch; new children and rotated IDs start without either. Without the new hooks, record selection and opt-out conversationally. No installation, permission changes, server restarts, publication, or extra delegation follow merely from enabling it.
 
 [Full herdr-workflow instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/herdr-workflow/SKILL.md)
 
