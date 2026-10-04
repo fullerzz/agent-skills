@@ -4,7 +4,7 @@ Invoke the installed mode explicitly: `$z-mode` in Codex or `/z-mode` in Claude 
 
 The mode remains active in conversation until stopped or replaced; it does not provide a scheduler. Simple work runs directly. Delegated workflows use the selected host’s available native agents, inherited settings, bounded concurrency and exclusive write scopes; missing independent coverage must be disclosed. Every workflow keeps read-only scope and action authority from the request. See the [mode source](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md) and [native host contract](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/references/native-hosts.md).
 
-Bundled tools are optional capabilities, not a runtime supplied by the mode. Resolve the real installed skill directory, use quoted absolute script paths, and retain the target repository as cwd. Node runs the plan validator and audit implementation; Bash wraps the audit. Bun runs the GitHub watcher and orch bookkeeping tools, installing their locked dependencies beside the skill scripts. Consult each tool’s `--help`; forge access, Graphite metadata, native delegation and durable background execution are separate prerequisites.
+Bundled tools are optional capabilities, not a runtime supplied by the mode. Resolve the real installed skill directory, use quoted absolute script paths, and retain the target repository as cwd. Run the plan validator (`check_plan.py`), worktree audit (`worktree_audit.py`), GitHub watcher (`watch-pr/watch_pr.py`), and orchestration CLI (`orch/orch.py`) with `uv run`. They require Python 3.12+ and use the standard library without installing dependencies beside the skill scripts. The existing shell launchers forward to uv. Consult each tool’s usage guidance; forge access, Graphite metadata, native delegation and durable background execution are separate prerequisites.
 
 ## Investigation {#playbook-investigation}
 
@@ -197,7 +197,7 @@ Claude Code: /z-mode Check PR 42 status in one read-only pass.
 
 Choose check, drive, threads-only, or requested background mode; resolve exact heads and reviews; triage findings against code; verify requested fixes and re-query the new head. Return state, remediation, checks, and blockers.
 
-**Prerequisites and limits:** GitHub watcher is an optional Bun tool requiring forge access; use its --help and absolute installed path. Read-only status excludes fixes and replies; merge-ready is not merged. Background requires a supported live runtime.
+**Prerequisites and limits:** GitHub watcher is an optional Python tool launched with uv and requiring forge access; use its --help and absolute installed path. Read-only status excludes fixes and replies; merge-ready is not merged. Background requires a supported live runtime.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/babysit.md).
 
@@ -242,7 +242,7 @@ Claude Code: /z-mode Coordinate the parser and UI migration with exclusive owner
 
 Pin units and dependencies, pilot the brief, store user-owned state and receipts, run bounded native owners, wait for terminal reports, inspect artifacts, relay verified dependencies, and reconcile every child. Return counts, frontier, blockers, and state directory.
 
-**Prerequisites and limits:** Needs native delegation; absent independent coverage must be disclosed. Optional Bun orch CLI is bookkeeping only; frontier needs Graphite metadata. One coordinator owns topology, and no durable runtime means handoff.
+**Prerequisites and limits:** Needs native delegation; absent independent coverage must be disclosed. The optional Python orch CLI runs with uv and provides bookkeeping only; frontier needs Graphite metadata. One coordinator owns topology, and no durable runtime means handoff.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/orchestrate.md).
 

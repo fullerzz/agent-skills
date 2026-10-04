@@ -36,7 +36,7 @@ def integer(value: str) -> int:
 
 
 def prs(value: str) -> list[int]:
-    values = [integer(part.removeprefix("#")) for part in value.split(",")]
+    values = [integer(part.strip().removeprefix("#")) for part in value.split(",")]
     if len(set(values)) != len(values):
         raise argparse.ArgumentTypeError("contains a duplicate PR")
     return values

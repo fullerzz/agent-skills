@@ -16,6 +16,8 @@ On this macOS host, `pnpm docs:build` passed. Playwright (Chromium) runs against
 
 ## Python helper migration <Badge type="info" text="2026-10-03" />
 
+Additional PR #21 review repairs trim frozen-stack items before their optional `#` prefix, decode watcher command streams and existing status reports explicitly as UTF-8, and update public setup/playbook guidance to Python/uv. Three regressions failed before repair and now cover whitespace-prefixed PR numbers, Unicode command stdout/stderr with a simulated CP1252 default, and a repeated Unicode status render with a simulated ASCII default. On macOS, all 81 Python tests, 13 Node tests, mypy (21 files), Ruff lint/format, structural validation (50 skills, zero problems), and the VitePress build passed. These encoding simulations do not establish native Windows behavior.
+
 PR #21 review repair: inbox pointer reads now explicitly decode UTF-8, matching the writer. A regression with a simulated CP1252 default reproduced mojibake before the fix and verifies non-ASCII agent, unit, status, and report fields through both peek and drain afterward. All 78 Python tests, mypy (21 files), and Ruff lint/format passed on macOS. This simulation is not a native Windows run.
 
 The `just mypy` recipe runs the uv command with Rich, PyYAML, and PyYAML stubs; invoking the recipe on this macOS host passed with no issues in all 21 source files.

@@ -192,7 +192,7 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
 def previous_summary(path: Path) -> StatusSummary | None:
     before = None
     if path.exists():
-        match = re.search(r"<!-- orch-summary (.+) -->", path.read_text())
+        match = re.search(r"<!-- orch-summary (.+) -->", path.read_text(encoding="utf-8"))
         if match:
             try:
                 candidate = json.loads(match[1])

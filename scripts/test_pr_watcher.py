@@ -338,6 +338,25 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(len(event["rows"]), 2)
         self.assertIn("| PR | CI | Review | Merge |", self.render.render_pretty(event))
 
+    def test_frozen_stack_accepts_whitespace_and_hash_prefixes(self) -> None:
+        for value in ("#10, 11,#12", " #10, #11,\t#12 "):
+            with self.subTest(value=value):
+                args = self.cli.parse_args(["--queued-stack", "--stack-prs", value])
+                self.assertEqual(args.stack_prs, [10, 11, 12])
+
+    def test_command_streams_use_utf8_with_non_utf8_default(self) -> None:
+        payload = {"branch": "作業", "check": "検査", "comment": "résumé"}
+        encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        error = "échec: 作業".encode()
+        with patch("subprocess._text_encoding", return_value="cp1252"):
+            result = self.github.run_json([sys.executable, "-c", f"import sys; sys.stdout.buffer.write({encoded!r})"])
+            self.assertEqual(result, payload)
+            with self.assertRaises(self.github.QueryError) as caught:
+                self.github.run_json(
+                    [sys.executable, "-c", f"import sys; sys.stderr.buffer.write({error!r}); sys.exit(1)"]
+                )
+            self.assertEqual(caught.exception.failure["detail"], error.decode("utf-8"))
+
     def test_threads_pagination_and_bugbot_passes(self) -> None:
         def thread(id: str, resolved: bool, run: str) -> dict[str, Any]:
             return {

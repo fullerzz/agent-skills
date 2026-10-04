@@ -43,7 +43,7 @@ def first_line(value: str) -> str:
 def run(argv: list[str]) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(  # noqa: S603 - Fixed Git/gh/gt argument vectors from local callers; no shell.
-            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True
+            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8"
         )
     except OSError as error:
         raise QueryError("command-exit", str(error), code=127) from error

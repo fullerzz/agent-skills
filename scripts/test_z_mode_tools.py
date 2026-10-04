@@ -114,6 +114,18 @@ class StoreTests(unittest.TestCase):
             self.assertEqual(self.store.inbox_drain(), [pointer])
             self.assertEqual(self.store.inbox_count(), 0)
 
+    def test_status_rerender_with_non_utf8_default(self) -> None:
+        read_text = Path.read_text
+
+        def legacy_read(path: Path, encoding: str | None = None, errors: str | None = None) -> str:
+            return read_text(path, encoding=encoding or "ascii", errors=errors)
+
+        self.store.unit_add("作業", "étape")
+        with patch.object(Path, "read_text", legacy_read):
+            self.assertEqual(self.store.status()["changed"], "first render")
+            self.assertEqual(self.store.status()["changed"], "no derived changes")
+        self.assertIn("作業", (self.path / "status.md").read_text(encoding="utf-8"))
+
     def test_lock_read_only_force_and_dead_holder(self) -> None:
         self.store.close()
         lock = self.path / ".orch.lock"
