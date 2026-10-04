@@ -18,6 +18,13 @@
   --ctp-base: #eff1f5;
   --ctp-mantle: #e6e9ef;
   --ctp-crust: #dce0e8;
+
+  /* Text shades: raw Latte accents fall below 4.5:1 on Latte backgrounds, so darken them for text only. */
+  --ctp-mauve-ink: color-mix(in srgb, var(--ctp-mauve) 85%, black);
+  --ctp-red-ink: color-mix(in srgb, var(--ctp-red) 85%, black);
+  --ctp-yellow-ink: color-mix(in srgb, var(--ctp-yellow) 60%, black);
+  --ctp-green-ink: color-mix(in srgb, var(--ctp-green) 65%, black);
+  --ctp-blue-ink: color-mix(in srgb, var(--ctp-blue) 85%, black);
 }
 
 .dark {
@@ -35,6 +42,12 @@
   --ctp-base: #24273a;
   --ctp-mantle: #1e2030;
   --ctp-crust: #181926;
+
+  --ctp-mauve-ink: var(--ctp-mauve);
+  --ctp-red-ink: var(--ctp-red);
+  --ctp-yellow-ink: var(--ctp-yellow);
+  --ctp-green-ink: var(--ctp-green);
+  --ctp-blue-ink: var(--ctp-blue);
 }
 
 /* Map VitePress tokens onto the active flavor. This block follows the default theme, so it also wins over its .dark values. */
@@ -58,34 +71,34 @@
   --vp-c-gray-3: var(--ctp-surface0);
   --vp-c-gray-soft: color-mix(in srgb, var(--ctp-overlay1) 16%, transparent);
 
-  --vp-c-indigo-1: var(--ctp-blue);
+  --vp-c-indigo-1: var(--ctp-blue-ink);
   --vp-c-indigo-2: var(--ctp-blue);
   --vp-c-indigo-3: var(--ctp-blue);
   --vp-c-indigo-soft: color-mix(in srgb, var(--ctp-blue) 14%, transparent);
 
-  --vp-c-purple-1: var(--ctp-mauve);
+  --vp-c-purple-1: var(--ctp-mauve-ink);
   --vp-c-purple-2: var(--ctp-mauve);
   --vp-c-purple-3: var(--ctp-mauve);
   --vp-c-purple-soft: color-mix(in srgb, var(--ctp-mauve) 14%, transparent);
 
-  --vp-c-green-1: var(--ctp-green);
+  --vp-c-green-1: var(--ctp-green-ink);
   --vp-c-green-2: var(--ctp-green);
   --vp-c-green-3: var(--ctp-green);
   --vp-c-green-soft: color-mix(in srgb, var(--ctp-green) 14%, transparent);
 
-  --vp-c-yellow-1: var(--ctp-yellow);
+  --vp-c-yellow-1: var(--ctp-yellow-ink);
   --vp-c-yellow-2: var(--ctp-yellow);
   --vp-c-yellow-3: var(--ctp-yellow);
   --vp-c-yellow-soft: color-mix(in srgb, var(--ctp-yellow) 14%, transparent);
 
-  --vp-c-red-1: var(--ctp-red);
+  --vp-c-red-1: var(--ctp-red-ink);
   --vp-c-red-2: var(--ctp-red);
   --vp-c-red-3: var(--ctp-red);
   --vp-c-red-soft: color-mix(in srgb, var(--ctp-red) 14%, transparent);
 
-  /* Mauve accent; the hover shade moves toward the text color, which adds contrast in both flavors. */
-  --vp-c-brand-1: var(--ctp-mauve);
-  --vp-c-brand-2: color-mix(in srgb, var(--ctp-mauve) 80%, var(--ctp-text));
+  /* Mauve accent; -1 is text on -soft, and the hover shade moves toward the text color in both flavors. */
+  --vp-c-brand-1: var(--ctp-mauve-ink);
+  --vp-c-brand-2: color-mix(in srgb, var(--ctp-mauve-ink) 80%, var(--ctp-text));
   --vp-c-brand-3: var(--ctp-mauve);
   --vp-c-brand-soft: color-mix(in srgb, var(--ctp-mauve) 14%, transparent);
 
