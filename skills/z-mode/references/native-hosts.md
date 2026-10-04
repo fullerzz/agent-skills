@@ -17,9 +17,17 @@ uv run "$Z_MODE_DIR/scripts/watch-pr/watch_pr.py" --help
 
 These variables are local to the command. Do not repurpose `HOME` or `CODEX_HOME`. The helpers use Python 3.12+ with uv and the standard library; they do not install dependencies in the skill directory or change the target cwd. Run the watcher from the target project or supply its documented repository option.
 
+## Execution selection
+
+The selected playbook defines the work; execution selection applies across that playbook and its companions. Native host tools are the default. When the user explicitly enables Herdr for this session, read [herdr-workflow](../../herdr-workflow/SKILL.md) and use it for the workflow's authorized delegated agents and useful long-running supporting processes. Keep small work and brief checks direct. References to native delegation elsewhere in a workflow mean the default path, not a requirement to bypass an explicitly selected Herdr path.
+
+Herdr is not a way around host tool restrictions, forbidden delegation, unavailable sandbox enforcement, or concurrency limits. If a required Herdr capability is unavailable, name the gap. Continue independent direct work, but do not silently substitute native agents; use a user-selected fallback for the affected work. Do not treat a failed or timed-out launch as evidence that no process exists.
+
+Execution selection is session-scoped and independent of task routing. Current trusted hook controls persist it where available; otherwise use conversation and handoff notes. A new child/session does not inherit the parent's selection or controls. A request to research or implement this integration does not enable it. On opt-out, stop new Herdr dispatch and account for in-flight assignments before replacement.
+
 ## Delegation
 
-Use the selected host's native agent tool. Omit model overrides to inherit its configured default. Where a validated native role override is requested, keep the model ID and effort as separate supported settings. Do not promise provider diversity. Report model identity if exposed, otherwise say it is unavailable.
+With native execution, use the selected host's native agent tool and omit model overrides to inherit its configured default. With Herdr execution, each CLI has its own configuration; it does not inherit parent model settings, conversation, permissions, tools, roles, or mode activation. Supply the scoped brief and verify needed capabilities. Where an override is requested, keep model ID and effort as separate supported settings. Do not promise provider diversity. Report model identity if exposed, otherwise say it is unavailable.
 
 Use `z-agent` for scoped engineering work and `comment-sicko` for comment reports when installed. The Claude Code plugin registers them as `zstack:z-agent` and `zstack:comment-sicko`. A built-in agent with the same scoped brief is a fallback; disclose it. A child reads the selected workflow instructions, but does not recursively launch another copy of itself merely because the mode is active.
 
@@ -33,15 +41,15 @@ Resume, message, or queue new work on an existing agent only when that work need
 
 Before replacing a writer, stop or drain it and confirm it can no longer write the assigned scope. Preserve its changes and hand them off; if termination cannot be confirmed, use a separate write scope or report the blocker. Never overlap replacement writers on the same files.
 
-Cap active workers at the host's exposed concurrency limit and the task's useful parallelism. Start with 2-3 independent slices, queue the rest. Avoid nested coordinators unless the host supports nesting and the workload warrants it. Wait for completed, failed, cancelled, or blocked results; a started agent is not coverage. Inspect output artifacts before accepting results. Retry a failed slice once with a fresh agent and corrected brief, subject to the state-dependent reuse exception above, then record the gap.
+Cap active workers across execution methods at the host's exposed concurrency limit, user budget, and the task's useful parallelism. Start with 2-3 independent slices, queue the rest. Avoid nested coordinators unless the host supports nesting and the workload warrants it. Wait for completed, failed, cancelled, or blocked results; a started agent is not coverage. Herdr's idle/done states indicate readiness, not an accepted task result. Inspect output artifacts before accepting results. Retry a failed slice once with a fresh agent and corrected brief, subject to the state-dependent reuse exception above, then record the gap.
 
-If delegation is unavailable or forbidden, perform the scoped work directly and disclose that independent coverage is missing. Never fabricate another agent's verdict. Do not silently substitute native runs for a request requiring another provider.
+If delegation is forbidden, perform the scoped work directly and disclose that independent coverage is missing. If the selected execution method is unavailable, follow the fallback rule above; native execution may proceed directly when no specific execution method was requested. Never fabricate another agent's verdict or silently substitute native runs for a request requiring another provider.
 
 ## Hermes
 
 The native Hermes plugin registers the shared library through `ctx.register_skill`. Load skills explicitly with `skill_view` using names such as `zstack:z-mode` and `zstack:how`; do not assume bare skill names select this library. Loading a workflow permits its declared companions, but xray-session still requires a direct user request.
 
-Resolve resources from the loaded skill's actual directory. Use namespaced sibling skill loads where available, and the host's file-reading tool for playbooks and other relative resources. Keep helper commands in the target repository. The plugin provides no Hermes agent-role files: use the available native delegation tool with the same scoped brief and inherited configuration, disclose the role fallback, and report missing delegation when unavailable.
+Resolve resources from the loaded skill's actual directory. Use namespaced sibling skill loads where available, and the host's file-reading tool for playbooks and other relative resources. Keep helper commands in the target repository. The plugin provides no Hermes agent-role files: use the selected execution method with the same scoped brief, disclose the role fallback, and report missing delegation when unavailable. Native delegation inherits configuration; Herdr CLIs use independent configuration as described above.
 
 The Hermes pre_llm_call hook supplies current-session controls on each user turn. Explicit activation persists under the active profile's plugin-data directory; resume and compaction that retain the session ID restore it. Reset clears the replacement session's state. Never execute controls inherited from a different host or session, and never infer activation for a new child or branch from its parent. Hermes can rotate session IDs during compaction without a native plugin transition hook; the new ID starts inactive and needs explicit selection again. Preserve this limitation and the user's selection or opt-out in resume notes.
 

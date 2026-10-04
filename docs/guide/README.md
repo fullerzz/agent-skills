@@ -12,6 +12,8 @@ Use a named skill for a specific job, such as `$how` to trace behavior. Use `$z-
 
 The [workflow skill reference](../reference/workflow-skills.md) explains each skill's inputs, process, and results. The [playbook reference](../reference/playbooks.md) gives task examples, and the [principle reference](../reference/principles.md) shows the decisions each principle affects.
 
+To run authorized workers and useful long-running processes in Herdr, follow [Use Herdr with existing workflows](herdr.md). Explicit execution selection applies alongside the normal playbook and its companions.
+
 ## Choose a workflow
 
 <Workflow />

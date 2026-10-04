@@ -37,6 +37,10 @@ Forked sessions receive new child-scoped controls that supersede inherited paren
 
 The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Both startup and emitted mode controls use the same isolated launch options.
 
+### Herdr execution
+
+Explicitly select "use z-mode with Herdr" to apply [Herdr execution](../reference/workflow-skills.md#herdr-workflow) across the existing playbooks. The hook also emits Herdr and Native controls: these change the session's execution preference without activating or disabling z-mode. Enable preserves that preference; Disable and session clear remove both. Disable runs on a style switch only when z-mode is active, so a Herdr-only selection survives it. Legacy mode-only state defaults to native execution. New children receive neither preference from their parent. The preference is a per-session marker beside the mode JSON, so parallel controls cannot overwrite each other, with no process launch or Herdr discovery in the hook. Actual control requires the agent to be inside Herdr and remains subject to Codex permissions. Older installed hooks use conversational selection until refreshed.
+
 ### Optional xray recording
 
 Start the host with `ZSTACK_XRAY=1` and trust the updated hook definition to retain minimal supported event metadata under `PLUGIN_DATA/xray/codex/`. Recording is independent of mode activation and disabled by default. The user-only xray-session skill combines those records with transcript evidence. See [collection setup and limits](../reference/workflow-skills.md#optional-event-collection).

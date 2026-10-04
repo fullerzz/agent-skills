@@ -8,9 +8,11 @@ Give [autonomous-run](../../skills/z-mode/playbooks/autonomous-run.md) a checkab
 Native background or scheduling features can be used when verified and requested; this library supplies no replacement daemon.
 :::
 
-[Orchestrate](../../skills/z-mode/playbooks/orchestrate.md) scales native workers around owned task state. [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
+[Orchestrate](../../skills/z-mode/playbooks/orchestrate.md) coordinates workers around owned task state, using native execution by default or [Herdr when explicitly enabled](herdr.md). [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
 
 ## Save a handoff
+
+With Herdr enabled, include the execution preference, machine/session, task-to-agent/pane assignments, write scopes, artifact evidence, and remaining processes. Reconcile live state before resuming; a saved prompt is not permission to resend it. [Pause and resume behavior](herdr.md#turn-it-off-pause-or-resume) explains why client detach does not pause workers.
 
 If durable execution is unavailable, [pause safely](../../skills/z-mode/playbooks/pause-safely.md) saves:
 

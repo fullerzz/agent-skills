@@ -31,9 +31,9 @@ class HermesHookTests(unittest.TestCase):
         self.addCleanup(environment.stop)
 
     def control(self, context: str, action: str) -> None:
-        prefix = f"POSIX sh {action}: "
-        command = next(line.removeprefix(prefix) for line in context.splitlines() if line.startswith(prefix))
-        argv = shlex.split(command)
+        template = next(line for line in context.splitlines() if line.startswith("POSIX sh control: "))
+        argv = shlex.split(template.removeprefix("POSIX sh control: "))
+        argv[-1] = action.lower()
         # Exercise the exact generated helper arguments without invoking a second uv resolver.
         result = subprocess.run(  # noqa: S603 - Generated isolated helper, explicit argv, no shell.
             [sys.executable, *argv[argv.index("-I") :]],
@@ -80,12 +80,31 @@ class HermesHookTests(unittest.TestCase):
 
     def test_reset_clears_only_replacement_and_end_does_not_destroy_resume(self) -> None:
         for session in ("old", "new"):
-            self.control(self.hooks.pre_llm_call(session_id=session)["context"], "Enable")
+            context = self.hooks.pre_llm_call(session_id=session)["context"]
+            self.control(context, "Enable")
+            self.control(context, "Herdr")
         self.hooks.on_session_reset(session_id="new", old_session_id="old", new_session_id="new")
         self.assertIn("No stored z-mode activation", self.hooks.pre_llm_call(session_id="new")["context"])
+        self.assertNotIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="new")["context"])
         for event in ("on_session_end", "on_session_finalize"):
             self.hooks.observe(event, session_id="old", completed=True)
         self.assertIn("z-mode was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
+        self.assertIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
+
+    def test_execution_preference_survives_adapter_restart_but_not_new_sessions(self) -> None:
+        context = self.hooks.pre_llm_call(session_id="parent")["context"]
+        self.control(context, "Herdr")
+        restarted = hermes.HermesHooks(lambda: self.data)
+        context = restarted.pre_llm_call(session_id="parent")["context"]
+        self.assertIn("Herdr execution was explicitly enabled", context)
+        self.assertIn("No stored z-mode activation", context)
+        self.assertNotIn(
+            "Herdr execution was explicitly enabled", restarted.pre_llm_call(session_id="child")["context"]
+        )
+        self.control(context, "Native")
+        self.assertNotIn(
+            "Herdr execution was explicitly enabled", restarted.pre_llm_call(session_id="parent")["context"]
+        )
 
     def test_failed_reset_stays_inactive_until_clear_can_be_retried(self) -> None:
         self.control(self.hooks.pre_llm_call(session_id="session")["context"], "Enable")
@@ -101,7 +120,7 @@ class HermesHookTests(unittest.TestCase):
         for invalid in (None, "", "../parent", "parent:child", 12):
             context = self.hooks.pre_llm_call(session_id=invalid, task_id="task", parent_session_id="parent")["context"]
             self.assertIn("controls", context)
-            self.assertNotIn("POSIX sh Enable:", context)
+            self.assertNotIn("POSIX sh control:", context)
         self.assertEqual(list(Path(self.data).iterdir()), [])
 
     def test_corrupt_state_is_inactive_and_profile_state_is_isolated(self) -> None:

@@ -64,6 +64,8 @@ The native `pre_llm_call` hook refreshes session-scoped POSIX and PowerShell ena
 
 State lives in `z-mode/<session-id>.json` beneath Hermes' documented `plugin_data_dir("zstack")`, normally `<HERMES_HOME>/plugin-data/zstack` in the active profile. The same shared renderer and control helper serve Codex, Claude Code, and Hermes. Missing or malformed state is inactive. Invalid session identity yields no executable controls; the adapter never substitutes a parent or task ID. Registration itself writes no state.
 
+Explicitly enabled [Herdr execution](../reference/workflow-skills.md#herdr-workflow) uses a marker beside that state file with the same lifecycle. Herdr/Native controls change execution without changing z-mode activation. Enable preserves execution; Disable and reset remove both preferences. New IDs inherit neither. The hook changes preferences only; it never launches or inspects Herdr. The agent must run inside Herdr for control, and each CLI worker has its own configuration and scope. Playbooks keep their normal routing and acceptance criteria.
+
 | Boundary | Behavior |
 | --- | --- |
 | Next turn or resume with the same ID | Restore explicit activation or opt-out, including after a process restart. |
@@ -88,7 +90,7 @@ Records are sanitized and stored under `xray/hermes/<session-id>/events/` in the
 
 ## Host boundaries
 
-The plugin does not register the Codex TOML or Claude Markdown agent roles. Workflows use Hermes' available native delegation with a scoped brief and inherited configuration. The [native contract](../../skills/z-mode/references/native-hosts.md#hermes) explains resource resolution and fallback reporting. The linked installer still targets Codex and Claude Code only.
+The plugin does not register the Codex TOML or Claude Markdown agent roles. Workflows default to Hermes' available native delegation with a scoped brief and inherited configuration; explicitly enabled Herdr execution uses independent CLI sessions under the shared execution contract. The [native contract](../../skills/z-mode/references/native-hosts.md#hermes) explains resource resolution and fallback reporting. The linked installer still targets Codex and Claude Code only.
 
 Hook contracts follow the official [plugin API](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins) and [observer hooks](https://hermes-agent.nousresearch.com/docs/developer-guide/observer-hooks), with native runtime evidence recorded in [validation](../validation.md#native-hermes-plugin).
 

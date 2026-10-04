@@ -6,6 +6,45 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Herdr execution integration — 2026-10-04
+
+Version `0.4.0` adds explicit Herdr execution selection alongside existing playbooks. The initial implementation stored execution alongside mode activation in the per-session JSON; the review fixes below moved execution to a separate marker. Native remains the default for legacy mode-only records. Herdr selection alone does not activate z-mode; enabling z-mode preserves execution; Native clears only the execution preference; Disable and clear/reset remove both. No hook launches or probes Herdr.
+
+Local validation on macOS:
+
+- `uv run scripts/validate.py`: 51 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 13 tests passed, including isolated installation and documentation reference coverage.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 114 tests passed. New regressions cover preference roundtrips, same-ID restore, child isolation, opt-out, legacy/invalid state, failed atomic writes, Hermes restart/reset behavior, and xray event reading. The added selection tests failed against the old helper before implementation.
+- Ruff lint and format checks passed for the four changed Python files; project mypy passed for 27 source files. `pnpm docs:build` and `git diff --check` passed.
+- An isolated Git fixture packaged the current resources, including all three new Herdr skill files, and verified byte equality plus relocated hook-to-skill references with paths containing spaces. This did not stage the working tree, refresh an installed plugin, or modify personal host configuration. Normal packaging includes tracked resources only, so the new skill must be tracked before packaging from the real checkout.
+
+Actual Herdr checks: `HERDR_ENV=1` was present. Installed CLI help confirmed the documented pane and agent command surfaces. `herdr status` reported client/server `0.9.3`, private protocol `22`, compatible endpoint, and no restart required. Both `herdr pane current --current` and `herdr pane layout --current` returned `pane_not_found`. The attempted pane smoke stopped at caller resolution; no pane was created, no focus was changed, and no agent was launched. The operations reference now explicitly treats an unresolved caller as a blocker even when the environment flag is present.
+
+The automated checks prove state/packaging contracts, not model adherence or live Herdr orchestration. Fresh installed-host selection, a valid-caller pane run/read/cleanup, agent startup/prompt/wait/blocked recovery, detach/pickup, remote coordination, and Windows PowerShell execution remain unverified. PowerShell quoting is covered by serialization tests only. Live checks should run in a disposable caller pane with task-owned resources and preserve unrelated work.
+
+### Review fixes: context size, control race, style switch — 2026-10-04
+
+The SessionStart context now emits one control template per shell (`ACTION` replaced by enable, disable, herdr, or native) instead of eight full commands. With xray on and a realistic Codex data path, context went from 3924 to 2353 characters and keeps the full xray read commands. Herdr selection is a `<session>.herdr` marker beside `<session>.json`, so each control writes one file and parallel Enable/Herdr no longer lose a preference; read errors on the mode JSON no longer rewrite execution. Disable on a style switch is scoped to active z-mode, so a Herdr-only selection survives.
+
+Local validation on macOS:
+
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 117 tests passed. New regressions for parallel controls, real-length install paths under 4000 characters with full xray commands, and the scoped style-switch instruction all failed against the previous helper (the parallel test reproduced the lost Herdr preference).
+- `uv run scripts/validate.py`: 51 skills, zero structural problems. `node --test scripts/*.test.mjs`: all 13 passed. Ruff lint/format, mypy on the helper, and `git diff --check` passed.
+
+A Codex review flagged that sessions saved by the previous helper as `{"active": true, "execution": "herdr"}` would lose Herdr after upgrade. Reads now honor that legacy field, and every control first moves it into the marker and strips it from the JSON, so Native clears it for good. The upgrade regression failed against the unmigrated helper; afterwards 118 Python tests, 13 node tests, `validate.py`, ruff, mypy, and `git diff --check` passed.
+
+Not verified: a live Codex session reading the new template, model adherence to `ACTION` substitution, and Windows PowerShell execution.
+
+### Review fix: unambiguous control substitution — 2026-10-04
+
+The shared hook now explicitly instructs executors to replace only the final `ACTION` argument and preserve every other argument, including paths and session IDs containing that text. The regression failed against the previous instructions, then passed with all four actions executed against an isolated copied helper and data directory containing `ACTION`. PowerShell serialization is checked too; live PowerShell execution and model adherence remain unverified. All 119 Python tests, 13 Node tests, skill validation (51 skills, zero problems), Ruff lint, the VitePress build, and `git diff --check` passed.
+
+### Wiki coverage review — 2026-10-04
+
+Reviewed the branch against `origin/main`, including the execution companion, playbook changes, hook controls, and follow-up state fixes. Added a [Herdr user guide](guide/herdr.md) with setup, workflow behavior, preference lifecycle, pause/pickup, troubleshooting, and upstream documentation links. Linked it from the sidebar and existing guides/reference, and corrected the long-work guide's native-only description.
+
+Local checks passed: `pnpm docs:build`, all 13 Node tests, all 118 Python tests, `uv run scripts/validate.py` (51 skills, zero problems), and `git diff --check`. Inspected generated HTML to verify the guide/sidebar and upstream documentation links plus six linked heading targets. This was a static documentation check; no new live Herdr or browser interaction check was performed.
+
 ## Native Hermes plugin
 
 ### Correlation-ID review fix — 2026-10-04

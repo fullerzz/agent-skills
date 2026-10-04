@@ -295,6 +295,14 @@ class CodexHooksTests(unittest.TestCase):
             check=check,
         )
 
+    @staticmethod
+    def command(context: str, action: str, shell: str = "POSIX sh") -> str:
+        template = next(
+            line.split(": ", 1)[1] for line in context.splitlines() if line.startswith(f"{shell} control: ")
+        )
+        head, _, tail = template.rpartition("ACTION")
+        return head + action + tail
+
     def test_configured_command_and_emitted_controls(self) -> None:
         (self.data / "uv.toml").write_text("invalid TOML [")
         marker = self.data / "site-loaded"
@@ -319,17 +327,39 @@ class CodexHooksTests(unittest.TestCase):
         output = json.loads(result.stdout)["hookSpecificOutput"]
         self.assertEqual(output["hookEventName"], "SessionStart")
         context = output["additionalContext"]
-        commands = dict(
-            line.removeprefix("POSIX sh ").split(": ", 1)
-            for line in context.splitlines()
-            if line.startswith(("POSIX sh Enable: ", "POSIX sh Disable: "))
-        )
+        commands = {action: self.command(context, action.lower()) for action in ("Enable", "Disable")}
         for action in ("Enable", "Disable"):
             # Exercise shell quoting in commands emitted by our local trusted hook.
             subprocess.run(commands[action], shell=True, check=True, env=self.env, cwd=self.data)  # noqa: S602
             active = "was explicitly enabled" in self.hook()
             self.assertEqual(active, action == "Enable")
             self.assertFalse(marker.exists())
+
+    def test_action_in_paths_is_preserved_by_final_argument_replacement(self) -> None:
+        helper = self.data / "ACTION plugin" / "session_start.py"
+        helper.parent.mkdir()
+        helper.write_bytes(HELPER.read_bytes())
+        data = self.data / "ACTION data"
+        functions = runpy.run_path(str(helper))
+        context, _ = functions["build_context"]("codex", "ACTION-session", str(data), "startup")
+        self.assertIn("replace only the final argument ACTION", context)
+        self.assertIn("leave all other arguments unchanged", context)
+        for action, expected in (
+            ("enable", (True, "native")),
+            ("herdr", (True, "herdr")),
+            ("native", (True, "native")),
+            ("disable", (False, "native")),
+        ):
+            argv = shlex.split(self.command(context, action))
+            self.assertIn(str(helper), argv)
+            self.assertEqual(argv[-3:], ["--data-dir", str(data), action])
+            self.assertEqual(
+                self.command(context, action, "PowerShell"), functions["control_command"](argv, "powershell")
+            )
+            subprocess.run(  # noqa: S603 - Isolated copied helper and generated arguments.
+                [sys.executable, *argv[argv.index("-I") :]], check=True, env=self.env
+            )
+            self.assertEqual(functions["read_state"](functions["state_path"](str(data), "ACTION-session")), expected)
 
     def test_configured_command_uses_claude_plugin_variables(self) -> None:
         plugin_root = self.data / "Claude's plugin $root `literal`"
@@ -359,14 +389,12 @@ class CodexHooksTests(unittest.TestCase):
                 env=env,
             )
             context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-            enable = next(
-                line.split(": ", 1)[1] for line in context.splitlines() if line.startswith("POSIX sh Enable: ")
-            )
-            self.assertEqual(shlex.split(enable)[-1], str(self.data))
-            self.assertIn("PowerShell Enable: & 'uv'", context)
-            self.assertIn("PowerShell Disable: & 'uv'", context)
+            enable = self.command(context, "enable")
+            self.assertEqual(shlex.split(enable)[-2:], [str(self.data), "enable"])
+            self.assertIn("PowerShell control: & 'uv'", context)
+            self.assertTrue(self.command(context, "disable", "PowerShell").endswith(" 'disable'"))
         context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-        enable = next(line.split(": ", 1)[1] for line in context.splitlines() if line.startswith("POSIX sh Enable: "))
+        enable = self.command(context, "enable")
         self.assertIn(str((plugin_root / "hooks/session_start.py").resolve()), shlex.split(enable))
         subprocess.run(enable, shell=True, check=True, env=env, cwd=self.data)  # noqa: S602
         self.assertTrue((self.data / "z-mode/claude-a.json").is_file())
@@ -375,11 +403,7 @@ class CodexHooksTests(unittest.TestCase):
         for session in ("-session", "--session-id", "-"):
             with self.subTest(session=session):
                 context = json.loads(self.hook(session=session))["hookSpecificOutput"]["additionalContext"]
-                commands = dict(
-                    line.removeprefix("POSIX sh ").split(": ", 1)
-                    for line in context.splitlines()
-                    if line.startswith(("POSIX sh Enable: ", "POSIX sh Disable: "))
-                )
+                commands = {action: self.command(context, action.lower()) for action in ("Enable", "Disable")}
                 for action in ("Enable", "Disable"):
                     subprocess.run(commands[action], shell=True, check=True, env=self.env, cwd=self.data)  # noqa: S602
                     self.assertEqual("was explicitly enabled" in self.hook(session=session), action == "Enable")
@@ -390,11 +414,7 @@ class CodexHooksTests(unittest.TestCase):
         self.assertIn("No stored", context)
         self.assertIn("supersede any controls inherited", context)
         self.assertIn("Parent activation does not activate a fork", context)
-        commands = dict(
-            line.removeprefix("POSIX sh ").split(": ", 1)
-            for line in context.splitlines()
-            if line.startswith(("POSIX sh Enable: ", "POSIX sh Disable: "))
-        )
+        commands = {action: self.command(context, action.lower()) for action in ("Enable", "Disable")}
         for action in ("Enable", "Disable"):
             self.assertIn("--session-id=child", commands[action])
             self.assertNotIn("parent", commands[action])
@@ -414,6 +434,143 @@ class CodexHooksTests(unittest.TestCase):
         self.assertIn("No stored", self.hook(source="clear"))
         self.assertIn("No stored", self.hook(source="resume"))
         self.control("disable")
+
+    def test_execution_selection_is_independent_and_mode_stop_clears_both(self) -> None:
+        state = self.data / "z-mode/session-a.json"
+        marker = self.data / "z-mode/session-a.herdr"
+        self.control("herdr")
+        self.assertFalse(state.exists())
+        self.assertTrue(marker.is_file())
+        self.control("enable")
+        self.assertEqual(json.loads(state.read_text()), {"active": True})
+        for source in ("startup", "resume", "compact"):
+            context = json.loads(self.hook(source=source))["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("Herdr execution was explicitly enabled", context)
+            self.assertIn("z-mode was explicitly enabled", context)
+        self.control("native")
+        self.assertEqual(json.loads(state.read_text()), {"active": True})
+        self.assertFalse(marker.exists())
+        self.control("herdr")
+        self.control("disable")
+        self.assertEqual(list(state.parent.iterdir()), [])
+        context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+        self.assertNotIn("Herdr execution was explicitly enabled", context)
+        self.control("herdr")
+        self.control("native")
+        self.assertEqual(list(state.parent.iterdir()), [])
+
+    def test_parallel_mode_and_execution_controls_both_persist(self) -> None:
+        for _ in range(10):
+            processes = [
+                subprocess.Popen(  # noqa: S603 - Fixed interpreter and local helper.
+                    [sys.executable, "-I", "-S", str(HELPER), action, "--session-id=race", "--data-dir", str(self.data)]
+                )
+                for action in ("enable", "herdr")
+            ]
+            self.assertEqual([process.wait() for process in processes], [0, 0])
+            context = json.loads(self.hook(session="race"))["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("z-mode was explicitly enabled", context)
+            self.assertIn("Herdr execution was explicitly enabled", context)
+            self.control("disable", session="race")
+
+    def test_style_switch_disable_is_scoped_to_active_mode(self) -> None:
+        context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("When active z-mode stops or yields to another style, run Disable", context)
+        self.assertIn("Herdr selected without z-mode stays until Native", context)
+
+    def test_real_install_paths_keep_full_controls_within_codex_limit(self) -> None:
+        render = runpy.run_path(str(HELPER))["build_context"]
+        data = self.data / ("plugins/data/zstack-zstack-local-" + "x" * 80)
+        session = "019a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
+        runpy.run_path(str(HELPER))["set_active"](runpy.run_path(str(HELPER))["state_path"](str(data), session), True)
+        subprocess.run(  # noqa: S603 - Fixed interpreter and local helper.
+            [sys.executable, "-I", "-S", str(HELPER), "herdr", f"--session-id={session}", "--data-dir", str(data)],
+            check=True,
+        )
+        with patch.dict(os.environ, {"ZSTACK_XRAY": "1"}):
+            context, _ = render("codex", session, str(data), "resume")
+        self.assertLess(len(context), 4000)
+        self.assertIn("POSIX sh Read xray:", context)
+        self.assertIn("Herdr execution was explicitly enabled", context)
+
+    def test_execution_controls_are_scoped_and_roundtrip_from_hook(self) -> None:
+        self.control("enable", session="parent")
+        self.control("herdr", session="parent")
+        context = json.loads(self.hook(session="child", source="fork"))["hookSpecificOutput"]["additionalContext"]
+        self.assertNotIn("Herdr execution was explicitly enabled", context)
+        for label in ("Herdr", "Native"):
+            argv = shlex.split(self.command(context, label.lower()))
+            self.assertIn("--session-id=child", argv)
+            subprocess.run(  # noqa: S603 - Trusted emitted command; isolated data root.
+                [sys.executable, *argv[argv.index("-I") :]], check=True, capture_output=True, env=self.env
+            )
+            self.assertEqual("Herdr execution was explicitly enabled" in self.hook(session="child"), label == "Herdr")
+            self.assertIn("Herdr execution was explicitly enabled", self.hook(session="parent"))
+        self.assertIn("PowerShell control: & 'uv'", context)
+        self.hook(session="parent", source="clear")
+        self.assertEqual(list((self.data / "z-mode").iterdir()), [])
+
+    def test_execution_controls_record_outcomes_and_keep_xray_available(self) -> None:
+        self.env["ZSTACK_XRAY"] = "1"
+        self.control("enable")
+        context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+        for label in ("Herdr", "Native"):
+            argv = shlex.split(self.command(context, label.lower()))
+            subprocess.run(  # noqa: S603 - Generated isolated helper.
+                [sys.executable, *argv[argv.index("-I") :]], check=True, capture_output=True, env=self.env
+            )
+            restored = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("POSIX sh Read xray:", restored)
+            self.assertLess(len(restored), 4000)
+        records = runpy.run_path(str(ROOT / "hooks/xray.py"))["read_records"]("codex", "session-a", str(self.data))
+        self.assertEqual(
+            [(record["kind"], record["outcome"]) for record in records["records"] if record["kind"] != "session_start"],
+            [("herdr", "enabled"), ("native", "disabled")],
+        )
+
+    def test_legacy_and_invalid_execution_state_default_to_native(self) -> None:
+        state = self.data / "z-mode/session-a.json"
+        state.parent.mkdir()
+        for value in ({"active": True}, {"active": True, "execution": "unexpected"}, {"execution": True}):
+            state.write_text(json.dumps(value))
+            context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+            self.assertNotIn("Herdr execution was explicitly enabled", context)
+            self.assertEqual("z-mode was explicitly enabled" in context, value.get("active") is True)
+
+    def test_legacy_json_herdr_preference_survives_upgrade_and_native_clears_it(self) -> None:
+        state = self.data / "z-mode/session-a.json"
+        marker = self.data / "z-mode/session-a.herdr"
+        state.parent.mkdir()
+        state.write_text(json.dumps({"active": True, "execution": "herdr"}))
+        context = json.loads(self.hook(source="resume"))["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("z-mode was explicitly enabled", context)
+        self.assertIn("Herdr execution was explicitly enabled", context)
+        self.control("enable")
+        self.assertEqual(json.loads(state.read_text()), {"active": True})
+        self.assertTrue(marker.is_file())
+        state.write_text(json.dumps({"active": True, "execution": "herdr"}))
+        marker.unlink()
+        self.control("native")
+        self.assertEqual(json.loads(state.read_text()), {"active": True})
+        self.assertFalse(marker.exists())
+        self.assertNotIn("Herdr execution was explicitly enabled", self.hook(source="resume"))
+        state.write_text(json.dumps({"active": False, "execution": "herdr"}))
+        self.control("herdr")
+        self.assertEqual(list(state.parent.iterdir()), [marker])
+        self.assertIn("No stored z-mode activation", self.hook(source="resume"))
+
+    def test_failed_execution_selection_preserves_prior_state_and_reports_failure(self) -> None:
+        functions = runpy.run_path(str(HELPER))
+        path = str(self.data / "z-mode/session-a.json")
+        functions["set_active"](path, True)
+        with patch("builtins.open", side_effect=PermissionError("fixture")), self.assertRaises(PermissionError):
+            functions["set_execution"](path, "herdr")
+        self.assertEqual(json.loads(Path(path).read_text()), {"active": True})
+        self.assertEqual(list(Path(path).parent.iterdir()), [Path(path)])
+        Path(path).parent.joinpath("session-a.herdr").mkdir()
+        result = self.control("native", check=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("state not changed", result.stderr)
 
     def test_invalid_identity_and_corrupt_state_fail_inactive(self) -> None:
         for session in ("../outside", "x/y", "x; touch outside", "", "x" * 129):

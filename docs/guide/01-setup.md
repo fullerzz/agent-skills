@@ -172,6 +172,8 @@ The table and [installation maps](visual-guide.md#from-checkout-to-host) describ
 
 ## Route work through z-mode
 
+Native execution is the default. To explicitly select Herdr for agents and useful long-running processes across these same workflows, follow [Use Herdr with existing workflows](herdr.md). Installation enables neither z-mode nor Herdr execution.
+
 The [router](../../skills/z-mode/SKILL.md) reads only relevant playbooks and principle leaves. Small work runs directly. The first prompt below selects a feature workflow; the second selects investigation.
 
 ::: code-group

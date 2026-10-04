@@ -247,7 +247,7 @@ def record_internal(
             "failed": "failed",
             "unknown": "unknown",
         }
-        if action not in ("session_start", "enable", "disable") or outcome not in statuses:
+        if action not in ("session_start", "enable", "disable", "herdr", "native") or outcome not in statuses:
             raise ValueError("invalid internal event")
         record = base(host, session_id, action, statuses[outcome])
         record["attribution"] = "zstack"
@@ -322,7 +322,9 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
                     if record["kind"] in KINDS
                     else base(host, session_id, record["kind"], "unknown")
                 )
-                if record["kind"] not in KINDS | {"session_start", "enable", "disable"} or record["status"] not in {
+                if record["kind"] not in KINDS | {"session_start", "enable", "disable", "herdr", "native"} or record[
+                    "status"
+                ] not in {
                     "started",
                     "returned",
                     "failed",

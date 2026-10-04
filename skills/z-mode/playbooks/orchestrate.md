@@ -3,7 +3,7 @@ Coordinate a program too large for one simple run. A single task uses autonomous
 
 1. State units, dependencies, acceptance criteria, scope, budget, and action authority. Start with a pilot to prove the brief and checks.
 2. Keep state in a user-owned task directory such as .agent-work/<slug>, outside delegated writes. Store standing orders, briefs, status, head SHAs, receipts, and decision trail.
-3. Use native agents under the host contract with a rolling bounded window. Each brief names goal, scope/ownership, context, acceptance, verification, stop condition, and report. Tell writers to preserve concurrent edits.
+3. Use the [selected execution method](../references/native-hosts.md#execution-selection) with a rolling bounded window. Each brief names goal, scope/ownership, context, acceptance, verification, stop condition, and report. Tell writers to preserve concurrent edits. When Herdr is enabled, maintain task-to-agent/pane assignments in the same state directory, including endpoint and live status separately from acceptance.
 4. Wait for terminal results, inspect artifacts, relay verified upstream context into dependent briefs, and account for every child. A missing child is a gap.
 5. The optional bundled orch CLI manages TSV/JSON bookkeeping only. Resolve its absolute installed path and consult --help. Its frontier command requires Graphite metadata; if that is absent, do not use it. Record the dependency frontier directly from explicit branches/PRs instead.
 6. One coordinator owns topology. Workers do not rebase shared branches, push, merge, or post without explicit delegated authority.
