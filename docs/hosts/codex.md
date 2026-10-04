@@ -47,7 +47,7 @@ This package does not register `agents/codex/` as plugin roles. Existing native 
 
 ### Plugin update and removal
 
-For a local marketplace, update the checkout, rerun `uv run scripts/package_plugin.py`, then remove and add the plugin to refresh its cached package:
+For a local marketplace, update the checkout, rerun `uv run scripts/package_plugin.py`, then remove and add the plugin to refresh its cached package. Codex caches each install under its plugin version, which both hosts share (see the README versioning policy):
 
 ```sh
 codex plugin remove zstack@zstack-local

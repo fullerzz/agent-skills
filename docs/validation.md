@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Shared v0 plugin versioning <Badge type="info" text="2026-10-04" />
+
+The Codex and Claude Code manifests share one `0.MINOR.PATCH` version. Validation now rejects a Codex version outside `0.x` (Claude must already match it), and `scripts/bump_version.py`, exposed as `just bump minor|patch`, rewrites both manifests in place after refusing drift, non-v0 versions, or unknown parts. The README records the bump policy. Installed caches on this host are keyed by version: `~/.codex/plugins/cache/zstack-local/zstack/0.1.0` and Claude's `installPath` `~/.claude/plugins/cache/zstack-local/zstack/0.1.0`.
+
+On this macOS host, structural validation reported 50 skills and zero problems; 83 Python tests, 13 Node tests, Ruff lint/format, and project mypy passed. `just bump patch` then `just bump minor` produced `0.1.1` and `0.2.0` in both manifests, which were restored to `0.1.0`; `just bump major` exited 1. No plugin was reinstalled, so host pickup of a bumped version was not exercised.
+
 ## Catppuccin wiki theme <Badge type="info" text="2026-10-03" />
 
 PR #20 maps the VitePress color tokens onto Catppuccin Macchiato (dark) and Latte (light), switches Shiki to the matching Catppuccin themes, recolors the logo, and credits Catppuccin in the home-page footer. Hex values match `@catppuccin/palette` 1.8.0. VitePress shows the footer only on pages without a sidebar, so the credit appears on the home page alone.

@@ -197,7 +197,8 @@ def validate_plugin(root: Path, fail: Fail) -> None:
             if (
                 manifest.get("skills") != "./skills/"
                 or manifest.get("name") != "zstack"
-                or not re.fullmatch(r"\d+\.\d+\.\d+", manifest.get("version", ""))
+                # Both hosts share one pre-1.0 version; see the README versioning policy.
+                or not re.fullmatch(r"0\.\d+\.\d+", manifest.get("version", ""))
             ):
                 fail(".codex-plugin/plugin.json", "Invalid native plugin identity")
             hooks = manifest["hooks"]

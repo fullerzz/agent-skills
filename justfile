@@ -5,6 +5,10 @@ _default:
 build:
     uv run scripts/package_plugin.py
 
+# bump the shared plugin version: minor or patch
+bump part:
+    uv run scripts/bump_version.py {{part}}
+
 # lint python files with ruff
 lint-python:
     uv run ruff check --fix .
