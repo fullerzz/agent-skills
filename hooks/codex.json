@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ],
         "matcher": ".*"
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ],
         "matcher": ".*"
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex"
+            "command": "if [ \"${ZSTACK_XRAY:-}\" = \"1\" ]; then exec uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/xray.py\" --host=codex; fi"
           }
         ]
       }

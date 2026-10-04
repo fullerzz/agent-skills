@@ -37,7 +37,8 @@
               "-S",
               "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
               "--host=claude"
-            ]
+            ],
+            "async": true
           }
         ],
         "matcher": ".*"
@@ -58,7 +59,8 @@
               "-S",
               "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
               "--host=claude"
-            ]
+            ],
+            "async": true
           }
         ],
         "matcher": ".*"
@@ -179,7 +181,8 @@
               "-S",
               "${CLAUDE_PLUGIN_ROOT}/hooks/xray.py",
               "--host=claude"
-            ]
+            ],
+            "async": true
           }
         ],
         "matcher": ".*"

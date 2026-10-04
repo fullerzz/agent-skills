@@ -147,6 +147,46 @@ class CodexHooksTests(unittest.TestCase):
                 self.assertIn(f"--host={host}", command)
                 self.assertNotIn("session_start.py", command)
 
+    def test_disabled_codex_recorders_never_launch_uv(self) -> None:
+        # A sentinel executable proves the manifest gate runs before uv, even
+        # with malformed stdin and paths containing shell metacharacters.
+        launcher = self.data / "uv"
+        launcher.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\ncat\n')
+        launcher.chmod(0o700)
+        hooks = json.loads((ROOT / "hooks/codex.json").read_text())["hooks"]
+        plugin_root = str(self.data / "plugin's $root `literal`")
+        for event, groups in hooks.items():
+            if event == "SessionStart":
+                continue
+            for value in (None, "", "0", "true", "1"):
+                with self.subTest(event=event, value=value):
+                    env = dict(self.env, PATH=f"{self.data}:/bin", PLUGIN_ROOT=plugin_root)
+                    if value is not None:
+                        env["ZSTACK_XRAY"] = value
+                    result = subprocess.run(  # noqa: S602 - Trusted manifest and isolated sentinel.
+                        groups[0]["hooks"][0]["command"],
+                        shell=True,
+                        input="malformed input",
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                        env=env,
+                    )
+                    self.assertEqual(result.stderr, "")
+                    expected = (
+                        f"run\n--no-project\n--no-config\npython\n-I\n-S\n{plugin_root}/hooks/xray.py\n"
+                        "--host=codex\nmalformed input"
+                    )
+                    self.assertEqual(result.stdout, expected if value == "1" else "")
+
+    def test_claude_tool_recorders_are_nonblocking_exec_hooks(self) -> None:
+        hooks = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]
+        for event, groups in hooks.items():
+            hook = groups[0]["hooks"][0]
+            self.assertEqual(hook["command"], "uv")
+            self.assertIsInstance(hook["args"], list)
+            self.assertEqual(hook.get("async", False), event in {"PreToolUse", "PostToolUse", "PostToolUseFailure"})
+
     def test_shell_serialization_preserves_apostrophes_and_metacharacters(self) -> None:
         serialize = runpy.run_path(str(HELPER))["control_command"]
         arguments = ["uv", "C:\\Users\\O'Neil\\plugin $root `literal`\\session_start.py", "--data-dir", "C:\\O'Neil"]
