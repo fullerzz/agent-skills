@@ -1,41 +1,109 @@
 :root {
-  --vp-c-brand-1: #0f766e;
-  --vp-c-brand-2: #0d9488;
-  --vp-c-brand-3: #14b8a6;
-  --vp-c-brand-soft: rgba(20, 184, 166, 0.14);
+  --vp-font-family-base: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --vp-font-family-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --vp-button-brand-bg: #0f766e;
-  --vp-button-brand-hover-bg: #115e59;
-  --vp-button-brand-active-bg: #134e4a;
+  --vp-c-text-1: #1b2430;
+  --vp-c-bg-alt: #f6f8f8;
+  --vp-c-bg-soft: #f4f7f7;
+  --vp-c-divider: #e1e7e6;
 
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #0d9488 30%, #6366f1);
-  --vp-home-hero-image-background-image: linear-gradient(-45deg, #14b8a6 50%, #6366f1 50%);
-  --vp-home-hero-image-filter: blur(44px);
+  --vp-c-brand-1: #0b6b61;
+  --vp-c-brand-2: #0f8577;
+  --vp-c-brand-3: #14a394;
+  --vp-c-brand-soft: rgba(15, 133, 119, 0.12);
+
+  --vp-button-brand-bg: #0b6b61;
+  --vp-button-brand-hover-bg: #095a52;
+  --vp-button-brand-active-bg: #084c45;
+
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+  --vp-home-hero-name-background: none;
+  --z-contour: rgba(15, 133, 119, 0.22);
 }
 
 .dark {
+  --vp-c-text-1: #e6ecec;
+  --vp-c-bg-alt: #15191b;
+  --vp-c-bg-soft: #1d2326;
+  --vp-c-divider: #2a3133;
+
   --vp-c-brand-1: #2dd4bf;
   --vp-c-brand-2: #14b8a6;
   --vp-c-brand-3: #0d9488;
-  --vp-c-brand-soft: rgba(45, 212, 191, 0.16);
+  --vp-c-brand-soft: rgba(45, 212, 191, 0.14);
 
   --vp-button-brand-bg: #14b8a6;
   --vp-button-brand-hover-bg: #2dd4bf;
   --vp-button-brand-active-bg: #0d9488;
   --vp-button-brand-text: #042f2e;
+  --z-contour: rgba(45, 212, 191, 0.2);
 }
 
-@media (min-width: 640px) {
-  :root {
-    --vp-home-hero-image-filter: blur(56px);
-  }
+/* Type */
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  letter-spacing: -0.02em;
+}
+
+.vp-doc h1 {
+  font-weight: 700;
+}
+
+.vp-doc h2 {
+  font-weight: 650;
+}
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.7;
+}
+
+/* Hero: the namespace in mono, contour rings (strata) behind the logo. */
+
+.VPHero .name {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.VPHero .text {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.VPHero .tagline {
+  max-width: 34em;
+}
+
+.VPHero .image-bg {
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: none;
+  background: repeating-radial-gradient(circle, transparent 0 15px, var(--z-contour) 15px 16px);
+  -webkit-mask: radial-gradient(circle, #000 35%, transparent 70%);
+  mask: radial-gradient(circle, #000 35%, transparent 70%);
 }
 
 @media (min-width: 960px) {
-  :root {
-    --vp-home-hero-image-filter: blur(68px);
+  .VPHero .image-bg {
+    width: 440px;
+    height: 440px;
   }
+}
+
+/* Features: outlined rather than filled, so the hero stays the loud element. */
+
+.VPFeatures .VPFeature {
+  background-color: transparent;
+  border: 1px solid var(--vp-c-divider);
+  transition: border-color 0.2s;
+}
+
+.VPFeatures .VPFeature.link:hover {
+  border-color: var(--vp-c-brand-1);
 }
 
 .VPFeature .icon {
@@ -43,34 +111,34 @@
   background-color: var(--vp-c-brand-soft);
 }
 
+/* Catalog: a reference index of rows, not a wall of boxes. */
+
 .catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-  margin: 16px 0 32px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  column-gap: 32px;
+  margin: 16px 0 40px;
 }
 
 .vp-doc a.catalog-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
-  background: var(--vp-c-bg-soft);
+  gap: 4px;
+  padding: 14px 12px;
+  border-top: 1px solid var(--vp-c-divider);
   color: var(--vp-c-text-1);
   text-decoration: none;
   scroll-margin-top: calc(var(--vp-nav-height) + 24px);
-  transition: border-color 0.25s;
+  transition: background-color 0.2s;
 }
 
-.vp-doc a.catalog-card:hover,
-.vp-doc a.catalog-card:target {
-  border-color: var(--vp-c-brand-1);
+.vp-doc a.catalog-card:hover {
+  background: var(--vp-c-bg-soft);
 }
 
 .vp-doc a.catalog-card:target {
-  box-shadow: 0 0 0 3px var(--vp-c-brand-soft);
+  background: var(--vp-c-brand-soft);
+  box-shadow: inset 3px 0 var(--vp-c-brand-1);
 }
 
 .catalog-name {
@@ -82,6 +150,13 @@
 
 .catalog-desc {
   color: var(--vp-c-text-2);
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPFeature,
+  .vp-doc a.catalog-card {
+    transition: none;
+  }
 }

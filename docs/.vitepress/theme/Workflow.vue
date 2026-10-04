@@ -23,11 +23,12 @@ const steps = [
 </template>
 
 <style scoped>
+/* A rail: the steps are a sequence, so they share one line. */
 .workflow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  margin: 24px 0;
+  margin: 28px 0;
   padding: 0;
   list-style: none;
 }
@@ -37,40 +38,53 @@ const steps = [
   margin: 0;
 }
 
+.workflow li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 40px;
+  right: -8px;
+  height: 2px;
+  background: var(--vp-c-divider);
+}
+
 .workflow a {
   display: flex;
   flex-direction: column;
   gap: 4px;
   height: 100%;
-  padding: 16px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
-  background: var(--vp-c-bg-soft);
+  padding-right: 8px;
   color: var(--vp-c-text-1);
   text-decoration: none;
-  transition: border-color 0.25s, transform 0.25s;
-}
-
-.workflow a:hover {
-  border-color: var(--vp-c-brand-1);
-  transform: translateY(-2px);
 }
 
 .workflow-index {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--vp-c-brand-1);
   border-radius: 50%;
-  background: var(--vp-c-brand-soft);
   color: var(--vp-c-brand-1);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.workflow a:hover .workflow-index {
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-bg);
 }
 
 .workflow-title {
-  margin-top: 8px;
-  font-weight: 600;
+  margin-top: 10px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.workflow a:hover .workflow-title {
+  color: var(--vp-c-brand-1);
 }
 
 .workflow-skills {
@@ -78,15 +92,46 @@ const steps = [
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .workflow {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .workflow li {
+    padding-bottom: 20px;
+  }
+
+  .workflow li:not(:last-child)::after {
+    top: 40px;
+    bottom: 4px;
+    left: 15px;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+
+  .workflow a {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    column-gap: 16px;
+  }
+
+  .workflow-title {
+    margin-top: 4px;
+  }
+
+  .workflow-skills {
+    grid-column: 2;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workflow a {
+  .workflow-index {
     transition: none;
-  }
-
-  .workflow a:hover {
-    transform: none;
   }
 }
 </style>
