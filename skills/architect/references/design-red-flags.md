@@ -42,13 +42,13 @@ Give each piece of state one owner. Other modules read it or ask the owner to ch
 
 The design supports more than one way to do the same task. An agent copies whichever way it finds first, so every way keeps gaining callers.
 
-Keep one way. Move callers off the others and delete them in the same change.
+Keep one preferred way. For internal APIs with no external compatibility obligations, move callers off the others and delete them in the same change when the project can absorb a coordinated break. For versioned or externally consumed APIs, retain the compatibility path through the required deprecation and downstream migration period before removing it.
 
 ## Importable internals
 
 A caller can import a module's internals. An agent takes the shortest path that compiles, so it imports them directly and they become part of the interface.
 
-Make internals unreachable from outside the module, so an import from outside fails the build.
+Use language visibility controls to make internals unreachable from outside the module where the build can enforce this. Otherwise, expose a clear public API and mark internals private by convention; in languages such as Python, this guides callers but does not prevent imports.
 
 ## Hand-synced list
 
