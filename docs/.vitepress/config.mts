@@ -90,6 +90,7 @@ export default defineConfig({
           { text: 'Overview', link: '/guide/' },
           { text: 'Visual guide', link: '/guide/visual-guide' },
           { text: 'Install and route work', link: '/guide/01-setup' },
+          { text: 'Use Herdr with workflows', link: '/guide/herdr' },
           { text: 'Understand and design', link: '/guide/02-understand-and-design' },
           { text: 'Build and verify', link: '/guide/03-build-and-verify' },
           { text: 'Long work and conventions', link: '/guide/04-long-work' },

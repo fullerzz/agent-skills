@@ -10,6 +10,8 @@ Delegated workflows use native host agents by default, or [Herdr execution](#her
 
 You want existing workflows to run their agents and useful long-running supporting processes visibly in Herdr.
 
+Start with the [Herdr walkthrough](../guide/herdr.md) for setup, execution behavior, pause/resume, and troubleshooting, or visit the upstream [Herdr documentation](https://herdr.dev/docs/).
+
 | Host | Example invocation |
 | --- | --- |
 | Codex | `$z-mode Use Herdr execution for this session, then fix the reconnect bug.` |

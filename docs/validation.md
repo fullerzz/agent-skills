@@ -8,7 +8,7 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Herdr execution integration — 2026-10-04
 
-Version `0.4.0` adds explicit Herdr execution selection alongside existing playbooks. The shared Codex/Claude/Hermes state helper remembers execution separately from mode activation in the existing per-session JSON. Native remains the default for legacy records. Herdr selection alone does not activate z-mode; enabling z-mode preserves execution; Native clears only the execution preference; Disable and clear/reset remove both. No hook launches or probes Herdr.
+Version `0.4.0` adds explicit Herdr execution selection alongside existing playbooks. The initial implementation stored execution alongside mode activation in the per-session JSON; the review fixes below moved execution to a separate marker. Native remains the default for legacy mode-only records. Herdr selection alone does not activate z-mode; enabling z-mode preserves execution; Native clears only the execution preference; Disable and clear/reset remove both. No hook launches or probes Herdr.
 
 Local validation on macOS:
 
@@ -34,6 +34,12 @@ Local validation on macOS:
 A Codex review flagged that sessions saved by the previous helper as `{"active": true, "execution": "herdr"}` would lose Herdr after upgrade. Reads now honor that legacy field, and every control first moves it into the marker and strips it from the JSON, so Native clears it for good. The upgrade regression failed against the unmigrated helper; afterwards 118 Python tests, 13 node tests, `validate.py`, ruff, mypy, and `git diff --check` passed.
 
 Not verified: a live Codex session reading the new template, model adherence to `ACTION` substitution, and Windows PowerShell execution.
+
+### Wiki coverage review — 2026-10-04
+
+Reviewed the branch against `origin/main`, including the execution companion, playbook changes, hook controls, and follow-up state fixes. Added a [Herdr user guide](guide/herdr.md) with setup, workflow behavior, preference lifecycle, pause/pickup, troubleshooting, and upstream documentation links. Linked it from the sidebar and existing guides/reference, and corrected the long-work guide's native-only description.
+
+Local checks passed: `pnpm docs:build`, all 13 Node tests, all 118 Python tests, `uv run scripts/validate.py` (51 skills, zero problems), and `git diff --check`. Inspected generated HTML to verify the guide/sidebar and upstream documentation links plus six linked heading targets. This was a static documentation check; no new live Herdr or browser interaction check was performed.
 
 ## Native Hermes plugin
 
