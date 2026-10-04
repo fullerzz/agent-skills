@@ -107,21 +107,16 @@ class CodexHooksTests(unittest.TestCase):
         )
         self.assertEqual(len((self.data / "recorded.jsonl").read_text().splitlines()), 3)
 
-    def test_xray_long_path_context_uses_complete_fallback(self) -> None:
-        self.env["ZSTACK_XRAY"] = "1"
-        long_data = self.data / ("a" * 220)
-        long_data.mkdir()
-        self.env["PLUGIN_DATA"] = str(long_data)
-        session = "a" * 36
-        for active in (False, True):
-            if active:
-                (long_data / "z-mode").mkdir()
-                (long_data / "z-mode" / (session + ".json")).write_text('{"active":true}')
-            context = json.loads(self.hook(session=session))["hookSpecificOutput"]["additionalContext"]
-            self.assertLessEqual(len(context), 4000)
-            self.assertIn("recorded-events reference", context)
-            self.assertNotIn("Read xray:", context)
-            self.assertEqual("was explicitly enabled" in context, active)
+    def test_xray_context_uses_complete_fallback_with_fixed_budget(self) -> None:
+        context = runpy.run_path(str(HELPER))["xray_context"]
+        arguments = ("codex", "session-a", "/data", "/plugin/hooks/session_start.py")
+        full = context(*arguments, budget=4000)
+        self.assertIn("Read xray:", full)
+        fallback = context(*arguments, budget=400)
+        self.assertLessEqual(len(fallback), 400)
+        self.assertIn("recorded-events reference", fallback)
+        self.assertNotIn("Read xray:", fallback)
+        self.assertEqual(context(*arguments, budget=0), "")
 
     def test_metadata_hook_manifest_events_and_host_isolation(self) -> None:
         shared = {

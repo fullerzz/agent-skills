@@ -1,13 +1,14 @@
 """Optional metadata-only hook recorder. Capture times are not execution order."""
 
 # Low-level paths preserve lexical ancestor checks and O_NOFOLLOW; resolve would hide symlinks.
-# ruff: noqa: PTH100, PTH102, PTH105, PTH108, PTH110, PTH112, PTH114, PTH117, PTH118, PTH206, PTH208
+# ruff: noqa: PTH100, PTH102, PTH105, PTH108, PTH110, PTH114, PTH117, PTH118, PTH206, PTH208
 
 import contextlib
 import datetime
 import json
 import os
 import re
+import stat
 import sys
 import uuid
 
@@ -60,14 +61,17 @@ def directory(data_dir: str, host: str, session_id: str, create: bool = False) -
     current = drive + os.sep
     for part in components:
         current = os.path.join(current, part)
-        if os.path.islink(current):
-            raise ValueError("symlink directory")
-        if create and not os.path.exists(current):
+        try:
+            mode = os.lstat(current).st_mode
+        except FileNotFoundError:
+            if not create:
+                continue
             with contextlib.suppress(FileExistsError):
                 os.mkdir(current, 0o700)
-            if os.path.islink(current):
-                raise ValueError("symlink directory")
-        if os.path.exists(current) and not os.path.isdir(current):
+            mode = os.lstat(current).st_mode
+        if stat.S_ISLNK(mode):
+            raise ValueError("symlink directory")
+        if not stat.S_ISDIR(mode):
             raise ValueError("not directory")
     return current
 
@@ -179,9 +183,12 @@ def read_records(host: str, session_id: str, data_dir: str) -> dict[str, object]
     records, invalid = [], 0
     capped = False
     interrupted = 0
-    if os.path.isdir(events):
-        capped = os.path.lexists(os.path.join(events, ".cap-reached"))
+    try:
         names = sorted(os.listdir(events))
+    except FileNotFoundError:
+        names = []
+    if names:
+        capped = ".cap-reached" in names
         interrupted = sum(name.endswith(".tmp") for name in names)
         for name in names:
             if not name.endswith(".json"):

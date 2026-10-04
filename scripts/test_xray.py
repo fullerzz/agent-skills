@@ -47,6 +47,36 @@ class XrayTests(unittest.TestCase):
         self.hook({"session_id": "session", "hook_event_name": "PreToolUse"}, env={**self.env, "ZSTACK_XRAY": "0"})
         self.assertEqual(list(Path(self.data).iterdir()), [])
 
+    def test_missing_store_is_empty_but_access_errors_are_unavailable(self) -> None:
+        self.assertEqual(self.read()["records"], [])
+        for operation in ("lstat", "listdir"):
+            with self.subTest(operation=operation):
+                with patch(f"os.{operation}", side_effect=PermissionError("PRIVATE_CANARY")):
+                    with self.assertRaises(PermissionError):
+                        self.read()
+                    with (
+                        patch.object(
+                            sys,
+                            "argv",
+                            [
+                                str(HELPER),
+                                "--read",
+                                "--host=codex",
+                                "--session-id=session",
+                                "--data-dir",
+                                self.data,
+                            ],
+                        ),
+                        contextlib.redirect_stdout(io.StringIO()) as output,
+                        contextlib.redirect_stderr(io.StringIO()) as errors,
+                    ):
+                        XRAY["main"]()
+                result = json.loads(output.getvalue())
+                self.assertTrue(result["coverage"]["unavailable"])
+                self.assertFalse(result["coverage"]["complete"])
+                self.assertEqual(result["records"], [])
+                self.assertNotIn("PRIVATE_CANARY", output.getvalue() + errors.getvalue())
+
     def test_host_isolation_and_no_fallback(self) -> None:
         event = {"session_id": "session", "hook_event_name": "Stop"}
         self.hook(event)
@@ -137,22 +167,34 @@ class XrayTests(unittest.TestCase):
         result = self.read()
         self.assertEqual(len(result["records"]), 24)
         self.assertEqual(result["coverage"]["invalid_files"], 0)
-        for file in Path(self.data).joinpath("xray/codex/session/events").glob("*.json"):
-            self.assertEqual(file.stat().st_mode & 0o777, 0o600)
+        if os.name != "nt":
+            for file in Path(self.data).joinpath("xray/codex/session/events").glob("*.json"):
+                self.assertEqual(file.stat().st_mode & 0o777, 0o600)
 
     def test_corruption_gaps_and_session_scope(self) -> None:
         self.hook({"session_id": "session", "hook_event_name": "PreToolUse", "tool_use_id": "one"})
         self.hook({"session_id": "other", "hook_event_name": "Stop"})
         events = Path(self.data) / "xray/codex/session/events"
         (events / "bad.json").write_text("PRIVATE_CANARY")
-        (events / "11111111-1111-1111-1111-111111111111.json").symlink_to(events / "bad.json")
         result = self.read()
         self.assertEqual(len(result["records"]), 1)
-        self.assertEqual(result["coverage"]["invalid_files"], 2)
+        self.assertEqual(result["coverage"]["invalid_files"], 1)
         self.assertEqual(result["coverage"]["unpaired_tool_ids"], 1)
         self.assertFalse(result["coverage"]["complete"])
         self.assertNotIn("PRIVATE_CANARY", json.dumps(result))
 
+    @unittest.skipIf(os.name == "nt", "Windows symlinks require additional privileges")
+    def test_symlink_file_refused(self) -> None:
+        self.hook({"session_id": "session", "hook_event_name": "Stop"})
+        events = Path(self.data) / "xray/codex/session/events"
+        target = Path(self.data) / "private"
+        target.write_text("PRIVATE_CANARY")
+        (events / "11111111-1111-1111-1111-111111111111.json").symlink_to(target)
+        result = self.read()
+        self.assertEqual(result["coverage"]["invalid_files"], 1)
+        self.assertNotIn("PRIVATE_CANARY", json.dumps(result))
+
+    @unittest.skipIf(os.name == "nt", "Windows symlinks require additional privileges")
     def test_symlink_directory_refused(self) -> None:
         Path(self.data, "xray").symlink_to(self.data, target_is_directory=True)
         result = self.hook({"session_id": "session", "hook_event_name": "Stop"})
