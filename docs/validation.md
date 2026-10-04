@@ -35,6 +35,10 @@ A Codex review flagged that sessions saved by the previous helper as `{"active":
 
 Not verified: a live Codex session reading the new template, model adherence to `ACTION` substitution, and Windows PowerShell execution.
 
+### Review fix: unambiguous control substitution — 2026-10-04
+
+The shared hook now explicitly instructs executors to replace only the final `ACTION` argument and preserve every other argument, including paths and session IDs containing that text. The regression failed against the previous instructions, then passed with all four actions executed against an isolated copied helper and data directory containing `ACTION`. PowerShell serialization is checked too; live PowerShell execution and model adherence remain unverified. All 119 Python tests, 13 Node tests, skill validation (51 skills, zero problems), Ruff lint, the VitePress build, and `git diff --check` passed.
+
 ### Wiki coverage review — 2026-10-04
 
 Reviewed the branch against `origin/main`, including the execution companion, playbook changes, hook controls, and follow-up state fixes. Added a [Herdr user guide](guide/herdr.md) with setup, workflow behavior, preference lifecycle, pause/pickup, troubleshooting, and upstream documentation links. Linked it from the sidebar and existing guides/reference, and corrected the long-work guide's native-only description.

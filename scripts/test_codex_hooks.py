@@ -335,6 +335,32 @@ class CodexHooksTests(unittest.TestCase):
             self.assertEqual(active, action == "Enable")
             self.assertFalse(marker.exists())
 
+    def test_action_in_paths_is_preserved_by_final_argument_replacement(self) -> None:
+        helper = self.data / "ACTION plugin" / "session_start.py"
+        helper.parent.mkdir()
+        helper.write_bytes(HELPER.read_bytes())
+        data = self.data / "ACTION data"
+        functions = runpy.run_path(str(helper))
+        context, _ = functions["build_context"]("codex", "ACTION-session", str(data), "startup")
+        self.assertIn("replace only the final argument ACTION", context)
+        self.assertIn("leave all other arguments unchanged", context)
+        for action, expected in (
+            ("enable", (True, "native")),
+            ("herdr", (True, "herdr")),
+            ("native", (True, "native")),
+            ("disable", (False, "native")),
+        ):
+            argv = shlex.split(self.command(context, action))
+            self.assertIn(str(helper), argv)
+            self.assertEqual(argv[-3:], ["--data-dir", str(data), action])
+            self.assertEqual(
+                self.command(context, action, "PowerShell"), functions["control_command"](argv, "powershell")
+            )
+            subprocess.run(  # noqa: S603 - Isolated copied helper and generated arguments.
+                [sys.executable, *argv[argv.index("-I") :]], check=True, env=self.env
+            )
+            self.assertEqual(functions["read_state"](functions["state_path"](str(data), "ACTION-session")), expected)
+
     def test_configured_command_uses_claude_plugin_variables(self) -> None:
         plugin_root = self.data / "Claude's plugin $root `literal`"
         (plugin_root / "hooks").mkdir(parents=True)
