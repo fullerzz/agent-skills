@@ -1,6 +1,6 @@
 {
   "name": "zstack",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Evidence-driven engineering workflows, scoped agents, and task-sized verification for Codex.",
   "author": {
     "name": "Zach Fuller",
