@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     paths = [arg for arg in argv if arg != "--with-prs"]
     try:
         if len(paths) > 1 or any(p.startswith("-") for p in paths):
-            raise ValueError("Usage: uv run worktree-audit.py [repo-path] [--with-prs]")
+            raise ValueError("Usage: uv run worktree_audit.py [repo-path] [--with-prs]")
         repo = run(["git", "rev-parse", "--show-toplevel"], Path(paths[0] if paths else ".").absolute()).strip()
         prs, evidence = read_prs(repo) if "--with-prs" in argv else ([], "unknown")
         raw = run(["git", "worktree", "list", "--porcelain", "-z"], repo)

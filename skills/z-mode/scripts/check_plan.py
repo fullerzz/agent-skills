@@ -43,7 +43,7 @@ def check(text: str) -> tuple[int, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
-        print("Usage: uv run check-plan.py <plan.md>", file=sys.stderr)
+        print("Usage: uv run check_plan.py <plan.md>", file=sys.stderr)
         return 2
     try:
         count, problems = check(Path(argv[0]).read_text(encoding="utf-8"))

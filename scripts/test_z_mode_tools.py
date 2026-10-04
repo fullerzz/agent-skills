@@ -12,9 +12,6 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-# Retain the repository's standard-library unittest harness.
-# ruff: noqa: PT009, PT027
 from unittest.mock import patch
 
 if TYPE_CHECKING:
@@ -23,8 +20,17 @@ if TYPE_CHECKING:
 TOOLS = Path(__file__).resolve().parents[1] / "skills/z-mode/scripts"
 
 
+def executable(name: str) -> str:
+    path = shutil.which(name)
+    if path is None:
+        raise RuntimeError(f"Required test executable not found: {name}")
+    return path
+
+
 def load(name: str, path: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, TOOLS / path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -32,6 +38,8 @@ def load(name: str, path: str) -> ModuleType:
 
 
 class StoreTests(unittest.TestCase):
+    module: ModuleType
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.module = load("orch_store", "orch/store.py")
@@ -165,11 +173,11 @@ class EntrypointTests(unittest.TestCase):
             target.mkdir()
             installed = root / "installed scripts"
             shutil.copytree(TOOLS, installed, ignore=shutil.ignore_patterns("node_modules", "__pycache__"))
-            for path in ["orch/orch.py", "watch-pr/watch-pr.py"]:
+            for path in ["orch/orch.py", "watch-pr/watch_pr.py"]:
                 link = root / Path(path).name
                 link.symlink_to(installed / path)
                 result = subprocess.run(  # noqa: S603 - Local CLI fixtures use explicit argument vectors, never a shell.
-                    [shutil.which("uv"), "run", str(link), "--help"], cwd=target, capture_output=True, text=True
+                    [executable("uv"), "run", str(link), "--help"], cwd=target, capture_output=True, text=True
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("usage:", result.stdout)
@@ -187,7 +195,7 @@ class FrontierTests(unittest.TestCase):
 
             def git(*args: str) -> str:
                 return subprocess.run(  # noqa: S603 - Local CLI fixtures use explicit argument vectors, never a shell.
-                    [shutil.which("git"), "-C", str(repo), *args], capture_output=True, text=True, check=True
+                    [executable("git"), "-C", str(repo), *args], capture_output=True, text=True, check=True
                 ).stdout.strip()
 
             git("init", "-b", "main")

@@ -1,8 +1,5 @@
 """Metadata-only recorder behavior, using isolated temporary data."""
 
-# Keep stdlib unittest assertions consistent with the isolated installer test suite.
-# ruff: noqa: PT009, PT027
-
 import concurrent.futures
 import contextlib
 import io
@@ -13,7 +10,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 HELPER = Path(__file__).resolve().parents[1] / "hooks" / "xray.py"
@@ -28,7 +27,7 @@ class XrayTests(unittest.TestCase):
         self.env = {**os.environ, "ZSTACK_XRAY": "1", "PLUGIN_DATA": self.data, "CLAUDE_PLUGIN_DATA": self.data}
 
     def hook(
-        self, event: str | dict[str, object], host: str = "codex", env: dict[str, str] | None = None
+        self, event: str | Mapping[str, object], host: str = "codex", env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess[str]:
         raw = event if isinstance(event, str) else json.dumps(event)
         return subprocess.run(  # noqa: S603 - Fixed interpreter/helper; event data is stdin only.
@@ -40,7 +39,7 @@ class XrayTests(unittest.TestCase):
             check=True,
         )
 
-    def read(self, host: str = "codex", session: str = "session") -> dict[str, object]:
+    def read(self, host: str = "codex", session: str = "session") -> dict[str, Any]:
         return XRAY["read_records"](host, session, self.data)
 
     def test_disabled_writes_nothing(self) -> None:

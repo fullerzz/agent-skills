@@ -136,7 +136,7 @@ def session_start(host: str) -> None:
 
     active, clear_error = restore_state(path, event["source"])
     helper = os.path.realpath(__file__)
-    controls = {"posix": {}, "powershell": {}}
+    controls: dict[str, dict[str, str]] = {"posix": {}, "powershell": {}}
     for action in ("enable", "disable"):
         arguments = [
             "uv",
@@ -183,15 +183,11 @@ def session_start(host: str) -> None:
         context += "No stored z-mode activation exists for this session."
     if os.environ.get("ZSTACK_XRAY") == "1":
         context += xray_context(host, session_id, data_dir, helper, 4000 - len(context) - len(clear_error or "") - 1)
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": context,
-        }
-    }
+    hook_output = {"hookEventName": "SessionStart", "additionalContext": context}
+    output: dict[str, object] = {"hookSpecificOutput": hook_output}
     if clear_error:
         output["systemMessage"] = clear_error
-        output["hookSpecificOutput"]["additionalContext"] += "\n" + clear_error
+        hook_output["additionalContext"] += "\n" + clear_error
     print(json.dumps(output))
     record_xray(
         host,

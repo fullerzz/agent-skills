@@ -219,7 +219,7 @@ class Store:
         self.force = force
         self.closed = False
         self.locked = False
-        self.lock_identity = None
+        self.lock_identity: tuple[int, int] | None = None
 
     def ensure_open(self) -> None:
         if self.closed:
@@ -599,7 +599,7 @@ class Store:
         return result
 
     def standing_show(self) -> list[dict[str, Any]]:
-        rows = []
+        rows: list[dict[str, Any]] = []
         raw = self.read("preferences.md").replace("\r", "")
         if not raw.strip():
             return rows

@@ -90,7 +90,10 @@ uv run scripts/validate.py
 node --test scripts/*.test.mjs
 uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
 uv run --with ty ty check skills/z-mode/scripts --extra-search-path skills/z-mode/scripts/orch --extra-search-path skills/z-mode/scripts/watch-pr
+uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
 ```
+
+Run `just mypy` as a shortcut for the project-wide mypy check.
 
 The documentation site in `docs/` uses VitePress, managed with pnpm:
 

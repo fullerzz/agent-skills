@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-exec uv run "$script_dir/watch-pr.py" "$@"
+exec uv run "$script_dir/watch_pr.py" "$@"

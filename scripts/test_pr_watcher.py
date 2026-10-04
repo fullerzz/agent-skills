@@ -10,14 +10,21 @@ import shutil
 import sys
 import unittest
 from pathlib import Path
-
-# Retain the repository's standard-library unittest harness.
-# ruff: noqa: PT009, PT027
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 DIRECTORY = Path(__file__).resolve().parents[1] / "skills/z-mode/scripts/watch-pr"
 CONTEXT = {"owner": "owner", "repo": "repo", "number": 1}
+
+
+def executable(name: str) -> str:
+    path = shutil.which(name)
+    if path is None:
+        raise RuntimeError(f"Required test executable not found: {name}")
+    return path
 
 
 def facts(**changes: object) -> dict[str, Any]:
@@ -48,7 +55,8 @@ def check(kind: str = "passed", name: str = "CI") -> dict[str, Any]:
 
 class Clock:
     def __init__(self) -> None:
-        self.time, self.sleeps = 0, []
+        self.time = 0.0
+        self.sleeps: list[float] = []
 
     def now(self) -> float:
         return self.time
@@ -65,11 +73,11 @@ class Reader:
     def __init__(self) -> None:
         self.facts = facts()
         self.checks = [check()]
-        self.threads = []
+        self.threads: list[dict[str, Any]] = []
         self.rollups = [{"oid": "head", "state": "SUCCESS"}]
         self.rollup_reads = 0
-        self.pages = []
-        self.reads = []
+        self.pages: list[dict[str, Any]] = []
+        self.reads: list[int] = []
 
     def pull_request(self, context: dict[str, Any]) -> dict[str, Any]:
         self.reads.append(context["number"])
@@ -99,17 +107,25 @@ class Reader:
 
 
 class WatcherTests(unittest.TestCase):
+    github: ModuleType
+    policy: ModuleType
+    render: ModuleType
+    cli: ModuleType
+
     @classmethod
     def setUpClass(cls) -> None:
         for name in ("github", "policy", "render", "cli"):
             spec = importlib.util.spec_from_file_location(name, DIRECTORY / (name + ".py"))
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"Cannot load {name}")
             module = importlib.util.module_from_spec(spec)
             sys.modules[name] = module
             spec.loader.exec_module(module)
             setattr(cls, name, module)
 
     def setUp(self) -> None:
-        self.reader, self.clock, self.events = Reader(), Clock(), []
+        self.reader, self.clock = Reader(), Clock()
+        self.events: list[dict[str, Any]] = []
         self.options = {"interval": 60, "sweepInterval": 300, "timeout": 0, "maxQueryErrors": 5, "allowDraft": False}
 
     def snapshot(self, **changes: object) -> dict[str, Any]:
@@ -468,9 +484,9 @@ print(json.dumps(value))
             for state, code, kind in [("SUCCESS", 0, "READY"), ("PENDING", 5, "TIMEOUT")]:
                 result = subprocess.run(  # noqa: S603 - Local CLI fixtures use explicit argument vectors, never a shell.
                     [
-                        shutil.which("uv"),
+                        executable("uv"),
                         "run",
-                        str(DIRECTORY / "watch-pr.py"),
+                        str(DIRECTORY / "watch_pr.py"),
                         "--owner",
                         "o",
                         "--repo",

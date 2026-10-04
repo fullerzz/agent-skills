@@ -1,5 +1,4 @@
 # Retain the stdlib unittest runner used by the repository.
-# ruff: noqa: PT009, PT027
 
 import json
 import tempfile
@@ -20,10 +19,10 @@ class ValidateTests(unittest.TestCase):
             json.dumps({"name": "zstack-local", "plugins": [{"name": "zstack", "source": "./"}]}),
         )
         for relative in (
-            "skills/z-mode/scripts/check-plan.py",
+            "skills/z-mode/scripts/check_plan.py",
             "skills/z-mode/scripts/worktree-audit.sh",
-            "skills/z-mode/scripts/worktree-audit.py",
-            "skills/z-mode/scripts/watch-pr/watch-pr.py",
+            "skills/z-mode/scripts/worktree_audit.py",
+            "skills/z-mode/scripts/watch-pr/watch_pr.py",
             "skills/z-mode/scripts/orch/orch.py",
             "skills/show-me-your-work/scripts/log.sh",
         ):
@@ -126,12 +125,12 @@ class ValidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid identifier"):
             frontmatter(file)
         file.write_text("No frontmatter\n")
-        (self.root / "skills/z-mode/scripts/check-plan.py").unlink()
+        (self.root / "skills/z-mode/scripts/check_plan.py").unlink()
         (self.root / "skills/show-me-your-work/scripts/log.sh").unlink()
         count, failures = validate(self.root)
         self.assertEqual(count, 0)
         self.assertIn("skills/example/SKILL.md: Missing YAML frontmatter", failures)
-        self.assertIn("scripts/check-plan.py: Missing tool entrypoint", failures)
+        self.assertIn("scripts/check_plan.py: Missing tool entrypoint", failures)
         self.assertTrue(any(failure.startswith("skills/show-me-your-work/scripts/log.sh:") for failure in failures))
 
     def test_codex_read_only_activation_preserves_claude_policy(self) -> None:
@@ -230,12 +229,13 @@ class ValidateTests(unittest.TestCase):
 
     def test_claude_plugin_lists_every_agent_and_matches_codex_version(self) -> None:
         self.write("agents/claude/reviewer.md", "---\nname: reviewer\ndescription: Review code\nmodel: inherit\n---\n")
-        manifest = {"name": "zstack", "version": "0.1.0", "agents": ["./agents/claude/reviewer.md"]}
+        agents = ["./agents/claude/reviewer.md"]
+        manifest = {"name": "zstack", "version": "0.1.0", "agents": agents}
         self.write(".claude-plugin/plugin.json", json.dumps(manifest))
         self.assertEqual(validate(self.root), (0, []))
         self.write("agents/claude/worker.md", "---\nname: worker\ndescription: Do work\nmodel: inherit\n---\n")
         self.assertIn(".claude-plugin/plugin.json: Agents must list every agents/claude file", validate(self.root)[1])
-        manifest["agents"].append("./agents/claude/worker.md")
+        agents.append("./agents/claude/worker.md")
         self.write(".claude-plugin/plugin.json", json.dumps(manifest))
         self.write(".codex-plugin/plugin.json", json.dumps({"name": "zstack", "version": "0.2.0"}))
         self.assertIn(".claude-plugin/plugin.json: Invalid native plugin identity", validate(self.root)[1])

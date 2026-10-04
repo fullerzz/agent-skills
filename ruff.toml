@@ -27,7 +27,6 @@ select = [
     "BLE",
     "C4",
     "DTZ",
-    "PT",
     "RET",
     "TC",
     "PTH",

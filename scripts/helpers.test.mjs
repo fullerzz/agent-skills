@@ -52,7 +52,7 @@ test('plan validator accepts task-sized proof and rejects missing phase checks',
     const file = join(scratch, 'plan.md');
     const plan = '# Small migration\n\n## Outcome\nNew path works\n## Scope\nOne module\n## Phases\n### Move\n- Depends on: None\n- Files: parser.ts\n- Acceptance: Same output\n- Verification: Run the fixture command\n## Risks\nNone identified\n## Handoff\nLocal edits only\n';
     writeFileSync(file, plan);
-    const run = () => spawnSync('uv', ['run', join(root, 'skills/z-mode/scripts/check-plan.py'), file], { encoding: 'utf8' });
+    const run = () => spawnSync('uv', ['run', join(root, 'skills/z-mode/scripts/check_plan.py'), file], { encoding: 'utf8' });
     assert.equal(run().status, 0);
     for (const field of ['Depends on', 'Files', 'Acceptance', 'Verification']) {
       writeFileSync(file, plan.replace(new RegExp('(- ' + field + ':)[^\\n]*'), '$1'));

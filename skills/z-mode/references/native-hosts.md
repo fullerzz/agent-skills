@@ -9,10 +9,10 @@ Resolve `SKILL.md` through its installed link to the real file. Its containing d
 Use absolute quoted script paths. Keep the target repository as cwd, or pass its absolute path where supported. For example, after resolving the loaded z-mode entrypoint, set `Z_MODE_DIR` to its real parent directory and `TARGET_REPO` to the requested project's Git root:
 
 ```sh
-uv run "$Z_MODE_DIR/scripts/check-plan.py" "$TARGET_REPO/docs/plan.md"
-uv run "$Z_MODE_DIR/scripts/worktree-audit.py" "$TARGET_REPO"
+uv run "$Z_MODE_DIR/scripts/check_plan.py" "$TARGET_REPO/docs/plan.md"
+uv run "$Z_MODE_DIR/scripts/worktree_audit.py" "$TARGET_REPO"
 uv run "$Z_MODE_DIR/scripts/orch/orch.py" --help
-uv run "$Z_MODE_DIR/scripts/watch-pr/watch-pr.py" --help
+uv run "$Z_MODE_DIR/scripts/watch-pr/watch_pr.py" --help
 ```
 
 These variables are local to the command. Do not repurpose `HOME` or `CODEX_HOME`. The helpers use Python 3.12+ with uv and the standard library; they do not install dependencies in the skill directory or change the target cwd. Run the watcher from the target project or supply its documented repository option.

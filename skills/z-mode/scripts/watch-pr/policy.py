@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 from github import QueryError, Reader, resolve_checks
 
-Stamp = Callable[[dict[str, Any]], dict[str, Any]]
-Emit = Callable[[dict[str, Any]], None]
+type Stamp = Callable[[dict[str, Any]], dict[str, Any]]
+type Emit = Callable[[dict[str, Any]], None]
 
 
 class WatchClock(Protocol):

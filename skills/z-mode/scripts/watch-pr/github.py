@@ -433,7 +433,9 @@ class GitHubReader:
         return {"checks": checks, "endCursor": next_cursor(connection, {after} if after else set())}
 
     def review_threads(self, context: dict[str, Any]) -> list[dict[str, Any]]:
-        nodes, after, seen = [], None, set()
+        nodes: list[Any] = []
+        after: str | None = None
+        seen: set[str] = set()
         while True:
             connection = record(
                 at(
