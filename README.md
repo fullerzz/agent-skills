@@ -1,10 +1,13 @@
 # zstack
 
-Zach's updated personal engineering skill library for Codex, Claude Code, and Hermes Agent, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
+My personal engineering skill library for Codex, Claude Code, and Hermes Agent, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
-Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Fork the repository for your own changes.
+Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
 Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 51 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+
+> [!NOTE]  
+> Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
 
 ## Install
 
