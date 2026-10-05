@@ -37,6 +37,8 @@ features:
     linkText: Install
 ---
 
+Maintained for my own use and shared for reference and reuse under the [MIT license](../LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Fork the repository for your own changes.
+
 ## Quick install
 
 Install Git, uv, and your chosen host first; uv resolves Python 3.14+ and the installer's dependencies. Clone the library; linked installations need a stable checkout path:

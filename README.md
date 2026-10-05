@@ -2,6 +2,8 @@
 
 Zach's updated personal engineering skill library for Codex, Claude Code, and Hermes Agent, adapted from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack).
 
+Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Fork the repository for your own changes.
+
 Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 51 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 ## Install
@@ -135,5 +137,7 @@ docker compose up -d --build
 ```
 
 Set `DOCS_PORT` to use a different host port, for example `DOCS_PORT=3000 docker compose up -d`.
+
+Every docs build includes `third-party-notices.txt` with the repository license and full notices from bundled client dependencies, including the fonts. The build stops if a dependency's notice is missing or empty. Keep these notices with the published site.
 
 The [adaptation plan](docs/adaptation-plan.md) records the approved scope and oracle findings. [Provenance](docs/provenance.md) records the copied version and retired content. The [MIT license](LICENSE) retains Lauren Tan's copyright.

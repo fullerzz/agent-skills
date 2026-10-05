@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { defineConfig } from 'vitepress'
 import { loadCatalog, repo, repoRoot } from './skills'
+import { docsNotices } from '../../scripts/docs-notices.mjs'
 
 const docsDir = path.join(repoRoot, 'docs')
 
@@ -36,6 +37,7 @@ export default defineConfig({
   description: 'A personal engineering skill library for Codex, Claude Code, and Hermes Agent.',
   cleanUrls: true,
   lastUpdated: true,
+  vite: { plugins: [docsNotices()] },
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
   rewrites: { 'guide/README.md': 'guide/index.md' },
   markdown: {
@@ -116,15 +118,15 @@ export default defineConfig({
         items: [
           { text: 'Validation', link: '/validation' },
           { text: 'Provenance', link: '/provenance' },
+          { text: 'License notices', link: '/third-party-notices.txt' },
           { text: 'Adaptation plan', link: '/adaptation-plan' },
         ],
       },
     ],
     socialLinks: [{ icon: 'github', link: repo }],
-    editLink: { pattern: `${repo}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     footer: {
-      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode).`,
-      copyright: 'Copyright © 2026 Lauren Tan',
+      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode). <a href="./third-party-notices.txt">License notices</a>.`,
+      copyright: 'Copyright © 2026 Zach Fuller (zstack adaptations and documentation). Upstream pstack © 2026 Lauren Tan.',
     },
     search: {
       provider: 'local',

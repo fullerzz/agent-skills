@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createMarkdownRenderer } from 'vitepress';
+import { docsNotices } from './docs-notices.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
@@ -29,5 +33,48 @@ test('every installed skill and routed playbook has a user reference anchor', ()
     if (!file.endsWith('.md')) continue;
     const id = `playbook-${file.slice(0, -3)}`;
     assert.ok(playbooks.has(id), `Missing playbook reference: ${id}`);
+  }
+});
+
+test('published docs ship license texts and the personal-use policy without an edit invitation', () => {
+  execFileSync(process.execPath, [fileURLToPath(new URL('node_modules/vitepress/bin/vitepress.js', root)), 'build', 'docs'], {
+    cwd: fileURLToPath(root),
+    encoding: 'utf8',
+  });
+  const notices = read('docs/.vitepress/dist/third-party-notices.txt');
+  for (const source of [
+    'LICENSE',
+    'node_modules/@fontsource/ibm-plex-mono/LICENSE',
+    'node_modules/@fontsource-variable/schibsted-grotesk/LICENSE',
+    'node_modules/vitepress/LICENSE',
+  ]) {
+    assert.ok(notices.includes(read(source).trim()), `Missing full notice: ${source}`);
+  }
+  assert.ok(notices.includes('@vue/runtime-core@'), 'Missing Vue runtime notice');
+  const home = read('docs/.vitepress/dist/index.html');
+  assert.ok(home.includes('third-party-notices.txt'), 'Missing notice download link');
+  for (const content of [read('README.md'), home]) {
+    assert.ok(content.includes('do not accept external issues or pull requests'));
+    assert.ok(content.includes('do not provide user support'));
+  }
+  assert.ok(!read('docs/.vitepress/dist/guide/index.html').includes('Edit this page on GitHub'));
+});
+
+test('notice generation refuses missing and empty license texts, including loaded CSS', () => {
+  const fixture = mkdtempSync(path.join(os.tmpdir(), 'docs notices '));
+  try {
+    const directory = path.join(fixture, 'node_modules', 'fixture-font');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: 'fixture-font', version: '1.0.0' }));
+    const context = {
+      getModuleIds: () => [path.join(directory, 'font.css')],
+      getModuleInfo: () => ({ isIncluded: false }),
+    };
+    const generate = () => docsNotices().generateBundle.call(context);
+    assert.throws(generate, /Missing license text for fixture-font@1.0.0/);
+    writeFileSync(path.join(directory, 'LICENSE'), '');
+    assert.throws(generate, /Empty license text for fixture-font@1.0.0/);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
   }
 });
