@@ -8,6 +8,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Public documentation notice and policy fixes — 2026-10-04
 
+PR #25 review repair: the footer notice link now uses `/third-party-notices.txt`, matching the emitted root asset and sidebar link. A regression extracts the built footer's actual href and resolves it from `/`, `/guide/`, and `/hosts/codex`; it failed before the fix with `/guide/third-party-notices.txt` and passed afterward. All 15 Node tests (including the docs build), 119 Python tests, structural validation (51 skills, zero problems), and whitespace checks passed on macOS. This verifies URL resolution for the current root-hosted configuration; subpath hosting and browser clicks remain untested.
+
 The README and docs homepage now state that zstack is maintained for personal use, shared for MIT-licensed reuse, accepts no external issues or pull requests, and provides no user support. Removed the VitePress edit invitation. The scoped Zach Fuller copyright, upstream Lauren Tan copyright, pstack attribution, and Catppuccin credit remain intact.
 
 The docs build now emits `third-party-notices.txt` with the unchanged root MIT license and full license/notice files for included client JavaScript and loaded dependency CSS. On this checkout, it contains notices for 15 packages, including both Fontsource packages and the Vue runtime. A version-pinned copy of DocSearch's [v3.8.2 MIT license](https://github.com/algolia/docsearch/blob/v3.8.2/LICENSE) supplies the notice omitted from the published `@docsearch/css` package. Missing or empty notices stop the build; no dependency or manual notice-generation step was added. The home footer and project sidebar link to the generated text file.

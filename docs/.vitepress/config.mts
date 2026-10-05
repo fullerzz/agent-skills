@@ -125,7 +125,7 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: repo }],
     footer: {
-      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode). <a href="./third-party-notices.txt">License notices</a>.`,
+      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode). <a href="/third-party-notices.txt">License notices</a>.`,
       copyright: 'Copyright © 2026 Zach Fuller (zstack adaptations and documentation). Upstream pstack © 2026 Lauren Tan.',
     },
     search: {

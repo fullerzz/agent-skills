@@ -52,7 +52,11 @@ test('published docs ship license texts and the personal-use policy without an e
   }
   assert.ok(notices.includes('@vue/runtime-core@'), 'Missing Vue runtime notice');
   const home = read('docs/.vitepress/dist/index.html');
-  assert.ok(home.includes('third-party-notices.txt'), 'Missing notice download link');
+  const noticeLink = home.match(/<footer\b[\s\S]*?<a href="([^"]+)">License notices<\/a>/)?.[1];
+  assert.ok(noticeLink, 'Missing footer notice download link');
+  for (const route of ['/', '/guide/', '/hosts/codex']) {
+    assert.equal(new URL(noticeLink, `https://docs.example${route}`).pathname, '/third-party-notices.txt');
+  }
   for (const content of [read('README.md'), home]) {
     assert.ok(content.includes('do not accept external issues or pull requests'));
     assert.ok(content.includes('do not provide user support'));
