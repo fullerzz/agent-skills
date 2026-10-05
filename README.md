@@ -6,7 +6,7 @@ Maintained for my own use and shared for reference and reuse under the [MIT lice
 
 Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 51 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
-> [!NOTE]  
+> [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
 
 ## Install
