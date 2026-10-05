@@ -79,4 +79,4 @@ $z-mode prototype two settings layouts; show rendered screenshots for comparison
 
 For a shared package or API, sketch its caller-facing README or tutorial first. That gives the design a concrete usage target. Resolve experimentally answerable uncertainties before polishing a plan; review can still catch scope, dependency, and authority problems before code exists.
 
-Once the design is settled, the [Multi-phase plan playbook](../../skills/z-mode/playbooks/multi-phase-plan.md) writes coherent phases with acceptance and verification checks. The plan is the deliverable; implementation begins only when requested.
+When complexity warrants a plan or the user asks, settle the design, then use the [Multi-phase plan playbook](../../skills/z-mode/playbooks/multi-phase-plan.md) to write coherent phases with acceptance and verification checks. The plan is the deliverable; implementation begins only when requested.

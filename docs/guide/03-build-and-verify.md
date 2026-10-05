@@ -61,7 +61,7 @@ Use an isolated baseline checkout to preserve existing work. If the bug no longe
 
 ## Vet a measured number
 
-[benchmark-checklist](../../skills/benchmark-checklist/SKILL.md) checks the limiter, production tuning, physical limits, correctness, alternating repeated runs, end-to-end relevance, and whether the timed work actually ran. It returns faster, slower, no measurable difference, or inconclusive, with the run count, range, and limitations.
+[benchmark-checklist](../../skills/benchmark-checklist/SKILL.md) checks the limiter, production tuning, physical limits, correctness, alternating repeated runs, end-to-end relevance, and whether the timed work actually ran. It returns faster, slower, no measurable difference, or inconclusive, with the run count, range, and limiter; an inconclusive verdict names the evidence gap.
 
 ::: code-group
 

@@ -8,11 +8,15 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Selective pstack 0.15.12–0.15.13 guide port — 2026-10-05
 
-Updated four guide pages with native Claude Code/Codex examples for prompting, prototypes, verification, benchmark validation, repeated-mistake prevention, and trust before unattended work. The [upstream review](pstack-0.15.13-review.md) records the selection and policy corrections; [provenance](provenance.md) cites both source commits. Skill behavior, invocation metadata, and plugin versions are unchanged. Removed existing trailing whitespace from the README note marker so structural validation passes.
+Updated four guide pages with native Claude Code/Codex examples for prompting, prototypes, verification, benchmark validation, repeated-mistake prevention, and trust before unattended work. [Provenance](provenance.md) records the selection and cites both source commits. Skill behavior, invocation metadata, and plugin versions are unchanged. Removed existing trailing whitespace from the README note marker so structural validation passes.
 
 On this macOS host, `uv run scripts/validate.py` reported 51 skills and zero structural problems; `node --test scripts/*.test.mjs` passed all 15 tests, including the actual VitePress build; `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` passed all 119 tests. `git diff --check` passed. Commands used Homebrew uv and Node with `MISE_CACHE_DIR=/private/tmp/zstack-guide-mise` for isolated test subprocesses because the default mise shim was inaccessible in the sandbox.
 
 Inspected the four generated guide HTML files for the new heading IDs, rendered examples, both host tabs, and rewritten skill links. The independent oracle review found no actionable issues in the guide, proposal, or provenance changes. These are structural, rendered-output, and existing regression checks; no browser interaction, native model adherence to the new examples, unattended run, scheduling, or deployment was exercised.
+
+### PR #26 review repairs — 2026-10-05
+
+The original checks above preceded removal of the review document in `a38ee4b`. After that deletion, structural validation reproduced two broken links in provenance and this entry. Removed both stale references, qualified planning by task complexity or user request, and aligned benchmark reporting with the skill's limiter and named-gap contract. Rechecks on this macOS host passed: 51 skills with zero structural problems, all 15 Node tests including the VitePress build, all 119 Python tests, and `git diff --check`. This repair adds no live host or deployment evidence.
 
 ## Public documentation notice and policy fixes — 2026-10-04
 
