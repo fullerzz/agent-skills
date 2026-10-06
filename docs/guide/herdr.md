@@ -14,7 +14,7 @@ The native plugin hooks remember the selection for the same session ID. Linked i
 
 ### Known Codex shared-daemon issue
 
-Codex 0.157+ can run hooks and tool commands in a shared background app-server daemon that retains the `HERDR_*` environment of the terminal that started it. Later sessions can receive stale pane or workspace IDs, producing `pane_not_found`, or target another pane or server. [Herdr issue #4649](https://github.com/herdrdev/herdr/issues/4649) tracks this limitation; Herdr's maintainers are waiting for a Codex fix.
+Codex 0.157+ can run hooks and tool commands in a shared background app-server daemon that retains the `HERDR_*` environment of the terminal that started it. Later sessions can receive stale pane or workspace IDs, producing `pane_not_found`, or target another pane or server. In a [maintainer comment on Herdr issue #4649](https://github.com/herdrdev/herdr/issues/4649#issuecomment-5869269080), Herdr's maintainer explains that the project is waiting for a Codex fix and recommends the workaround below.
 
 Until then, launch each coordinating or worker Codex CLI inside its intended Herdr pane with `--no-daemon`, including when resuming:
 
