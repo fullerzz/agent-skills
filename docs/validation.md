@@ -58,6 +58,12 @@ Actual Herdr checks: `HERDR_ENV=1` was present. Installed CLI help confirmed the
 
 The automated checks prove state/packaging contracts, not model adherence or live Herdr orchestration. Fresh installed-host selection, a valid-caller pane run/read/cleanup, agent startup/prompt/wait/blocked recovery, detach/pickup, remote coordination, and Windows PowerShell execution remain unverified. PowerShell quoting is covered by serialization tests only. Live checks should run in a disposable caller pane with task-owned resources and preserve unrelated work.
 
+### Codex shared-daemon diagnosis — 2026-10-05
+
+On macOS with Codex CLI `0.160.1` and compatible Herdr client/server `0.9.3`, the live Codex terminal process had the correct pane context, while the shared app-server daemon and tool shells inherited a nonexistent pane from another workspace. `herdr pane current --current` returned `pane_not_found`; supplying the pane ID verified from the foreground Codex process in a single read-only command resolved the correct live pane. No panes, agents, or servers were created, stopped, or restarted.
+
+Installed CLI help confirmed `--no-daemon` for new and resumed sessions. A [maintainer comment on Herdr issue #4649](https://github.com/herdrdev/herdr/issues/4649#issuecomment-5869269080) explicitly recommends this workaround, and [Codex's daemon documentation](https://github.com/openai/codex/blob/main/codex-rs/app-server-daemon/README.md) confirms that shared clients use the daemon's launch-time environment without per-client isolation. The [guide](guide/herdr.md#known-codex-shared-daemon-issue) now documents the limitation. A fresh `--no-daemon` launch/resume and live orchestration remain unverified by this investigation.
+
 ### Review fixes: context size, control race, style switch — 2026-10-04
 
 The SessionStart context now emits one control template per shell (`ACTION` replaced by enable, disable, herdr, or native) instead of eight full commands. With xray on and a realistic Codex data path, context went from 3924 to 2353 characters and keeps the full xray read commands. Herdr selection is a `<session>.herdr` marker beside `<session>.json`, so each control writes one file and parallel Enable/Herdr no longer lose a preference; read errors on the mode JSON no longer rewrite execution. Disable on a style switch is scoped to active z-mode, so a Herdr-only selection survives.
