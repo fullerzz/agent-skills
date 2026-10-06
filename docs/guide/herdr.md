@@ -12,6 +12,19 @@ For linked installations, use `$z-mode` in Codex or `/z-mode` in Claude Code. To
 
 The native plugin hooks remember the selection for the same session ID. Linked installations and older hooks preserve it through conversation and handoff notes instead; see the [Codex](../hosts/codex.md#herdr-execution), [Claude Code](../hosts/claude-code.md#herdr-execution), and [Hermes](../hosts/hermes.md#session-hooks) setup pages for host details.
 
+### Known Codex shared-daemon issue
+
+Codex 0.157+ can run hooks and tool commands in a shared background app-server daemon that retains the `HERDR_*` environment of the terminal that started it. Later sessions can receive stale pane or workspace IDs, producing `pane_not_found`, or target another pane or server. [Herdr issue #4649](https://github.com/herdrdev/herdr/issues/4649) tracks this limitation; Herdr's maintainers are waiting for a Codex fix.
+
+Until then, launch each coordinating or worker Codex CLI inside its intended Herdr pane with `--no-daemon`, including when resuming:
+
+```sh
+codex --no-daemon
+codex --no-daemon resume <session-id>
+```
+
+This bypasses an already-running daemon. Disabling `daemon_auto_start` alone does not bypass it. Keep the caller-resolution check; do not substitute the user's focused pane when it fails.
+
 ## What changes during work
 
 | Part of the workflow | With Herdr enabled |
