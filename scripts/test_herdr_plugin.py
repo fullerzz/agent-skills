@@ -239,6 +239,25 @@ class RecordTests(Fixture):
         with patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p1"}):
             self.cli("task", "accept", str(path), "t1")
 
+    def test_only_the_bound_coordinator_can_accept(self) -> None:
+        path = self.make_run()
+        self.cli("task", "add", str(path), "t1")
+        self.terminals = {"w1:p1": "term_coord", "w2:p1": "term_other", "w3:p1": "term_coord"}
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w2:p1"}):  # an agent from another run, bound nowhere here.
+            self.assertIn("not the bound coordinator", self.cli("task", "accept", str(path), "t1", code=1))
+            self.assertIn("not the bound coordinator", self.cli("task", "evidence", str(path), "t1", "x", code=1))
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w3:p1"}):  # the coordinator after a move.
+            self.cli("task", "accept", str(path), "t1")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["coordinator"]["binding"] = None
+        hr.atomic_write(path, data)
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w2:p1"}):  # unbound coordinator: only workers are refused.
+            self.cli("task", "reject", str(path), "t1")
+        self.cli("coordinator", "bind", str(path), "--pane", "w1:p1", "--snapshot", self.snapshot_file(BASE))
+        self.cli("task", "bind", str(path), "t1", "--pane", "w1:p1", "--snapshot", self.snapshot_file(BASE))
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p1"}):  # a pane that is also a worker stays refused.
+            self.assertIn("bound to a worker task", self.cli("task", "accept", str(path), "t1", code=1))
+
     def test_missing_report(self) -> None:
         path = self.make_run()
         self.cli("task", "add", str(path), "none")
@@ -1090,6 +1109,17 @@ class ReconcileTests(Fixture):
         other = "r2" if owner == "r1" else "r1"
         self.assertNotIn("w1:p2", self.observation(other)["labeled"])
         self.assertIn("w1:p2", self.observation(owner)["labeled"])
+
+    def test_pane_with_several_bindings_gets_no_labels(self) -> None:
+        path = self.run_with_worker()
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        self.assertEqual(self.tokens("w1:p2")["zstack_task"], "t1")
+        self.cli("task", "add", str(path), "t2")
+        self.cli("task", "bind", str(path), "t2", "--pane", "w1:p2", "--snapshot", self.snapshot_file(BASE))
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        self.assertFalse({"zstack_run", "zstack_task"} & self.tokens("w1:p2").keys())
+        self.assertNotIn("w1:p2", self.observation()["labeled"])
+        self.assertEqual(self.tokens("w1:p1")["zstack_role"], "coordinator")
 
     def test_event_targets(self) -> None:
         self.assertIsNone(pl.event_targets("startup", None))

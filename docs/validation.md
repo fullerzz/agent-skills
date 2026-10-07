@@ -698,3 +698,10 @@ PR #28 review (cubic and Codex bots) raised 15 distinct issues; 14 were fixed an
 - `open-board` exits 1 when it opens nothing.
 
 The guide now covers `enroll` and removing registry entries when a run ends, and the plan's handoff explains the follow-up phases. Checks: 185 Python tests, 15 Node tests, `validate.py`, Ruff, and `git diff --check`. No live Herdr check was rerun for these changes.
+
+A second Codex review of `676e116` raised two more issues, both fixed with regression tests that failed with the fix reverted:
+
+- Inside Herdr, `task accept`, `task reject`, and `task evidence` require the caller's pane to match the coordinator binding, by terminal when both are known and otherwise by pane ID. Before, any pane not bound to a worker could run them. A pane bound to a worker task is refused even when it also matches the coordinator binding, as a follow-up Codex review of the uncommitted fix pointed out. A run with no coordinator binding still refuses only worker panes.
+- A pane holding more than one of a run's bindings gets none of that run's tokens instead of the last binding's role.
+
+Checks: 187 Python tests, 15 Node tests, `validate.py`, Ruff, and `git diff --check`. No live Herdr check was rerun for these changes.

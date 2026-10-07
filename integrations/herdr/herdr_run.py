@@ -609,13 +609,20 @@ def require_coordinator(run: dict[str, Any], action: str) -> None:
     pane = os.environ.get("HERDR_PANE_ID")
     if not pane:
         return
-    bindings = [task["binding"] for task in run["tasks"] if task["binding"]]
     terminal = caller_terminal(run["endpoint"]["socket"], pane)
-    if any(
-        binding["terminal_id"] == terminal if terminal and binding["terminal_id"] else binding["pane_id"] == pane
-        for binding in bindings
-    ):
+
+    def occupies(binding: dict[str, Any]) -> bool:
+        return binding["terminal_id"] == terminal if terminal and binding["terminal_id"] else binding["pane_id"] == pane
+
+    if any(occupies(task["binding"]) for task in run["tasks"] if task["binding"]):
         raise UserError(f"{action} is coordinator-only; this pane is bound to a worker task")
+    coordinator = run["coordinator"]["binding"]
+    # ponytail: an unbound coordinator can't be verified, so only known workers are refused.
+    if coordinator and not occupies(coordinator):
+        raise UserError(
+            f"{action} is coordinator-only; this pane is not the bound coordinator"
+            " (after a restart, run `coordinator bind` from the coordinator pane)"
+        )
 
 
 def snapshot_for(socket: str, snapshot_file: str | None) -> dict[str, Any]:

@@ -171,8 +171,9 @@ def metadata_argv(pane: str, tokens: dict[str, str]) -> list[str]:
 
 
 def label_tokens(view: dict[str, Any]) -> dict[str, dict[str, str]]:
-    """Pane id -> tokens for every ok/moved binding in the view."""
+    """Pane id -> tokens for every ok/moved binding in the view; a pane holding several bindings gets none."""
     labels: dict[str, dict[str, str]] = {}
+    ambiguous: set[str] = set()
     check = (view.get("coordinator") or {}).get("binding_check") or {}
     if check.get("status") in FOCUSABLE:
         labels[check["observed_pane_id"]] = {"zstack_run": view["run_id"], "zstack_role": "coordinator"}
@@ -183,13 +184,15 @@ def label_tokens(view: dict[str, Any]) -> dict[str, dict[str, str]]:
         lifecycle = task.get("lifecycle") or {}
         phase = lifecycle.get("orch_state") or task.get("acceptance") or "not recorded"
         phase = "".join(char for char in phase if char.isprintable()).strip()[:80].rstrip() or "not recorded"
+        if check["observed_pane_id"] in labels:
+            ambiguous.add(check["observed_pane_id"])
         labels[check["observed_pane_id"]] = {
             "zstack_run": view["run_id"],
             "zstack_role": "worker",
             "zstack_task": task["id"],
             "zstack_phase": phase,
         }
-    return labels
+    return {pane: tokens for pane, tokens in labels.items() if pane not in ambiguous}
 
 
 # --- Focus ------------------------------------------------------------------
