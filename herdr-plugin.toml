@@ -1,0 +1,59 @@
+# Optional, experimental Herdr plugin for explicitly enrolled zstack runs.
+# Linking it activates nothing: no z-mode, no Herdr execution, no enrollment. See docs/guide/herdr.md.
+# At the repository root so HERDR_PLUGIN_ROOT contains skills/z-mode/scripts/orch for orch-backed runs.
+id = "zstack.herdr"
+name = "zstack run board"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Terminal board, focus actions, and lifecycle reconcile for enrolled zstack runs (experimental)"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "open-board"
+title = "zstack: open run board"
+contexts = ["pane"]
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "open-board"]
+
+[[actions]]
+id = "focus-coordinator"
+title = "zstack: focus coordinator"
+contexts = ["pane"]
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "focus-coordinator"]
+
+[[actions]]
+id = "focus-worker"
+title = "zstack: focus task worker"
+contexts = ["pane"]
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "focus-worker"]
+
+[[panes]]
+id = "board"
+title = "zstack board"
+placement = "split"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "board"]
+
+# Hooks are triggers only: each runs one bounded reconcile of enrolled runs and exits. Observations live
+# under HERDR_PLUGIN_STATE_DIR; coordinator records are never written. Missed events are recovered by the
+# board's 5 s refresh and the next hook. Startup hooks do not run on client attach, link, or enable.
+[[startup]]
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]
+
+[[events]]
+on = "pane.exited"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]
+
+[[events]]
+on = "pane.moved"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]
+
+[[events]]
+on = "pane.closed"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]
+
+[[events]]
+on = "workspace.closed"
+command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "reconcile"]

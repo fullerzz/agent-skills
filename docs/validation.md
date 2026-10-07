@@ -6,6 +6,89 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Herdr board plugin — 2026-10-06
+
+The experimental `zstack.herdr` plugin (`herdr-plugin.toml`, `integrations/herdr/`) was checked on macOS with Herdr client and server `0.9.3` (private protocol `22`). Every live check ran on a disposable isolated server: `env -i` with a temporary `HOME`, minimal `PATH`, `TERM`, and `LANG`, which strips every `HERDR_*` and `XDG_*` variable. Before linking, each server showed a socket under the temporary `HOME`, `herdr plugin list` reported no plugins, and the snapshot was empty. Nothing was linked to the personal server. Its `plugins.json` hash matched before and after each phase, and its plugin list stayed unchanged. Teardown unlinked the plugin, stopped only the isolated server, and removed only its temporary directory.
+
+Agents were simulated, not run. Raw `pane.report_agent` socket requests set a `custom:` occupant, then `herdr:<agent>` with an `agent_session_id` where a session was needed. No real Claude or Codex integration ran. Run files lived in temporary paths containing spaces.
+
+Board and actions (E1–E10) all passed:
+
+- Opening from an unenrolled pane opened nothing and wrote nothing.
+- The board opened as a split from a worker without moving focus and refreshed every five seconds.
+- With several runs it showed a choose-run screen.
+- Artifact updates appeared without any Herdr event.
+- A corrupt run file and an unreadable socket each showed `STALE` with the last good data, and each recovered.
+- `q`, Ctrl-C, and closing the pane each ended the board process.
+- Focus worked on `ok` and `moved` bindings. It was refused for `occupant changed`, `pane missing`, and agent-less panes.
+- Metadata tokens used only the `zstack.herdr` source and left other sources' tokens intact.
+- A plugin root containing a space worked.
+- An orchestration-backed run rendered with its store byte-identical and no `.orch.lock`.
+
+Caveats: `occupant changed` was produced by releasing the agent, not by a session swap, because Herdr ignored simulated session changes. Plain shell panes can't be focused by ID in 0.9.3.
+
+Lifecycle hooks (L1–L9):
+
+- **Passed: L1–L6, L8, L9.** Status transitions updated observations. Unrelated pane events wrote nothing (the state directory's hash was unchanged). Cross-workspace moves were observed as `moved`, and pane or workspace close as `pane missing`. Only this run's tokens were cleared when a pane stayed but its binding became invalid. With the lock held from outside, a hook skipped, and the open board still showed the current state. A server restart ran the startup hook (`alpha: ok`), left run files and the registry unchanged, and sent nothing to agents. Teardown was clean.
+- **L7 passed with a caveat.** Detach and reattach of a headless pseudo-terminal client ran no startup hook and kept board processes and terminals unchanged. The detach was done by closing the pseudo-terminal; `ctrl+b q` sent as raw bytes did not detach.
+- **Restart conditions:** agent resume was disabled in the isolated config, and restored panes got new terminals, so bindings showed `occupant changed` until rebound.
+- **Simulated-agent limit:** status flips were shown only on a custom-only occupant. Once a `herdr:` session is claimed through the raw API, Herdr ignores later simulated state reports.
+- **Hook behavior observed:** closing a workspace emits `workspace.closed` but no `pane.closed`. Startup hooks do not run on attach, link, or enable.
+
+Clean copy (Phase 4):
+
+- **Setup.** `git clone` of `HEAD` (`29f5bfa`) into `<temp>/clean copy/zstack repo`, overlaid with the working tree's modified and untracked, not-ignored files (excluding `.agent-work/`). The copy had no `__pycache__`, `.venv`, or `node_modules`, and was linked on a fresh isolated server.
+- **Linking.** `herdr plugin link` reported that `plugin_root`, and `plugin action list` listed the three actions.
+- **Boards.** Opening the board from the enrolled worker ran with its working directory in the copy (`lsof`) and rendered the run. An orchestration-backed run rendered `orch review · reported done` and its ledger evidence, with the store byte-identical afterward.
+- **Hooks.** A `pane.moved` hook logged `alpha: ok` and wrote an observation under the isolated plugin state directory. After the isolated server restarted, the startup hook logged `alpha: ok` and `gamma: ok` and wrote both observations.
+- **Provenance.** The copy's bytecode was removed beforehand. Afterward, `herdr_run` and orchestration `store` bytecode reappeared only in the copy, and the checkout's bytecode timestamps were unchanged.
+- **Negative control.** With the copy's `skills/z-mode/scripts/orch` hidden, a new `open-board` failed with `ModuleNotFoundError: store`, even though the checkout still had that directory. This proved resource resolution from the plugin's own root and exposed the crash repaired in the continuation below.
+- **Teardown.** Unlinking left no plugins, the isolated server stopped, and the temporary directory was removed. Only the personal server (unchanged, same PID) remained. `~/.local/state/zstack` and the plugin state directory did not exist.
+
+Original four-phase static and unit checks on this host:
+
+- `uv run scripts/validate.py`: 51 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 of 15 passed, including the VitePress build and isolated installer tests.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 158 tests passed, 39 of them in `test_herdr_plugin.py`.
+- Ruff check and format passed for the plugin files and their tests, and `git diff --check` passed.
+- The new packaging tests parse the manifest with `tomllib` and check:
+  - required fields and `min_herdr_version`;
+  - unique, dot-free action and pane IDs;
+  - every hook and command script resolving relative to the manifest directory;
+  - POSIX-only platforms, matching the `fcntl` lock;
+  - the orchestration directory under the manifest root;
+  - no native package resource (`.codex-plugin`, `LICENSE`, `skills`, `hooks`) referencing `integrations/herdr`.
+- Six temporary mutations each failed these tests and were then reverted: a `windows` platform, a missing script, a dotted ID, a duplicate ID, a removed `min_herdr_version`, and a hook file naming `integrations/herdr`. A static search found no skill, hook, agent, installer, or packager reference to the plugin. The native package and installer are unchanged.
+
+### Continuation repairs — 2026-10-06
+
+The continuation ran in Codex outside a Herdr-managed pane (`HERDR_ENV` absent), using native scoped workers. It issued no live Herdr commands and did not reuse the previous session's pane or controls. The personal `plugins.json` still matched its recorded SHA-256 baseline. Python checks used 3.14.7 through Homebrew `uv` 0.12.23; Node checks used 26.10.0. An inherited `mise` shim was inaccessible, so checks used the installed tools through an explicit `PATH`.
+
+Two handoff defects were repaired and verified by 42 focused plugin tests:
+
+- A copied package with no orchestration directory now reports an `orch_store` data gap. Fresh isolated interpreters exercised inspection, the board, all three actions, reconciliation, and an unrelated enrolled pane. These calls used a fake Herdr CLI, so they establish local behavior only. This repairs the earlier Phase 4 negative control's crash.
+- `coordinator bind RUN_FILE --pane P` refreshes terminal and session identity for ordinary and orchestration-backed records. Fixtures verified recovery and preservation of labels, task data, acceptance, evidence, registry entries, and record bytes/timestamps when an invalid pane is supplied. Live restart recovery remains unverified.
+
+An independent read-only review reproduced four additional defects, which were repaired:
+
+- Registry/run identity drift is checked during action resolution, cached board refresh, focus, and hooks. A changed or replaced enrollment yields a data gap and preserves the previous visible state without acting on another identity.
+- Board refresh now uses the hooks' existing label reconciliation against the current snapshot. It clears stale ownership after a missed occupant-change event and repairs missing labels without altering unrelated tokens.
+- Run and task IDs are limited to 80 characters in CLI/schema validation and orchestration mapping. Display-only orchestration phases are normalized to Herdr's token limit, preventing repeated writes caused by normalization.
+- The task ID `coordinator` is reserved in ordinary records and orchestration mapping, preventing focus-selector and observation-key collisions. Invalid orchestration IDs become a data gap; the adapter never rewrites the store.
+
+Fresh coordinator verification after all implementation writers stopped passed: 165 Python tests (46 plugin tests), 15 Node tests including the VitePress build and isolated installer checks, 51 skills with zero structural problems, Ruff lint/format, tracked whitespace checks, and whitespace checks for all five untracked implementation artifacts. The personal `plugins.json` SHA-256 still matched its baseline. These repairs add no real-agent evidence.
+
+These results are isolated-server and unit evidence with simulated agents or fake CLI calls. Not verified:
+
+- real Claude or Codex agent integrations;
+- the `ctrl+b q` detach key in a real terminal;
+- Windows, which the manifest excludes;
+- remote Herdr endpoints;
+- `herdr plugin install` from GitHub, along with publication and personal installation;
+- focusing non-agent panes, which 0.9.3 cannot do by ID;
+- skip-if-held staleness: a skipped hook can leave an observation one event old until the next reconciliation; the board refresh updates its display and labels independently;
+- live coordinator rebinding after a restart; the new command is verified only by fixtures.
+
 ## Selective pstack 0.15.12–0.15.13 guide port — 2026-10-05
 
 Updated four guide pages with native Claude Code/Codex examples for prompting, prototypes, verification, benchmark validation, repeated-mistake prevention, and trust before unattended work. [Provenance](provenance.md) records the selection and cites both source commits. Skill behavior, invocation metadata, and plugin versions are unchanged. Removed existing trailing whitespace from the README note marker so structural validation passes.
@@ -544,3 +627,59 @@ Hardened `docs/nginx.conf` for a TLS-terminating reverse proxy. Against the rebu
 `scripts/install.py` now renders a Rich panel per host when stdout is a terminal. Entries are grouped by operation, with counts, a short meaning, and wrapped names; skill and agent directories appear once at the top of each panel. Piped output keeps the tab-separated lines that existing tests and scripts parse. A new Node test forces terminal rendering with `TTY_COMPATIBLE=1` and checks grouping, both host panels, and the agents directory. Rendering was inspected at 60 and 100 columns against the real `~/.claude` and `~/.agents` state. Long names fold instead of truncating.
 
 Validation: 13 Node tests, structural validation (46 skills), and 4 Python unit tests pass. This was not checked in an interactive TTY session; `TTY_COMPATIBLE=1` stood in for one.
+
+
+## Phase 7 real Codex and coordinator restart checks — 2026-10-06
+
+These checks add real-agent evidence to the historical simulated-agent results above. Herdr client/server 0.9.3 (protocol 22) and Codex CLI 0.160.1 ran on a disposable `/private/tmp/zstack-phase7-*` endpoint. Before linking, its socket was inside the temporary HOME, with an empty snapshot and plugin list. The server used `env -i`, a temporary Herdr config/registry, and `resume_agents_on_restore = false`. Two real Codex probes ran sequentially with `codex --no-daemon`, normal installed auth/config, and no model or permission overrides; their UI displayed GPT-6.1-Sol xhigh. Credentials were never copied. The initial inherited filesystem sandbox prevented Codex startup; the authorized isolated server was then launched outside that sandbox while the probes retained CLI defaults.
+
+- Both probes ran `herdr pane current --current` in their own sessions and returned exit 0 with the correct isolated pane and native session.
+- The enrolled worker produced actual `working` and `idle` hooks. Observations and board text recorded those states; acceptance stayed `not recorded`. Worker/coordinator tokens, board key focus, and focus actions were checked against live snapshots and completed action logs.
+- A real isolated-server stop ended every recorded original server/probe process. Restart ran the startup hook and classified the coordinator binding as `occupant changed`; the stale focus action failed. A fresh native session remained stale until explicit `coordinator bind`, after which inspection, labels, board, focus, and real hooks recovered. No automatic resume or rebind was used.
+- Reads/hooks preserved fixture run and registry bytes and timestamps between explicit coordinator writes. Coordinator-owned repository artifacts and personal `plugins.json` remained unchanged. Cleanup closed the task panes, unlinked the isolated plugin, stopped only that server, and verified no recorded task process remained. Receipts and temporary fixture files were retained.
+
+No demonstrated plugin defect required a code/test change. Real blocked-state hooks remain unverified: no approval/question dialog arose, and none was induced or approved. Claude integration, native resume, remote/install/detach checks remain outside this assignment. Full commands, exit statuses, identities, snapshots, hook observations, process accounting, and limitations are retained in `.agent-work/herdr-plugin/reports/phase7.md` and `phase7-live/`.
+
+## Phase 8 real Claude and blocked-state checks — 2026-10-06
+
+These checks add real Claude Code evidence to the Phase 7 Codex results. Herdr client/server 0.9.3 (protocol 22) and Claude Code 2.1.292 ran on a disposable `/private/tmp/zstack-phase8-*` endpoint. Before linking, its socket was inside the temporary HOME, with an empty snapshot and plugin list. The server used `env -i`, a temporary Herdr config/registry, and `resume_agents_on_restore = false`. The probe started with `herdr agent start ... --kind claude -- --permission-mode default` in an empty directory. A launcher gave only the `claude` process the real HOME/USER/LOGNAME, so it used installed auth, config, and the installed Herdr hook. Credentials were never copied or read. The CLI showed Opus 5.5 with high effort, Claude Pro, and manual (default) permission mode; these were CLI defaults.
+
+- The first launch passed only HOME and was not logged in, so no API turn ran. `claude auth status` showed `loggedIn: false` without `USER` and `true` with it, because macOS Keychain lookup needs `USER`. This was a test-harness fault, and the launcher was corrected.
+- Claude's SessionStart hook exposed `agent_session` at startup. `task bind` after the first real turn captured terminal and session. The board showed `binding ok`, observed lifecycle, and acceptance `not recorded`.
+- An inert no-tool turn produced real `working` and then `idle` `pane.agent_status_changed` hooks, observations, and board text.
+- **Blocked:** asked to run `touch ./phase8-blocked-marker`, the probe showed Claude's Bash permission dialog. `agent get` returned `blocked`, hook `plugin-log-12` succeeded (`phase8-worker: ok`), the observation recorded `agent_status: blocked`, and the board showed `observed blocked` with acceptance `not recorded`. The dialog was cancelled with `pane send-keys Escape`, and nothing was approved. Claude reported `Interrupted`. Herdr returned to `idle`, with a matching hook (`plugin-log-13`), observation, and board update. The marker file was never created.
+- Live tokens were exact (`zstack_run=phase8-worker`, `zstack_role=worker`, `zstack_task=probe`, `zstack_phase=not recorded`; coordinator `zstack_role=coordinator`). Board key `1` and the `focus-worker` action, invoked from the focused coordinator shell, focused the Claude pane; the action exited 0. Board key `c` refused to focus the shell coordinator, which is the documented Herdr 0.9.3 limit on focusing panes that host no agent.
+- Board, hooks, and focus left the fixture run and registry bytes and mtimes unchanged after the explicit bind. Cleanup closed the panes, unlinked the isolated plugin, and stopped only that server. All 9 recorded task PIDs were absent, and the personal server, its plugin list, and `plugins.json` were unchanged.
+
+No plugin defect was found, and no code or test changed. Remaining gaps: the coordinator was a plain shell, so board `c` focus to a Claude coordinator, Claude restart/rebind, and native resume were not exercised. The probe wrote its normal transcripts under the real `~/.claude/projects/`. Receipts are in `.agent-work/herdr-plugin/reports/phase8.md` and `phase8-live/`.
+
+## Phase 9 real Claude coordinator restart and rebind checks — 2026-10-07
+
+These checks bind a real Claude Code 2.1.292 process as a run's coordinator on a disposable Herdr 0.9.3 (protocol 22) endpoint under `/private/tmp/zstack-phase9-*`. The isolated server ran under `env -i` with `resume_agents_on_restore = false`. Its snapshot and plugin list were proven empty before linking. The worker task was a plain shell.
+
+- **Before restart:** coordinator `binding ok` with terminal and native session, plus `zstack_role=coordinator` tokens. Board key `c` and the `focus-coordinator` action, invoked from the worker shell, both moved focus to the Claude pane; the action exited 0. An inert turn produced `working` and `idle` hooks and observations.
+- **Restart:** every recorded original process was absent before the server restarted on the same socket. These included server, Claude, MCP, shell, and board processes. The startup hook classified the coordinator `occupant changed` and applied no labels. `focus-coordinator` exited 1, and focus did not change. After an explicit `task bind` of the restored worker shell, a reopened board showed the coordinator stale and refused `c`.
+- **Rebind:** one fresh Claude process was started in the restored coordinator pane. Inspection stayed `occupant changed` until an explicit `coordinator bind`. After that: `binding ok`, labels restored, board `c` and the action focused the pane, and an inert turn drove hooks. Run and registry bytes and mtimes were unchanged between explicit writes, and acceptance stayed `not recorded`.
+- **Failed criterion:** the rebind did not capture the fresh native session. Herdr kept reporting the pre-restart session restored from its `session.json`, even after two turns, although the fresh process ran a new session. Claude's exit hint and transcript confirm the new one. `coordinator bind` therefore recorded the fresh terminal with the old session ID. The plugin records what Herdr reports, and the fresh terminal still rejected the stale occupant. No code or test changed.
+
+Cleanup unlinked and stopped only the isolated server, and all 17 created PIDs were absent. The personal server, its plugin list, and `plugins.json` were unchanged. Static checks passed (51 skills, 15 Node tests, 165 Python tests, `git diff --check`). Remaining gaps:
+
+- Fresh-session capture after restart with restored pane metadata.
+- Whether a new pane captures the fresh session.
+- Native resume.
+- Question, trust, and Codex blocked sources.
+
+The probes wrote transcripts and session-env entries under the real `~/.claude/`. Receipts are in `.agent-work/herdr-plugin/reports/phase9.md` and `phase9-live/`.
+
+## Herdr plugin pre-landing review and repairs — 2026-10-07
+
+A read-only final review of `integrations/herdr/` reported six findings, each reproduced with throwaway fixtures. All six were repaired, and each repair has a regression test that failed with the fix removed:
+
+- An unresolvable `~user/...` report reference now shows as a missing-report gap instead of crashing inspect, the board, and hooks.
+- Run-record writers serialize read-modify-write under a sibling lock file; inspection, the board, and hooks never take it.
+- Every writer validates the record it is about to store, so a bad argument can no longer leave a record the helper later refuses.
+- The coordinator-only guard resolves the caller pane to its terminal, so a moved worker still cannot record acceptance.
+- Relabelling a pane clears `zstack_*` keys its new role does not use.
+- Writes through a symlinked run file reach the target, and the board accepts only ASCII `1`–`9` keys.
+
+Phase 9's failed criterion led to one more change: when a rebind captures a new terminal that reports the previous binding's agent session, the helper records no session and prints a warning, so the binding is checked by terminal and agent kind only. A regression test reproduces the Phase 9 snapshot. These changes landed after Phases 7–9 ran; the live checks above used the pre-repair code (hashes in `phase9-live/tested-source-hashes.json`), and the repaired paths are covered by unit tests only.

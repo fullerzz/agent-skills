@@ -70,3 +70,46 @@ The [validation record](../validation.md#herdr-execution-integration-—-2026-10
 - [Herdr documentation](https://herdr.dev/docs/), including [concepts](https://herdr.dev/docs/concepts/), [how to work](https://herdr.dev/docs/how-to-work/), and [agent automation](https://herdr.dev/docs/agent-automation/).
 - [Herdr workflow reference](../reference/workflow-skills.md#herdr-workflow) for invocation and dependencies.
 - [Operational instructions](../../skills/herdr-workflow/references/operations.md) for launch, collection, cleanup, and requested remote work.
+
+## Optional board plugin (experimental)
+
+The repository root ships an optional Herdr plugin, `zstack.herdr`, with a terminal board, focus actions, and lifecycle hooks for runs a coordinator has explicitly enrolled. Linking it activates nothing: it does not select z-mode or Herdr execution, enroll runs, or write coordinator records. It was checked against Herdr 0.9.3 in an isolated server; treat it as experimental.
+
+Requirements: Linux or macOS (the hooks lock with `fcntl`), Herdr 0.9.3 or later, `uv`, and Python 3.12 or later on the Herdr server's `PATH`. Link the checkout itself, because orchestration-backed runs read `skills/z-mode/scripts/orch` relative to the plugin root:
+
+```sh
+herdr plugin link /path/to/zachs-agent-skills
+herdr plugin action list --plugin zstack.herdr
+```
+
+Linking is global to your user and applies to every Herdr session. Remove it with `herdr plugin unlink zstack.herdr`. Whether to link or install it on your own Herdr, and whether to publish it, is your decision; zstack's installer never links, installs, or publishes it.
+
+The board shows only runs enrolled with `integrations/herdr/herdr_run.py` (`init`, `task add`, `task bind`, and the other `task` updates). The plugin finds enrollments in the same registry as that helper: `$ZSTACK_HERDR_REGISTRY`, else `$XDG_STATE_HOME/zstack/herdr/runs`, else `~/.local/state/zstack/herdr/runs`. If the Herdr server runs with a different environment from the coordinator's shell, set the variable for both.
+
+Run and task IDs use 1–80 ASCII letters, digits, dots, underscores, colons, or hyphens, beginning with a letter or digit. The task ID `coordinator` is reserved for the coordinator role. These limits also apply to orchestration unit IDs mapped as tasks; unsupported IDs produce a data gap and are never shortened into an ownership token. Enrollment identity is rechecked before board updates and focus; a changed run ID or endpoint keeps the previous board data visibly stale until the original enrollment is restored or a new board is opened for the new run.
+
+| Action | Invoke from | Effect |
+| --- | --- | --- |
+| `zstack.herdr.open-board` | The coordinator's or a worker's pane | Opens the board as a split beside that pane without moving focus. From an unenrolled pane it shows a notification and opens nothing. |
+| `zstack.herdr.focus-coordinator` | A worker pane | Re-validates the coordinator binding, then focuses it. |
+| `zstack.herdr.focus-worker` | The coordinator pane of a run with one bound task | Focuses that worker. With several tasks, use the board's number keys. |
+
+Bind actions to keys with `type = "plugin_action"` entries, as described in Herdr's [plugin documentation](https://herdr.dev/docs/plugins/#keybindings). The board resolves its run from the pane it was opened beside. If no run or more than one run binds that pane, it says so; with several runs, choose one by number. It never guesses.
+
+The board refreshes the run record, any orchestration store, and the Herdr snapshot when it opens and every five seconds after that. For each task it shows the worker and binding status, worktree, observed lifecycle, acceptance, evidence count and latest revision, report presence, and data gaps. The header shows each source's last successful read time in UTC. After a failed read, the board keeps the last good view and marks it `STALE` with the error. Press `1`-`9` to focus a task's worker, `c` to focus the coordinator, `r` to refresh, and `q` or Ctrl-C to quit. Closing the pane also stops the board.
+
+Focus is checked against a fresh snapshot first. It is allowed when a binding is `ok`, or `moved` with the same terminal and agent session. Herdr 0.9.3 focuses a pane by ID only while that pane hosts an agent, so a plain shell pane can't be focused from the board.
+
+For validated bindings, the board also reports display-only pane metadata tokens under the source `zstack.herdr`: `zstack_run`, `zstack_role`, `zstack_task`, and `zstack_phase`. It never sets titles, agent names, or state labels, and it leaves other sources' tokens alone. To show the tokens, add `$zstack_task` or `$zstack_phase` to your Agent sidebar rows. See Herdr's [custom status labels](https://herdr.dev/docs/integrations/#custom-status-labels).
+
+### Lifecycle hooks
+
+Once linked, Herdr runs these hooks automatically: a startup hook after each server start, and event hooks on `pane.agent_status_changed`, `pane.exited`, `pane.moved`, `pane.closed`, and `workspace.closed` for every pane, enrolled or not. For an unenrolled pane a hook is a no-op that still pays one `uv` and Python startup (about 0.1 s). Each hook only triggers a reconcile: one Herdr snapshot, then an inspection of each enrolled run on that server whose bound or last observed panes (or workspace) the event names. Events for other panes write nothing. A reconcile never writes run records, the registry, or orchestration stores, never prompts, starts, or resends anything to an agent, and never records acceptance. Every Herdr call has a five-second timeout, and the hook exits when the reconcile ends.
+
+Results are stored as plugin-owned observations in `$HERDR_PLUGIN_STATE_DIR/<endpoint key>/<run id>.json`: the last reconcile time and trigger, each binding's observed status, pane, workspace, and agent status, and the panes that carry the run's tokens. If any read fails, the observation keeps its previous state and records the error as `stale`. The board shows the last reconcile time and trigger, but it does not depend on hooks: its own five-second refresh shows missed events.
+
+After each successful reconcile or board refresh, the run's tokens appear only on panes with an `ok` or `moved` binding. The plugin compares against the pane's live tokens, so a repeated event or refresh sends nothing. When a binding becomes `occupant changed` or the pane disappears, the plugin clears its own token keys with `--clear-token` under the source `zstack.herdr`. When a pane's role changes, for example a former worker pane rebound as the coordinator, it also clears the keys the new role doesn't use, such as `zstack_task`. It clears only panes whose `zstack_run` token names that run, and it leaves other token keys alone. If a source read fails, it changes no labels.
+
+Overlapping hooks share a lock in the state directory. A hook that finds the lock held skips its run, and the next event or the board catches up. Startup hooks run after a server start or live handoff, not when a client attaches or the plugin is linked or enabled. After a server restart, Herdr gives restored panes new terminals, so their bindings show `occupant changed` until the coordinator binds them again (`task bind` for workers); the plugin never rebinds. Rebind the coordinator with `uv run --script integrations/herdr/herdr_run.py coordinator bind RUN_FILE --pane P`, for ordinary or orchestration-backed runs. Herdr 0.9.3 can report a restored pane's pre-restart agent session for the fresh agent it hosts; when a rebind sees a new terminal with the previous binding's session, it records no session and prints a warning, so that binding is checked by terminal and agent kind only. Herdr does not restore metadata tokens after a restart.
+
+Nothing deletes observations. After a run ends, or after unlinking, remove `$HERDR_PLUGIN_STATE_DIR/<endpoint key>/` yourself (by default on macOS, `~/.local/state/herdr/plugins/zstack.herdr/`). It holds only plugin observations and a lock file.
