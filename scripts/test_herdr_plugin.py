@@ -308,6 +308,68 @@ class RecordTests(Fixture):
         )
         self.assertEqual((rebound["binding"]["agent_session"], "warnings" in rebound), ("sess-fresh", False))
 
+    def test_concurrent_enrollments_of_one_run_id_conflict(self) -> None:
+        first = self.make_run("a", "r1")
+        second = self.root / "b" / "herdr-run.json"
+        second.parent.mkdir()
+        second.write_bytes(first.read_bytes())
+        entry = hr.registry_path(self.registry, SOCKET_A, "r1")
+        entry.unlink()  # neither file is enrolled; both enrollments race for the same registry entry.
+        writing, release, real_write = threading.Event(), threading.Event(), hr.atomic_write
+
+        def slow_write(path: Path, data: dict[str, Any]) -> None:
+            if path.name == entry.name and not writing.is_set():
+                writing.set()
+                release.wait(5)
+            real_write(path, data)
+
+        results: dict[str, Any] = {}
+
+        def enroll(name: str, run_file: Path) -> None:
+            try:
+                results[name] = hr.enroll(run_file, self.registry)
+            except hr.UserError as error:
+                results[name] = error
+
+        with patch.object(hr, "atomic_write", slow_write):
+            one = threading.Thread(target=enroll, args=("first", first))
+            one.start()
+            self.assertTrue(writing.wait(5))
+            two = threading.Thread(target=enroll, args=("second", second))
+            two.start()
+            two.join(0.3)
+            self.assertTrue(two.is_alive())  # waits on the registry lock instead of passing the conflict check.
+            release.set()
+            one.join(5)
+            two.join(5)
+        self.assertIsInstance(results["second"], hr.UserError)
+        self.assertEqual(json.loads(entry.read_text(encoding="utf-8"))["run_file"], str(first))
+
+    def test_repeated_evidence_is_recorded_once(self) -> None:
+        path = self.make_run()
+        self.cli("task", "add", str(path), "t1")
+        for revision in ("abc", "abc", "def"):
+            self.cli("task", "evidence", str(path), "t1", "tests.log", "--revision", revision)
+        self.assertEqual(
+            [item["revision"] for item in json.loads(path.read_text(encoding="utf-8"))["tasks"][0]["evidence"]],
+            ["abc", "def"],
+        )
+
+    def test_worker_guard_falls_back_to_pane_for_bindings_without_terminal(self) -> None:
+        path = self.make_run()
+        self.cli("task", "add", str(path), "t1")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["tasks"][0]["binding"] = {"pane_id": "w1:p2", "terminal_id": None}
+        hr.atomic_write(path, data)
+        self.terminals["w1:p2"] = "term_worker"
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p2"}):
+            self.assertIn("coordinator-only", self.cli("task", "accept", str(path), "t1", code=1))
+
+    def test_malformed_snapshot_result_is_an_error_not_a_crash(self) -> None:
+        for raw in ({"result": "busy"}, {"result": []}, {"result": {"snapshot": None}}):
+            with self.subTest(raw=raw), self.assertRaises(hr.UserError):
+                hr.normalize_snapshot(raw, SOCKET_A)
+
     def test_coordinator_bind_invalid_pane_leaves_record_intact(self) -> None:
         path = self.make_run()
         raw = raw_snapshot(("w1:p1", "", "claude", "sess-coord", None))
@@ -568,6 +630,20 @@ class OrchAndReadOnlyTests(Fixture):
         self.cli("task", "add", str(path), "u1")
         self.cli("task", "bind", str(path), "u1", "--pane", "w1:p2", "--snapshot", self.snapshot_file(BASE))
         return path, store_dir
+
+    def test_orch_evidence_matches_the_units_current_revision(self) -> None:
+        path, store_dir = self.orch_run()
+        from store import Store
+
+        store = Store(store_dir)
+        try:
+            store.ledger_record(7, "c" * 40, "unit-test-verified", "older revision")
+            store.unit_set("u2", "review", pr=7)
+        finally:
+            store.close()
+        view = self.inspect(path)
+        self.assertEqual([item["revision"] for item in self.task(view, "u1")["evidence"]], ["a" * 40])
+        self.assertEqual(self.task(view, "u2")["evidence"], [])
 
     def test_orch_store_mapping(self) -> None:
         path, _ = self.orch_run()
@@ -831,6 +907,45 @@ class PluginTests(Fixture):
         self.assertEqual(set(pl.label_tokens(self.inspect(path, moved))), {"w1:p1", "w2:p7"})
         self.assertEqual(pl.label_tokens(self.inspect(path, changed)), {})
 
+    def test_entries_after_nine_get_letter_keys(self) -> None:
+        path = self.make_run()
+        for index in range(1, 11):
+            self.cli("task", "add", str(path), f"t{index}")
+        self.cli("task", "bind", str(path), "t10", "--pane", "w1:p2", "--snapshot", self.snapshot_file(BASE))
+        board = self.board()
+        board.refresh()
+        text = pl.render(board.view, board.last_ok)
+        self.assertIn("[9] t9", text)
+        self.assertIn("[a] t10", text)
+        self.assertTrue(board.key("a"))
+        self.assertIn(("agent", "focus", "w1:p2"), self.calls)
+
+    def test_render_strips_terminal_controls(self) -> None:
+        path = self.worker_run()
+        self.cli("task", "add", str(path), "t2", "--title", "evil \x1b]0;owned\x07 \x1b[2J title\x9b")
+        board = self.board()
+        board.refresh()
+        text = pl.render(board.view, board.last_ok, message="note \x1b[31m")
+        self.assertFalse(set(text) & {"\x1b", "\x07", "\x9b"})
+        self.assertIn("evil ]0;owned [2J title", text)
+
+    def test_open_board_without_enrollment_fails(self) -> None:
+        with patch.dict(os.environ, {"HERDR_SOCKET_PATH": SOCKET_A, "HERDR_PANE_ID": "w1:p9"}):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(pl.command_open_board(), 1)
+        self.assertIn("board not opened", out.getvalue())
+        self.assertFalse([call for call in self.calls if call[:3] == ("plugin", "pane", "open")])
+
+    def test_malformed_snapshot_result_makes_the_board_stale(self) -> None:
+        self.worker_run()
+        board = self.board()
+        board.refresh()
+        self.raw = {"result": []}
+        board.refresh()
+        self.assertIn("herdr", board.stale or "")
+        self.assertIsNotNone(board.view)
+
     def test_board_ignores_non_ascii_digit_keys(self) -> None:
         self.worker_run()
         board = self.board()
@@ -954,6 +1069,28 @@ class ReconcileTests(Fixture):
             if old.get(row["terminal_id"]):
                 row["tokens"] = dict(old[row["terminal_id"]])
 
+    def test_malformed_observation_fields_are_rebuilt(self) -> None:
+        self.run_with_worker()
+        path = pl.observation_path(self.state, SOCKET_A, "r1")
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"version": 1, "bindings": ["bad"], "labeled": 7}), encoding="utf-8")
+        self.assertEqual(self.event("pane.agent_status_changed", pane_id="w1:p2")[0][:6], "r1: ok")
+        self.assertEqual(set(self.observation()["bindings"]), {"coordinator", "t1"})
+
+    def test_pane_labeled_by_another_run_is_not_taken_over(self) -> None:
+        self.run_with_worker("one", "r1")
+        self.run_with_worker("two", "r2")
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        owner = self.tokens("w1:p2")["zstack_run"]
+        self.calls.clear()
+        for _ in range(2):
+            self.event("pane.agent_status_changed", pane_id="w1:p2")
+        self.assertEqual(self.tokens("w1:p2")["zstack_run"], owner)
+        self.assertFalse([call for call in self.calls if call[:2] == ("pane", "report-metadata")])
+        other = "r2" if owner == "r1" else "r1"
+        self.assertNotIn("w1:p2", self.observation(other)["labeled"])
+        self.assertIn("w1:p2", self.observation(owner)["labeled"])
+
     def test_event_targets(self) -> None:
         self.assertIsNone(pl.event_targets("startup", None))
         self.assertIsNone(pl.event_targets("pane.closed", "{bad"))
@@ -1065,6 +1202,7 @@ class ReconcileTests(Fixture):
         finally:
             store.close()
         orch_board = pl.Board(SOCKET_A, "w1:p2", self.registry, io.StringIO())
+        self.raw = copy.deepcopy(BASE)  # drop the first run's labels; another run's labels are never taken over.
         self.calls.clear()
         orch_board.refresh()
         orch_board.refresh()

@@ -18,6 +18,7 @@ import contextlib
 import fcntl
 import json
 import os
+import re
 import select
 import signal
 import subprocess
@@ -36,8 +37,9 @@ SOURCE = "zstack.herdr"
 REFRESH_SECONDS = 5
 CALL_TIMEOUT = 5
 FOCUSABLE = ("ok", "moved")
-DIGITS = "123456789"  # str.isdigit() also accepts Unicode digits that int() rejects.
-KEYS = "q quit · r refresh · 1-9 focus worker · c focus coordinator"
+SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r. ASCII only.
+KEYS = "q quit · r refresh · 1-9/a-z focus worker · c focus coordinator"
+CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
 TOKENS = ("zstack_phase", "zstack_role", "zstack_run", "zstack_task")
 OBSERVATION_VERSION = 1
 
@@ -236,7 +238,13 @@ def read_observation(path: Path) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError):
         return {}
-    return data if isinstance(data, dict) and data.get("version") == OBSERVATION_VERSION else {}
+    if not isinstance(data, dict) or data.get("version") != OBSERVATION_VERSION:
+        return {}
+    if not isinstance(data.get("bindings"), dict):
+        data["bindings"] = {}
+    labeled = data.get("labeled")
+    data["labeled"] = [pane for pane in labeled if isinstance(pane, str)] if isinstance(labeled, list) else []
+    return data
 
 
 def event_targets(event: str, payload: str | None) -> tuple[set[str], set[str]] | None:
@@ -286,9 +294,12 @@ def sync_labels(view: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[st
     """
     desired = label_tokens(view)
     live = {pane["pane_id"]: pane.get("tokens") or {} for pane in snapshot["panes"]}
-    plan = []
+    plan, shared = [], set()
     for pane, tokens in sorted(desired.items()):
         current = live.get(pane, {})
+        if current.get("zstack_run") not in (None, view["run_id"]):
+            shared.add(pane)  # another enrolled run labeled it first; overwriting would flap between runs.
+            continue
         unused = clear_flags(current.keys() - tokens.keys())
         if unused or any(current.get(name) != value for name, value in tokens.items()):
             plan.append((pane, "set", metadata_argv(pane, tokens) + unused))
@@ -297,7 +308,7 @@ def sync_labels(view: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[st
         for pane, tokens in sorted(live.items())
         if pane not in desired and tokens.get("zstack_run") == view["run_id"]
     ]
-    labeled, actions, errors = set(desired), [], []
+    labeled, actions, errors = set(desired) - shared, [], []
     for pane, verb, argv in plan:
         error = try_herdr(argv)
         if error is None:
@@ -437,6 +448,10 @@ def lifecycle_line(task: dict[str, Any]) -> str:
     return " · ".join(parts)
 
 
+def select_key(index: int) -> str:
+    return SELECT[index] if index < len(SELECT) else "-"
+
+
 def render(
     view: dict[str, Any] | None,
     last_ok: dict[str, str],
@@ -449,14 +464,14 @@ def render(
     lines = [f"zstack board · {KEYS}"]
     if choices:
         lines += ["", f"{message}; choose one:" if message else "choose a run:"]
-        lines += [f"  [{index}] {item['run_id']}  {item['run_file']}" for index, item in enumerate(choices, 1)]
-        lines += ["", "Press a number to choose; nothing is guessed."]
-        return "\n".join(lines) + "\n"
+        lines += [f"  [{select_key(index)}] {item['run_id']}  {item['run_file']}" for index, item in enumerate(choices)]
+        lines += ["", "Press an entry's key to choose; nothing is guessed."]
+        return CONTROLS.sub("", "\n".join(lines) + "\n")
     if view is None:
         lines += ["", message or "no run selected"]
         if stale:
             lines.append(f"STALE: {stale}")
-        return "\n".join(lines) + "\n"
+        return CONTROLS.sub("", "\n".join(lines) + "\n")
     sources = " · ".join(f"{name} {clock(last_ok.get(name))}" for name in view.get("sources", {}))
     lines.append(f"run {view.get('run_id')} · last good read (UTC): {sources}")
     if hook is not None:  # informational only; the board's own refresh never depends on hooks.
@@ -468,11 +483,11 @@ def render(
     coordinator = view.get("coordinator") or {}
     lines.append(f"coordinator {coordinator.get('label') or '-'}: {worker_line(coordinator)}")
     lines += [f"run gap: {gap}" for gap in view.get("data_gaps", [])]
-    for index, task in enumerate(view.get("tasks", []), 1):
+    for index, task in enumerate(view.get("tasks", [])):
         title = f" — {task['title']}" if task.get("title") else ""
         lines += [
             "",
-            f"[{index}] {task['id']}{title}",
+            f"[{select_key(index)}] {task['id']}{title}",
             f"    worker      {worker_line(task)}",
             f"    worktree    {task.get('worktree') or task.get('repository') or 'not recorded'}",
             f"    lifecycle   {lifecycle_line(task)}",
@@ -485,7 +500,7 @@ def render(
         lines += ["", "no tasks recorded"]
     if message:
         lines += ["", message]
-    return "\n".join(lines) + "\n"
+    return CONTROLS.sub("", "\n".join(lines) + "\n")
 
 
 # --- Board loop -------------------------------------------------------------
@@ -542,17 +557,17 @@ class Board:
             return False
         if char in ("r", "R"):
             self.refresh()
-        elif char in DIGITS and self.choices:
-            index = int(char) - 1
-            if 0 <= index < len(self.choices):
+        elif char in SELECT and self.choices:
+            index = SELECT.index(char)
+            if index < len(self.choices):
                 self.run_id = self.choices[index]["run_id"]
                 self.run_file, self.choices, self.message = Path(self.choices[index]["run_file"]), [], None
                 self.refresh()
-        elif (char in DIGITS or char in ("c", "C")) and self.run_file and self.view:
+        elif (char in SELECT or char in ("c", "C")) and self.run_file and self.view:
             tasks = self.view.get("tasks", [])
             target = "coordinator" if char in ("c", "C") else None
-            if char in DIGITS and 0 < int(char) <= len(tasks):
-                target = tasks[int(char) - 1]["id"]
+            if char in SELECT and SELECT.index(char) < len(tasks):
+                target = tasks[SELECT.index(char)]["id"]
             if target:
                 try:
                     self.notice = focus(self.socket, self.run_file, target, self.root, self.run_id)
@@ -627,7 +642,7 @@ def command_open_board() -> int:
     socket, resolution = action_resolution()
     if "run_file" not in resolution and not resolution["choices"]:
         notify(f"{resolution['error']}; board not opened")
-        return 0
+        return 1
     pane = context_pane()
     plugin = os.environ.get("HERDR_PLUGIN_ID") or "zstack.herdr"
     argv = ["plugin", "pane", "open", "--plugin", plugin, "--entrypoint", "board", "--placement", "split"]

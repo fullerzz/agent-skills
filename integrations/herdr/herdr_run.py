@@ -233,13 +233,6 @@ def enroll(run_file: Path, root: Path, replace: bool = False) -> dict[str, Any]:
     if run is None or gaps or any(task["data_gaps"] for task in run["tasks"]):
         raise UserError("cannot enroll invalid run record: " + "; ".join(gaps or ["task data gaps"]))
     path = registry_path(root, run["endpoint"]["socket"], run["run_id"])
-    if path.exists() and not replace:
-        try:
-            old = json.loads(path.read_text(encoding="utf-8")).get("run_file")
-        except (OSError, ValueError, AttributeError):
-            old = None
-        if old != str(run_file):
-            raise UserError(f"run {run['run_id']} already enrolled on this endpoint for {old}; pass --replace")
     entry = {
         "version": VERSION,
         "run_id": run["run_id"],
@@ -247,7 +240,15 @@ def enroll(run_file: Path, root: Path, replace: bool = False) -> dict[str, Any]:
         "run_file": str(run_file),
         "enrolled_at": now(),
     }
-    atomic_write(path, entry)
+    with update_lock(path):  # concurrent enrollments of one run id must not both pass the conflict check.
+        if path.exists() and not replace:
+            try:
+                old = json.loads(path.read_text(encoding="utf-8")).get("run_file")
+            except (OSError, ValueError, AttributeError):
+                old = None
+            if old != str(run_file):
+                raise UserError(f"run {run['run_id']} already enrolled on this endpoint for {old}; pass --replace")
+        atomic_write(path, entry)
     return {"registry_entry": str(path), **entry}
 
 
@@ -291,9 +292,11 @@ def enrolled_runs(socket: str, root: Path) -> list[dict[str, Any]]:
 
 def normalize_snapshot(raw: object, socket: str, read_at: str | None = None) -> dict[str, Any]:
     """Turn `herdr api snapshot` JSON into {endpoint, read_at, panes, agents} or raise UserError."""
-    snapshot = raw.get("result", {}).get("snapshot") if isinstance(raw, dict) and "result" in raw else raw
     if isinstance(raw, dict) and "error" in raw:
         raise UserError(f"herdr snapshot failed: {raw['error']}")
+    snapshot = raw
+    if isinstance(raw, dict) and "result" in raw:
+        snapshot = raw["result"].get("snapshot") if isinstance(raw["result"], dict) else None
     if not isinstance(snapshot, dict):
         raise UserError("herdr snapshot has no snapshot object")
     panes, agents = snapshot.get("panes"), snapshot.get("agents", [])
@@ -449,7 +452,7 @@ def orch_view(directory: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
             "evidence": [
                 {"ref": row["evidence"], "revision": row["sha"], "verdict": row["verdict"], "source": "orch ledger"}
                 for row in ledger
-                if unit["pr"] and row["pr"] == unit["pr"]
+                if unit["pr"] and unit["sha"] and (row["pr"], row["sha"]) == (unit["pr"], unit["sha"])
             ],
             "branch": unit["branch"] or None,
         }
@@ -608,7 +611,10 @@ def require_coordinator(run: dict[str, Any], action: str) -> None:
         return
     bindings = [task["binding"] for task in run["tasks"] if task["binding"]]
     terminal = caller_terminal(run["endpoint"]["socket"], pane)
-    if any(binding["terminal_id"] == terminal if terminal else binding["pane_id"] == pane for binding in bindings):
+    if any(
+        binding["terminal_id"] == terminal if terminal and binding["terminal_id"] else binding["pane_id"] == pane
+        for binding in bindings
+    ):
         raise UserError(f"{action} is coordinator-only; this pane is bound to a worker task")
 
 
@@ -655,7 +661,7 @@ def command_coordinator(args: argparse.Namespace) -> dict[str, Any]:
     return {**coordinator, "warnings": warnings} if warnings else coordinator
 
 
-def command_task(args: argparse.Namespace) -> dict[str, Any]:
+def command_task(args: argparse.Namespace) -> dict[str, Any]:  # noqa: C901 - one flat branch per task action.
     path = Path(args.run_file).absolute()
     with update_lock(path):
         run = load_for_update(path)
@@ -683,7 +689,9 @@ def command_task(args: argparse.Namespace) -> dict[str, Any]:
             task["acceptance"] = "accepted" if args.action == "accept" else "rejected"
         elif args.action == "evidence":
             require_coordinator(run, args.action)
-            task["evidence"].append({"ref": args.ref, "revision": args.revision})
+            item = {"ref": args.ref, "revision": args.revision}
+            if item not in task["evidence"]:
+                task["evidence"].append(item)
         record = checked(run)
         atomic_write(path, record)
     result = find_task(record, args.id)

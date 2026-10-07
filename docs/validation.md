@@ -683,3 +683,18 @@ A read-only final review of `integrations/herdr/` reported six findings, each re
 - Writes through a symlinked run file reach the target, and the board accepts only ASCII `1`–`9` keys.
 
 Phase 9's failed criterion led to one more change: when a rebind captures a new terminal that reports the previous binding's agent session, the helper records no session and prints a warning, so the binding is checked by terminal and agent kind only. A regression test reproduces the Phase 9 snapshot. These changes landed after Phases 7–9 ran; the live checks above used the pre-repair code (hashes in `phase9-live/tested-source-hashes.json`), and the repaired paths are covered by unit tests only.
+
+PR #28 review (cubic and Codex bots) raised 15 distinct issues; 14 were fixed and one was declined. Agentless bindings stay valid: shell workers are a supported binding, and focus already refuses them with Herdr's error. Each code fix has a regression test that failed with the fix reverted:
+
+- Enrollment holds the registry entry's lock across its conflict check and write.
+- A snapshot whose `result` is not an object is a read error, so the board shows `STALE` instead of crashing.
+- Orchestration evidence shows only ledger rows for the unit's current PR and SHA.
+- The worker guard compares pane IDs for bindings that recorded no terminal.
+- Repeated evidence is recorded once.
+- Board entries after the ninth get keys `a`–`z`, skipping `c`, `q`, and `r`.
+- Terminal control characters are stripped from rendered text.
+- A malformed observation's fields are rebuilt instead of crashing hooks.
+- A pane already labeled by another enrolled run is not relabelled.
+- `open-board` exits 1 when it opens nothing.
+
+The guide now covers `enroll` and removing registry entries when a run ends, and the plan's handoff explains the follow-up phases. Checks: 185 Python tests, 15 Node tests, `validate.py`, Ruff, and `git diff --check`. No live Herdr check was rerun for these changes.
