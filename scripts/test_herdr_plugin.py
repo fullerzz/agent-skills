@@ -42,6 +42,15 @@ def load(name: str, path: Path) -> ModuleType:
 
 hr = load("herdr_run", ROOT / "integrations/herdr/herdr_run.py")
 pl = load("herdr_plugin_entry", ROOT / "integrations/herdr/plugin.py")
+
+
+def render(*args: Any, width: int = 200, height: int = 1000, **kwargs: Any) -> str:  # noqa: ANN401 - board args.
+    """The board frame as plain text, as a pane of `width` x `height` cells shows it."""
+    console = pl.Console(file=io.StringIO(), width=width, height=height, color_system=None)
+    console.print(pl.board_frame(*args, width=width, **kwargs))
+    return console.file.getvalue()
+
+
 REAL_CALLER_TERMINAL = hr.caller_terminal
 
 
@@ -745,9 +754,11 @@ class OrchAndReadOnlyTests(Fixture):
         ]
         for script, args, pane, expected in commands:
             with self.subTest(command=args[0], pane=pane):
-                # Isolated fresh interpreters cannot reuse an imported Store or a site-package fallback.
+                # Isolated fresh interpreters cannot reuse an imported Store or a site-package fallback. The
+                # board alone keeps site-packages for rich, which its pane command adds; no `store` is installed.
+                flags = ["-I", "-B"] if args == ["board"] else ["-I", "-S", "-B"]
                 result = subprocess.run(  # noqa: S603
-                    [sys.executable, "-I", "-S", "-B", str(package / script), *args],
+                    [sys.executable, *flags, str(package / script), *args],
                     env={**environment, "HERDR_PANE_ID": pane},
                     input="q",
                     capture_output=True,
@@ -830,20 +841,17 @@ class PluginTests(Fixture):
         self.cli("task", "accept", str(path), "t1")
         board = self.board()
         board.refresh()
-        text = pl.render(board.view, board.last_ok, board.stale, board.message)
+        text = render(board.view, board.last_ok, board.stale, board.message)
         for expected in (
-            "run r1",
-            "[1] t1 — Phase two",
-            'codex "worker" @ w1:p2 (binding ok)',
-            "worktree    /repo wt",
-            "observed idle",
-            "acceptance  accepted",
-            "1 · latest revision 0123456789ab",
-            "reports     1/1 present",
-            "run_file ",
-            "herdr ",
+            "zstack r1 · read ",
+            "coord  claude @ w1:p1 ok",
+            "1 focus · c coord · r refresh · q quit",
         ):
             self.assertIn(expected, text)
+        self.assertRegex(
+            text, r'\n1 +t1 +ok +accepted +1@0123456 +1/1 +idle +codex "worker" @ w1:p2 +repo wt +Phase two'
+        )
+        self.assertNotIn("!", text)  # nothing outside the table needs saying.
         self.assertNotIn("STALE", text)
         self.assertNotIn("never", text)
 
@@ -857,15 +865,15 @@ class PluginTests(Fixture):
         self.assertIs(board.view, good)
         self.assertIn("server_not_running", board.stale)
         self.assertEqual(board.last_ok["herdr"], stamps["herdr"])
-        self.assertIn("STALE: herdr", pl.render(board.view, board.last_ok, board.stale))
+        self.assertIn("STALE: herdr", render(board.view, board.last_ok, board.stale))
         self.raw = BASE
         path.write_text("{corrupt", encoding="utf-8")  # run-file read fails.
         board.refresh()
         self.assertIs(board.view, good)
         self.assertIn("run_file", board.stale)
-        text = pl.render(board.view, board.last_ok, board.stale)
+        text = render(board.view, board.last_ok, board.stale)
         self.assertIn("STALE: run_file", text)
-        self.assertIn("[1] t1", text)  # last good data still shown.
+        self.assertRegex(text, r"\n1 +t1 ")  # last good data still shown.
         self.cli("task", "add", str(self.make_run("fresh", "r1", SOCKET_A, "--registry", str(self.root / "r2"))), "t9")
         path.write_text((self.root / "fresh/herdr-run.json").read_text(encoding="utf-8"), encoding="utf-8")
         board.refresh()  # recovers on the next good read.
@@ -879,21 +887,21 @@ class PluginTests(Fixture):
         path.write_text(json.dumps(data), encoding="utf-8")
         board = self.board()
         board.refresh()
-        text = pl.render(board.view, board.last_ok, board.stale)
-        self.assertIn("gap         task t1: invalid acceptance", text)
-        self.assertIn("no report registered", text)
-        self.assertIn("acceptance  not recorded", text)
+        text = render(board.view, board.last_ok, board.stale)
+        self.assertIn("! task t1: invalid acceptance", text)
+        self.assertNotIn("no report registered", text)  # the rpt column shows "-".
+        self.assertRegex(text, r"\n1 +t1 +ok +- ")
         nobody = self.board("w1:p9")
         nobody.refresh()
         self.assertIsNone(nobody.view)
-        self.assertIn("no enrolled run for pane w1:p9", pl.render(nobody.view, {}, None, nobody.message))
+        self.assertIn("no enrolled run for pane w1:p9", render(nobody.view, {}, None, nobody.message))
 
     def test_board_choose_run(self) -> None:
         self.worker_run("a", "alpha")
         self.worker_run("b", "beta")
         board = self.board("w1:p1")
         board.refresh()
-        text = pl.render(board.view, board.last_ok, board.stale, board.message, board.choices)
+        text = render(board.view, board.last_ok, board.stale, board.message, board.choices)
         self.assertIn("several enrolled runs bind pane w1:p1", text)
         self.assertIn("[2] beta", text)
         board.key("2")
@@ -933,9 +941,10 @@ class PluginTests(Fixture):
         self.cli("task", "bind", str(path), "t10", "--pane", "w1:p2", "--snapshot", self.snapshot_file(BASE))
         board = self.board()
         board.refresh()
-        text = pl.render(board.view, board.last_ok)
-        self.assertIn("[9] t9", text)
-        self.assertIn("[a] t10", text)
+        text = render(board.view, board.last_ok)
+        self.assertRegex(text, r"\n9 +t9 ")
+        self.assertRegex(text, r"\na +t10 ")
+        self.assertIn("1-a focus", text)
         self.assertTrue(board.key("a"))
         self.assertIn(("agent", "focus", "w1:p2"), self.calls)
 
@@ -944,7 +953,7 @@ class PluginTests(Fixture):
         self.cli("task", "add", str(path), "t2", "--title", "evil \x1b]0;owned\x07 \x1b[2J title\x9b")
         board = self.board()
         board.refresh()
-        text = pl.render(board.view, board.last_ok, message="note \x1b[31m")
+        text = render(board.view, board.last_ok, message="note \x1b[31m")
         self.assertFalse(set(text) & {"\x1b", "\x07", "\x9b"})
         self.assertIn("evil ]0;owned [2J title", text)
 
@@ -955,6 +964,59 @@ class PluginTests(Fixture):
                 self.assertEqual(pl.command_open_board(), 1)
         self.assertIn("board not opened", out.getvalue())
         self.assertFalse([call for call in self.calls if call[:3] == ("plugin", "pane", "open")])
+
+    def test_open_board_opens_a_tab_for_the_caller(self) -> None:
+        self.worker_run()
+        context = json.dumps({"focused_pane_id": "w1:p2", "workspace_id": "w1"})
+        environment = {"HERDR_SOCKET_PATH": SOCKET_A, "HERDR_PLUGIN_CONTEXT_JSON": context}
+        with patch.dict(os.environ, environment), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(pl.command_open_board(), 0)
+        opened = next(call for call in self.calls if call[:3] == ("plugin", "pane", "open"))
+        self.assertEqual(opened[opened.index("--placement") + 1], "tab")
+        self.assertEqual(opened[opened.index("--workspace") + 1], "w1")
+        self.assertEqual(opened[opened.index("--env") + 1], "ZSTACK_BOARD_PANE=w1:p2")
+        self.assertNotIn("--target-pane", opened)  # Herdr rejects a target pane for tab plugin panes.
+        with patch.dict(os.environ, {**environment, "ZSTACK_BOARD_PANE": "w1:p1"}):
+            self.assertEqual(pl.context_pane(), "w1:p1")  # the board tab resolves its caller, not itself.
+
+    def test_board_notes_and_fit(self) -> None:
+        path = self.worker_run()
+        self.cli("task", "report", str(path), "t1", "gone.md")
+        self.raw = raw_snapshot(
+            ("w1:p1", "term_coord", "claude", "sess-coord", None),
+            ("w2:p7", "term_worker", "codex", "sess-worker", None),
+        )
+        board = self.board("w1:p1")
+        board.refresh()
+        text = render(board.view, board.last_ok)
+        self.assertIn('! t1: codex "worker" @ w2:p7 moved from w1:p2', text)
+        self.assertIn("! t1: missing report gone.md", text)
+        self.assertNotIn("report file missing", text)
+        self.assertRegex(text, r" 0/1 ")
+        lines = render(board.view, board.last_ok, width=20, height=5).rstrip("\n").split("\n")
+        self.assertEqual(len(lines), 5)
+        self.assertTrue(all(len(line) <= 20 for line in lines))
+        self.assertTrue(lines[0].startswith("zstack r1"))
+        self.assertTrue(lines[3].startswith("… "))
+        self.assertEqual(lines[4], "1 focus · c coord ·…")  # the key line survives, cut with an ellipsis.
+
+    def test_narrow_overflowing_pane_keeps_state_columns_and_notices(self) -> None:
+        path = self.worker_run()
+        self.cli("task", "accept", str(path), "t1")
+        self.cli("task", "add", str(path), "x" * 80, "--title", "a long descriptive title " * 4)
+        for index in range(20):
+            self.cli("task", "add", str(path), f"n{index}")
+        board = self.board()
+        board.refresh()
+        frame = render(board.view, board.last_ok, message="focus refused: gone", width=80, height=24)
+        lines = frame.rstrip("\n").split("\n")
+        self.assertEqual(len(lines), 24)
+        self.assertTrue(all(len(line) <= 80 for line in lines), lines)
+        rows = [line for line in lines if line[:2] in ("1 ", "2 ")]
+        self.assertRegex(rows[0], r"^1 +t1 +ok +accepted ")  # a long sibling ID does not push state off.
+        self.assertRegex(rows[1], r"^2 +x+… +unbound ")
+        self.assertIn("focus refused: gone", lines)  # notices survive vertical clipping.
+        self.assertRegex(lines[-2], r"^… \d+ more lines")
 
     def test_malformed_snapshot_result_makes_the_board_stale(self) -> None:
         self.worker_run()
@@ -1006,7 +1068,7 @@ class PluginTests(Fixture):
         board.key("1")
         board.refresh()
         board.draw()
-        self.assertIn("focused t1 at w1:p2", board.out.getvalue().rsplit("\x1b[2J", 1)[1])
+        self.assertIn("focused t1 at w1:p2", board.console.file.getvalue())
 
     def test_board_loop_exits_and_refreshes_sequentially(self) -> None:
         self.worker_run()
@@ -1177,7 +1239,7 @@ class ReconcileTests(Fixture):
                 board.refresh()
                 self.assertIs(board.view, good_view)
                 self.assertIn("registry entry", board.stale)
-                self.assertIn("showing last good data", pl.render(board.view, board.last_ok, board.stale))
+                self.assertIn("showing last good data", render(board.view, board.last_ok, board.stale))
                 board.key("1")
                 self.assertIn("focus refused", board.notice)
                 with self.assertRaisesRegex(hr.UserError, "registry entry"):
@@ -1515,12 +1577,12 @@ class ReconcileTests(Fixture):
         self.run_with_worker()
         board = pl.Board(SOCKET_A, "w1:p2", self.registry, io.StringIO(), self.state)
         board.refresh()
-        self.assertIn("hooks: last reconcile none recorded", pl.render(board.view, board.last_ok, hook=board.hook))
+        self.assertIn("hooks none recorded", render(board.view, board.last_ok, hook=board.hook))
         self.event("pane.agent_status_changed", pane_id="w1:p2")
         board.refresh()
-        text = pl.render(board.view, board.last_ok, hook=board.hook)
-        self.assertRegex(text, r"hooks: last reconcile \d\d:\d\d:\d\d via pane.agent_status_changed")
-        self.assertNotIn("hooks:", pl.render(board.view, board.last_ok))  # no state dir: line omitted.
+        text = render(board.view, board.last_ok, hook=board.hook)
+        self.assertRegex(text, r"hooks \d\d:\d\d:\d\d via pane.agent_status_changed")
+        self.assertNotIn("hooks", render(board.view, board.last_ok))  # no state dir: line omitted.
 
 
 class PackagingTests(unittest.TestCase):

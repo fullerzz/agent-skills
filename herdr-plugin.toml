@@ -29,8 +29,8 @@ command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations
 [[panes]]
 id = "board"
 title = "zstack board"
-placement = "split"
-command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations/herdr/plugin.py", "board"]
+placement = "tab"
+command = ["uv", "run", "--no-project", "--no-config", "--with", "rich>=13.7", "--script", "integrations/herdr/plugin.py", "board"]
 
 # Hooks are triggers only: each runs one bounded reconcile of enrolled runs and exits. Observations live
 # under HERDR_PLUGIN_STATE_DIR; coordinator records are never written. Missed events are recovered by the

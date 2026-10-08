@@ -26,8 +26,22 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
+try:  # only the board pane runs with rich (herdr-plugin.toml adds it there); hooks and actions do not need it.
+    from rich import box
+    from rich.console import Console, Group
+    from rich.live import Live
+    from rich.segment import Segment
+    from rich.table import Table
+    from rich.text import Text
+
+    HAVE_RICH = True
+except ImportError:
+    HAVE_RICH = False
+
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterator
+
+    from rich.console import ConsoleOptions, RenderableType
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # works under `python -I` too.
 import herdr_run as hr
@@ -36,9 +50,20 @@ from herdr_run import SOURCE, clear_flags, herdr
 REFRESH_SECONDS = 5
 FOCUSABLE = ("ok", "moved")
 SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r. ASCII only.
-KEYS = "q quit · r refresh · 1-9/a-z focus worker · c focus coordinator"
 CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
 OBSERVATION_VERSION = 1
+TABLE_GAPS = ("no report registered", "report file missing")  # the rpt column and missing-report notes say these.
+COLUMNS = ("", "task", "bind", "accept", "ev", "rpt", "life", "worker", "worktree", "title")
+# Rich divides columns equally when a table is too wide, so the board sets widths itself. Past the pane width it
+# shrinks these columns, first to last, to a minimum (0 drops the column): title, worktree, worker, lifecycle,
+# task id. Key, bind, accept, ev, and rpt never shrink, and sit right after the task id, so a pane too narrow
+# even for the minimums cuts descriptive columns first.
+SHRINK = ((9, 0), (8, 0), (7, 0), (6, 0), (1, 6))
+GAP = 3  # between columns in a SIMPLE_HEAD table: padding, divider, padding.
+BIND_STYLE = {"ok": "green", "moved": "yellow", "unbound": "dim"}  # any other status is a broken binding: red.
+ACCEPT_STYLE = {"accepted": "green", "rejected": "red"}
+LIFE_STYLE = {"blocked": "bold red", "working": "cyan", "idle": "green", "done": "green"}
+BOARD_PANE_ENV = "ZSTACK_BOARD_PANE"  # tab plugin panes take no target pane, so open-board passes the caller.
 
 
 # --- Herdr calls ------------------------------------------------------------
@@ -51,13 +76,17 @@ def endpoint() -> str:
     return socket
 
 
-def context_pane() -> str | None:
-    """The caller's pane: plugin context first (for panes it is the launch target), then HERDR_PANE_ID."""
+def plugin_context() -> dict[str, Any]:
     try:
-        pane = json.loads(os.environ.get("HERDR_PLUGIN_CONTEXT_JSON") or "{}").get("focused_pane_id")
-    except (ValueError, AttributeError):
-        pane = None
-    return pane or os.environ.get("HERDR_PANE_ID")
+        context = json.loads(os.environ.get("HERDR_PLUGIN_CONTEXT_JSON") or "{}")
+    except ValueError:
+        return {}
+    return context if isinstance(context, dict) else {}
+
+
+def context_pane() -> str | None:
+    """The caller's pane: the pane open-board passed to its board tab, then plugin context, then HERDR_PANE_ID."""
+    return os.environ.get(BOARD_PANE_ENV) or plugin_context().get("focused_pane_id") or os.environ.get("HERDR_PANE_ID")
 
 
 def snapshot_or_error(socket: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -388,100 +417,188 @@ def clock(stamp: str | None) -> str:
     return stamp[11:19] if stamp and len(stamp) >= 19 else "never"
 
 
-def worker_line(task: dict[str, Any]) -> str:
-    binding, check = task.get("binding") or {}, task.get("binding_check") or {}
+def binding_cells(item: dict[str, Any]) -> tuple[str, str]:
+    """(`agent "name" @ pane`, binding status) for one coordinator or task binding."""
+    binding, check = item.get("binding") or {}, item.get("binding_check") or {}
     if not binding:
-        return f"unbound ({check.get('status', 'unchecked')})"
+        return "-", "unbound"
     name = check.get("agent_name") or binding.get("agent_name")
-    who = " ".join(part for part in (binding.get("agent") or "shell", f'"{name}"' if name else "") if part)
-    pane = check.get("observed_pane_id") or binding["pane_id"]
-    moved = f", moved from {binding['pane_id']}" if check.get("status") == "moved" else ""
-    detail = f": {check['detail']}" if check.get("detail") else ""
-    return f"{who} @ {pane} (binding {check.get('status', 'unchecked')}{moved}{detail})"
+    who = (binding.get("agent") or "shell") + (f' "{name}"' if name else "")
+    return f"{who} @ {check.get('observed_pane_id') or binding['pane_id']}", check.get("status", "unchecked")
 
 
-def report_line(reports: list[dict[str, Any]]) -> str:
-    if not reports:
-        return "none registered"
-    present = sum(item["exists"] is True for item in reports)
-    missing = [item["ref"] for item in reports if item["exists"] is False]
-    remote = sum(item["exists"] is None for item in reports)
-    text = f"{present}/{len(reports)} present"
-    if remote:
-        text += f", {remote} remote"
-    if missing:
-        text += " · missing " + ", ".join(missing)
-    return text
+def worker_line(item: dict[str, Any]) -> str:
+    """Binding and status, plus the moved-from pane and any check detail."""
+    binding, check = item.get("binding") or {}, item.get("binding_check") or {}
+    if not binding:
+        return "unbound"
+    who, status = binding_cells(item)
+    text = f"{who} {status}" + (f" from {binding['pane_id']}" if status == "moved" else "")
+    return text + (f": {check['detail']}" if check.get("detail") else "")
 
 
-def evidence_line(evidence: list[dict[str, Any]]) -> str:
+def report_cell(reports: list[dict[str, Any]]) -> str:
+    return f"{sum(item['exists'] is True for item in reports)}/{len(reports)}" if reports else "-"
+
+
+def evidence_cell(evidence: list[dict[str, Any]]) -> str:
     if not evidence:
-        return "none recorded"
+        return "-"
     latest = next((item["revision"] for item in reversed(evidence) if item.get("revision")), None)
-    return f"{len(evidence)} · latest revision {latest[:12] if latest else 'not recorded'}"
+    return f"{len(evidence)}@{latest[:7]}" if latest else str(len(evidence))
 
 
-def lifecycle_line(task: dict[str, Any]) -> str:
+def lifecycle_cell(task: dict[str, Any]) -> str:
     lifecycle = task.get("lifecycle") or {}
-    parts = [f"observed {lifecycle.get('observed') or 'unknown'}"]
+    parts = [lifecycle.get("observed") or "-"]
     if "orch_state" in lifecycle:
-        parts += [f"orch {lifecycle.get('orch_state') or '-'}", f"reported {lifecycle.get('reported_status') or '-'}"]
-    return " · ".join(parts)
+        parts += [f"orch {lifecycle.get('orch_state') or '-'}", f"rep {lifecycle.get('reported_status') or '-'}"]
+    return " ".join(parts)
+
+
+def task_notes(task: dict[str, Any]) -> list[str]:
+    """Detail that does not fit a table row: binding problems, missing or remote reports, data gaps."""
+    notes, check = [], task.get("binding_check") or {}
+    if task.get("binding") and (check.get("status") == "moved" or check.get("detail")):
+        notes.append(f"{task['id']}: {worker_line(task)}")
+    reports = task.get("reports") or []
+    notes += [f"{task['id']}: missing report {item['ref']}" for item in reports if item["exists"] is False]
+    if remote := sum(item["exists"] is None for item in reports):
+        notes.append(f"{task['id']}: {remote} remote report(s) not checked")
+    return notes + [gap for gap in task.get("data_gaps", []) if not gap.endswith(TABLE_GAPS)]
 
 
 def select_key(index: int) -> str:
     return SELECT[index] if index < len(SELECT) else "-"
 
 
-def render(
+def text(value: object, style: str = "") -> Text:
+    """Run and snapshot data as one literal line: no markup, no terminal controls, cut with an ellipsis."""
+    return Text(CONTROLS.sub("", str(value)), style=style, no_wrap=True, overflow="ellipsis")
+
+
+def line(*parts: Text) -> Text:
+    """Styled parts joined into one line, cut like text()."""
+    return Text.assemble(*parts, no_wrap=True, overflow="ellipsis")
+
+
+def task_row(index: int, task: dict[str, Any]) -> tuple[Text, ...]:
+    who, status = binding_cells(task)
+    acceptance = "-" if task.get("acceptance") in (None, "not recorded") else task["acceptance"]
+    reports = report_cell(task.get("reports") or [])
+    missing = any(item["exists"] is False for item in task.get("reports") or [])
+    life = lifecycle_cell(task)
+    return (
+        text(select_key(index), "bold"),
+        text(task["id"], "bold"),
+        text(status, BIND_STYLE.get(status, "red")),
+        text(acceptance, ACCEPT_STYLE.get(acceptance, "dim")),
+        text(evidence_cell(task.get("evidence") or [])),
+        text(reports, "red" if missing else "dim" if reports == "-" else ""),
+        text(life, LIFE_STYLE.get(life.split(" ")[0], "")),
+        text(who),
+        text(Path(task.get("worktree") or task.get("repository") or "-").name, "dim"),
+        text(task.get("title") or ""),
+    )
+
+
+def column_widths(rows: list[tuple[Text, ...]], width: int) -> list[int]:
+    """Natural column widths; past `width`, shrink descriptive columns in SHRINK order, never state columns."""
+    widths = [max(row[i].cell_len for row in rows) for i in range(len(rows[0]))]
+    for column, least in SHRINK:
+        over = sum(widths) + GAP * (sum(1 for w in widths if w) - 1) - width
+        if over <= 0:
+            break
+        widths[column] = max(least, widths[column] - over)
+    return widths
+
+
+def task_table(tasks: list[dict[str, Any]], width: int) -> Table:
+    rows = [task_row(index, task) for index, task in enumerate(tasks)]
+    widths = column_widths([tuple(Text(name) for name in COLUMNS), *rows], width)
+    shown = [index for index, size in enumerate(widths) if size]
+    table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, header_style="bold")
+    for index in shown:
+        table.add_column(COLUMNS[index], width=widths[index], no_wrap=True, overflow="ellipsis")
+    for row in rows:
+        table.add_row(*(row[index] for index in shown))
+    return table
+
+
+class Frame:
+    """Head, body, and key line fitted to the pane height; overflowing body lines become one `… N more` line.
+
+    The head (run, coordinator, STALE, and action notices) and the key line always stay visible.
+    """
+
+    def __init__(self, head: list[RenderableType], body: list[RenderableType], keys: str) -> None:
+        self.head, self.body, self.keys = Group(*head), Group(*body), text(keys, "dim")
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> Iterator[Segment]:
+        def lines(renderable: RenderableType) -> list[list[Segment]]:
+            return console.render_lines(renderable, options.update(height=None), pad=False)
+
+        head, body, keys = lines(self.head), lines(self.body), lines(self.keys)
+        room = max((options.height or console.height) - len(head) - len(keys), 1)
+        if len(body) > room:
+            body = [*body[: room - 1], *lines(text(f"… {len(body) - room + 1} more lines; enlarge the pane", "dim"))]
+        for line in (*head, *body, *keys):
+            yield from line
+            yield Segment.line()
+
+
+def board_frame(
     view: dict[str, Any] | None,
     last_ok: dict[str, str],
     stale: str | None = None,
     message: str | None = None,
     choices: list[dict[str, Any]] | None = None,
     hook: dict[str, Any] | None = None,
-) -> str:
-    """Pure text board for one inspection view (or a choose-run / no-run screen)."""
-    lines = [f"zstack board · {KEYS}"]
+    width: int = 80,
+) -> Frame:
+    """The board for one inspection view (or a choose-run / no-run screen): one table row per task."""
+    title = text("zstack board", "bold")
     if choices:
-        lines += ["", f"{message}; choose one:" if message else "choose a run:"]
-        lines += [f"  [{select_key(index)}] {item['run_id']}  {item['run_file']}" for index, item in enumerate(choices)]
-        lines += ["", "Press an entry's key to choose; nothing is guessed."]
-        return CONTROLS.sub("", "\n".join(lines) + "\n")
+        ask = f"{message}; choose one:" if message else "choose a run:"
+        rows = [
+            text(f"[{select_key(index)}] {item['run_id']}  {item['run_file']}") for index, item in enumerate(choices)
+        ]
+        return Frame(
+            [title, text(ask, "bold yellow")], rows, "press an entry's key to choose; nothing is guessed · q quit"
+        )
     if view is None:
-        lines += ["", message or "no run selected"]
-        if stale:
-            lines.append(f"STALE: {stale}")
-        return CONTROLS.sub("", "\n".join(lines) + "\n")
-    sources = " · ".join(f"{name} {clock(last_ok.get(name))}" for name in view.get("sources", {}))
-    lines.append(f"run {view.get('run_id')} · last good read (UTC): {sources}")
+        head = [title, text(message or "no run selected", "bold yellow")]
+        return Frame(head + ([text(f"STALE: {stale}", "bold red")] if stale else []), [], "r refresh · q quit")
+    coordinator, tasks = view.get("coordinator") or {}, view.get("tasks", [])
+    times = {name: clock(last_ok.get(name)) for name in view.get("sources", {})}
+    read = " ".join(f"{name} {stamp}" for name, stamp in times.items())
+    if len(set(times.values())) == 1:  # one refresh reads every source; differing times follow a failure.
+        read = next(iter(times.values()))
+    label = f" · {coordinator['label']}" if coordinator.get("label") else ""
+    head = [
+        line(
+            text("zstack ", "bold"),
+            text(view.get("run_id"), "bold cyan"),
+            text(f"{label} · "),
+            text(f"read {read} UTC", "dim"),
+        )
+    ]
+    status = binding_cells(coordinator)[1]
+    coord = line(text("coord  ", "dim"), text(worker_line(coordinator), BIND_STYLE.get(status, "red")))
     if hook is not None:  # informational only; the board's own refresh never depends on hooks.
         trigger = (hook.get("trigger") or {}).get("event")
         last = f"{clock(hook.get('reconciled_at'))} via {trigger}" if hook else "none recorded"
-        lines.append(f"hooks: last reconcile {last}" + (f" (stale: {hook['stale']})" if hook.get("stale") else ""))
+        coord.append_text(text(f" · hooks {last}" + (f" (stale: {hook['stale']})" if hook.get("stale") else ""), "dim"))
+    head.append(coord)
     if stale:
-        lines.append(f"STALE: {stale} — showing last good data")
-    coordinator = view.get("coordinator") or {}
-    lines.append(f"coordinator {coordinator.get('label') or '-'}: {worker_line(coordinator)}")
-    lines += [f"run gap: {gap}" for gap in view.get("data_gaps", [])]
-    for index, task in enumerate(view.get("tasks", [])):
-        title = f" — {task['title']}" if task.get("title") else ""
-        lines += [
-            "",
-            f"[{select_key(index)}] {task['id']}{title}",
-            f"    worker      {worker_line(task)}",
-            f"    worktree    {task.get('worktree') or task.get('repository') or 'not recorded'}",
-            f"    lifecycle   {lifecycle_line(task)}",
-            f"    acceptance  {task.get('acceptance') or 'not recorded'}",
-            f"    evidence    {evidence_line(task.get('evidence') or [])}",
-            f"    reports     {report_line(task.get('reports') or [])}",
-        ]
-        lines += [f"    gap         {gap}" for gap in task.get("data_gaps", [])]
-    if not view.get("tasks"):
-        lines += ["", "no tasks recorded"]
+        head.append(text(f"STALE: {stale} — showing last good data", "bold red"))
     if message:
-        lines += ["", message]
-    return CONTROLS.sub("", "\n".join(lines) + "\n")
+        head.append(text(message, "bold yellow"))
+    body: list[RenderableType] = [task_table(tasks, width) if tasks else text("no tasks recorded", "dim")]
+    notes = view.get("data_gaps", []) + [note for task in tasks for note in task_notes(task)]
+    body += [text(f"! {note}", "yellow") for note in notes]
+    keys = f"1-{select_key(len(tasks) - 1)}" if len(tasks) > 1 else "1"
+    return Frame(head, body, (f"{keys} focus · " if tasks else "") + "c coord · r refresh · q quit")
 
 
 # --- Board loop -------------------------------------------------------------
@@ -491,7 +608,8 @@ class Board:
     """One sequential refresh loop; state survives failed reads as a visibly stale view."""
 
     def __init__(self, socket: str, pane: str | None, root: Path, out: TextIO, state: Path | None = None) -> None:
-        self.socket, self.pane, self.root, self.out, self.state = socket, pane, root, out, state
+        self.socket, self.pane, self.root, self.state = socket, pane, root, state
+        self.console, self.live = Console(file=out), None
         self.hook: dict[str, Any] | None = None
         self.run_file: Path | None = None
         self.run_id: str | None = None
@@ -558,9 +676,12 @@ class Board:
         return True
 
     def draw(self) -> None:
-        message = " · ".join(text for text in (self.message, self.notice) if text) or None
-        self.out.write("\x1b[H\x1b[2J" + render(self.view, self.last_ok, self.stale, message, self.choices, self.hook))
-        self.out.flush()
+        message = " · ".join(part for part in (self.message, self.notice) if part) or None
+        frame = board_frame(self.view, self.last_ok, self.stale, message, self.choices, self.hook, self.console.width)
+        if self.live is None:
+            self.console.print(frame)
+        else:
+            self.live.update(frame, refresh=True)
 
 
 def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) -> int:
@@ -586,6 +707,8 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
 def command_board() -> int:
     signal.signal(signal.SIGHUP, lambda *_: sys.exit(0))  # closing the pane ends the loop.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    if not HAVE_RICH:
+        raise hr.UserError("the board needs rich; open it with the open-board action, whose pane command adds it")
     board = Board(endpoint(), context_pane(), hr.registry_root(), sys.stdout, state_root())
     fd = sys.stdin.fileno()
     restore = None
@@ -596,7 +719,12 @@ def command_board() -> int:
         restore = termios.tcgetattr(fd)
         tty.setcbreak(fd)
     try:
-        return run_board(board, fd)
+        if not board.console.is_terminal:  # piped output: print each frame.
+            return run_board(board, fd)
+        # Full-screen redraws in the alternate screen; nothing refreshes between explicit draws.
+        with Live(console=board.console, screen=True, auto_refresh=False) as live:
+            board.live = live
+            return run_board(board, fd)
     except KeyboardInterrupt:
         return 0
     finally:
@@ -627,8 +755,10 @@ def command_open_board() -> int:
         return 1
     pane = context_pane()
     plugin = os.environ.get("HERDR_PLUGIN_ID") or "zstack.herdr"
-    argv = ["plugin", "pane", "open", "--plugin", plugin, "--entrypoint", "board", "--placement", "split"]
-    herdr(*argv, "--target-pane", str(pane), "--direction", "right", "--no-focus")
+    argv = ["plugin", "pane", "open", "--plugin", plugin, "--entrypoint", "board", "--placement", "tab"]
+    if workspace := plugin_context().get("workspace_id") or os.environ.get("HERDR_WORKSPACE_ID"):
+        argv += ["--workspace", str(workspace)]
+    herdr(*argv, "--env", f"{BOARD_PANE_ENV}={pane}", "--no-focus")
     print(f"board opened for pane {pane} on {socket}")
     return 0
 
