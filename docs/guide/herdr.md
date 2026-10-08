@@ -92,11 +92,28 @@ Run and task IDs use 1–80 ASCII letters, digits, dots, underscores, colons, or
 | --- | --- | --- |
 | `open-board` | The coordinator's or a worker's pane | Opens the board in a new tab of that workspace without moving focus. From an unenrolled pane it shows a notification and opens nothing. |
 | `focus-coordinator` | A worker pane | Re-validates the coordinator binding, then focuses it. |
-| `focus-worker` | The coordinator pane of a run with one bound task | Focuses that worker. With several tasks, use the board's row keys. |
+| `focus-worker` | The coordinator pane of a run with one bound task | Focuses that worker. With several tasks, open task details in the board and press Enter. |
 
 Invoke one from a shell with `herdr plugin action invoke open-board --plugin zstack.herdr`, or bind actions to keys with `type = "plugin_action"` entries, as described in Herdr's [plugin documentation](https://herdr.dev/docs/plugins/#keybindings). The board resolves its run from the pane `open-board` was invoked from, which it receives as `ZSTACK_BOARD_PANE` because Herdr tab panes take no target pane. If no run or more than one run binds that pane, it says so; with several runs, choose one by number. It never guesses.
 
-The board refreshes the run record, any orchestration store, and the Herdr snapshot when it opens and every five seconds after that. It shows one table row per task: binding status (`bind`), acceptance, evidence count and latest revision (`ev`), reports present out of registered (`rpt`), observed lifecycle, the bound agent and pane (`worker`), the worktree's folder name, and the title. When the pane is too narrow, the board shortens or drops the title, worktree, worker, and lifecycle columns, in that order, and then the task ID; the state columns are never shortened. Lines starting with `!` below the table give what a row can't: a moved binding's previous pane or a check detail, missing report files by name, and other data gaps. The header shows the last successful read time in UTC, or each source's time when they differ after a failed read, and the coordinator line shows the last hook reconcile. The board draws with rich in the pane's alternate screen, coloured by state: green for `ok` bindings, accepted tasks, and idle or done workers; yellow for moved bindings; red for broken bindings, rejected tasks, blocked workers, missing reports, and `STALE`. Each frame fits the pane: long lines end in `…` rather than wrapping, and when rows don't fit, the board replaces the overflow with a `… N more lines` marker and keeps the key line. Action results, such as a refused focus, appear under the header so clipping never hides them. After a failed read, the board keeps the last good view and marks it `STALE` with the error. Press a row's key (`1`-`9`, then `a`-`z` without `c`, `q`, and `r`) to focus a task's worker, `c` to focus the coordinator, `r` to refresh, and `q` or Ctrl-C to quit. Closing the pane also stops the board.
+The board refreshes the run record, any orchestration store, and the Herdr snapshot when it opens and every five seconds after that. Its Rich overview panel separates acceptance counts (accepted, rejected, pending) from observed lifecycle counts (working, blocked), and shows the coordinator and last hook reconcile. A highlighted problems panel calls out broken bindings, rejected or blocked tasks, missing reports, and data gaps. It previews up to three problems; longer lists appear below the task table.
+
+The table has one row per task: binding, acceptance, evidence count and latest revision, reports present out of registered, observed lifecycle, bound worker and pane, worktree folder, and title. When space is limited, descriptive columns shorten or disappear before state columns. All supplied text is rendered literally, with terminal controls removed. The header shows the last successful read time in UTC, or each source's time when they differ after a failed read. Failed reads keep the last good view visibly marked `STALE`; action results remain under the header.
+
+Press a row's key (`1`–`9`, then letters excluding `c`, `q`, and `r`) to open its details. Details show the full title, repository and worktree paths, binding and durable identity, separate lifecycle/orchestrator/reported/acceptance states, report references and availability, and evidence references with full revisions. Long values wrap. Report contents are not opened, and remote references are not fetched. Selection follows the task ID through refreshes and reordering; a removed task returns to the overview.
+
+| Key | Action |
+| --- | --- |
+| Row key | Open task details from the overview |
+| `[` / `]` | Previous / next task, including tasks beyond the row shortcut keys |
+| Enter | Focus the worker shown in task details |
+| Escape | Return to the overview |
+| `+` / `-` | Scroll down / up one line |
+| `c` | Focus the coordinator |
+| `r` | Refresh now |
+| `q` / Ctrl-C | Quit |
+
+The board uses Rich's alternate-screen display. A line-position indicator appears when content overflows, and the key line stays visible. Closing the pane also stops the board. Lifecycle observations and worker reports do not establish acceptance; acceptance remains a separate coordinator-owned record.
 
 Focus is checked against a fresh snapshot first. It is allowed when a binding is `ok`, or `moved` with the same terminal and agent session. Herdr 0.9.3 focuses a pane by ID only while that pane hosts an agent, so a plain shell pane can't be focused from the board.
 

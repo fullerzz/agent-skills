@@ -6,6 +6,40 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Rich board refinement — 2026-10-08
+
+The board now renders a Rich run summary, a bounded problem preview, a task table, and scrollable task details. Row keys open details; Enter focuses the selected worker after a fresh identity check. Previous/next task navigation reaches tasks beyond the 32 row shortcuts. Selection survives reordered or stale data; removing the selected task returns to the overview. CSI/SS3 terminal key sequences are consumed without triggering row shortcuts; standalone Escape returns after a 50 ms input timeout.
+
+Local macOS checks passed:
+
+- `uv run scripts/validate.py`: 51 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the documentation build and isolated installer checks.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 205 tests passed (86 focused Herdr tests).
+- Ruff lint and formatting, and `git diff --check` passed.
+- Rich render checks covered literal markup/control handling, full evidence revisions and report references, distinct acceptance/lifecycle states, the final scrollable line, and terminal dimensions from 1×1 through 80×24.
+- Pipe-input tests covered complete and split terminal escape sequences, standalone Escape, ordinary keys, quit, and EOF. A pseudo-terminal smoke run exercised the real board loop with fixture data through detail selection, Escape, and quit. A 120-column Rich HTML export was visually inspected with Obscura.
+
+The initial checks above used temporary records and fake Herdr calls; they did not establish live host integration. Report contents and remote references are not fetched.
+
+### Live workspace demo — 2026-10-08
+
+The follow-up used the already enabled local `zstack.herdr` plugin on Herdr client/server 0.9.3 (protocol 22), pointing at this checkout. The inherited pane ID was stale; live inspection identified the Codex caller as `w1S:p1` in workspace `w1S`, which was then used explicitly. No plugin installation, relink, or server restart was needed.
+
+The real plugin pane opened with a dedicated registry and sample run under `.agent-work/pane-demo-20261008/`. A newly created shell pane reported a **simulated** `demo-worker` through a custom Herdr source; it was not an AI worker. The caller remained the real coordinator binding. Sample acceptance and evidence were demonstration data, not claims about completed agent work.
+
+Live checks passed:
+
+- Rich overview and full task detail rendering, including literal brackets, full revisions, local missing reports, and unchecked remote references.
+- Automatic five-second working/blocked refresh from the live snapshot; rendering adapted from the initial narrow size to the full tab width after the client resize settled.
+- Enter focused the bound demo worker. Changing its agent identity caused focus refusal without moving focus.
+- Delete, Page Down, and arrow escape sequences did not change the selected task.
+- All 36 temporary tasks were reachable, including the last task beyond the row shortcuts. Removing the selected task returned to the overview.
+- A 60-entry evidence list scrolled through its final revision.
+- Invalid JSON produced `STALE` while retaining the last good view; restoring the record recovered normally.
+- `q` closed the original plugin pane; reopening produced a working overview.
+
+The final demo was left open as `w1S:p1Z` (`zstack Rich demo`) with simulated worker `w1S:p1X`. Evidence captures, the demo record, and an explicit cleanup script are under `.agent-work/pane-demo-20261008/`. These pane IDs describe this test session only. The default run registry and unrelated pane metadata were not used by the demo. Real worker-agent lifecycle, hook reconciliation against the custom registry, and server restart were not tested in this follow-up.
+
 ## Herdr board plugin — 2026-10-06
 
 The experimental `zstack.herdr` plugin (`herdr-plugin.toml`, `integrations/herdr/`) was checked on macOS with Herdr client and server `0.9.3` (private protocol `22`). Every live check ran on a disposable isolated server: `env -i` with a temporary `HOME`, minimal `PATH`, `TERM`, and `LANG`, which strips every `HERDR_*` and `XDG_*` variable. Before linking, each server showed a socket under the temporary `HOME`, `herdr plugin list` reported no plugins, and the snapshot was empty. Nothing was linked to the personal server. Its `plugins.json` hash matched before and after each phase, and its plugin list stayed unchanged. Teardown unlinked the plugin, stopped only the isolated server, and removed only its temporary directory.

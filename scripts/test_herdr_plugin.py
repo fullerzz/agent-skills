@@ -845,7 +845,7 @@ class PluginTests(Fixture):
         for expected in (
             "zstack r1 · read ",
             "coord  claude @ w1:p1 ok",
-            "1 focus · c coord · r refresh · q quit",
+            "row key details",
         ):
             self.assertIn(expected, text)
         self.assertRegex(
@@ -944,8 +944,10 @@ class PluginTests(Fixture):
         text = render(board.view, board.last_ok)
         self.assertRegex(text, r"\n9 +t9 ")
         self.assertRegex(text, r"\na +t10 ")
-        self.assertIn("1-a focus", text)
+        self.assertIn("row key details", text)
         self.assertTrue(board.key("a"))
+        self.assertEqual(board.selected_task, "t10")
+        board.key("\r")
         self.assertIn(("agent", "focus", "w1:p2"), self.calls)
 
     def test_render_strips_terminal_controls(self) -> None:
@@ -956,6 +958,59 @@ class PluginTests(Fixture):
         text = render(board.view, board.last_ok, message="note \x1b[31m")
         self.assertFalse(set(text) & {"\x1b", "\x07", "\x9b"})
         self.assertIn("evil ]0;owned [2J title", text)
+
+    def test_detail_shows_literal_full_refs_and_separate_statuses(self) -> None:
+        path = self.worker_run()
+        self.cli("task", "report", str(path), "t1", "https://example.test/[red]/report")
+        self.cli("task", "evidence", str(path), "t1", "checks.log", "--revision", "0123456789abcdef")
+        view = self.inspect(path)
+        task = view["tasks"][0]
+        task["title"] = "[bold]literal[/bold]\nsecond line\x1b"
+        task["lifecycle"] = {"observed": "idle", "orch_state": "review", "reported_status": "done"}
+        output = render(view, {}, selected_task="t1", width=100)
+        for expected in (
+            "[bold]literal[/bold] second line",
+            "/repo wt",
+            "0123456789abcdef",
+            "https://example.test/[red]/report",
+            "remote; not checked",
+            "Agent session",
+        ):
+            self.assertIn(expected, output)
+        self.assertRegex(output, r"Lifecycle +idle")
+        self.assertRegex(output, r"Reported status +done")
+        self.assertRegex(output, r"Acceptance +not recorded")
+        self.assertNotIn("\x1b", output)
+
+    def test_frame_scroll_reaches_last_line_and_respects_tiny_sizes(self) -> None:
+        for width, height in ((1, 1), (10, 2), (20, 5), (80, 24)):
+            with self.subTest(width=width, height=height):
+                console = pl.Console(file=io.StringIO(), width=width, height=height, color_system=None)
+                frame = pl.Frame([pl.text("head")], [pl.text(f"body {i}") for i in range(40)], "keys", 10000)
+                console.print(frame)
+                lines = console.file.getvalue().splitlines()
+                self.assertLessEqual(len(lines), height)
+                self.assertTrue(all(pl.Text(line).cell_len <= width for line in lines))
+                if height > 2:
+                    self.assertIn("body 39", console.file.getvalue())
+                    self.assertEqual(lines[-1], "keys")
+
+    def test_overview_preserves_title_before_worker_identity(self) -> None:
+        path = self.worker_run()
+        view = self.inspect(path)
+        view["tasks"][0]["title"] = "Refine Rich overview and task details"
+        view["tasks"][0]["worktree"] = "/worktrees/plugin-pane-info"
+        output = render(view, {}, width=120)
+        row = next(line for line in output.splitlines() if line.startswith("1 "))
+        self.assertIn("Refine Rich overview and task details", row)
+        self.assertNotIn("…", row.split())
+
+    def test_long_problem_preview_does_not_hide_tasks(self) -> None:
+        view = self.inspect(self.worker_run())
+        view["data_gaps"] = ["long diagnostic " * 100 + "END-OF-DIAGNOSTIC"]
+        output = render(view, {}, width=80, height=24)
+        self.assertRegex(output, r"\n1 +t1 +ok ")
+        self.assertIn("END-OF-DIAGNOSTIC", render(view, {}, width=80, height=24, offset=10000))
 
     def test_open_board_without_enrollment_fails(self) -> None:
         with patch.dict(os.environ, {"HERDR_SOCKET_PATH": SOCKET_A, "HERDR_PANE_ID": "w1:p9"}):
@@ -997,8 +1052,8 @@ class PluginTests(Fixture):
         self.assertEqual(len(lines), 5)
         self.assertTrue(all(len(line) <= 20 for line in lines))
         self.assertTrue(lines[0].startswith("zstack r1"))
-        self.assertTrue(lines[3].startswith("… "))
-        self.assertEqual(lines[4], "1 focus · c coord ·…")  # the key line survives, cut with an ellipsis.
+        self.assertTrue(lines[3].startswith("Lines "))
+        self.assertTrue(lines[4].startswith("row key details"))  # footer survives with an ellipsis.
 
     def test_narrow_overflowing_pane_keeps_state_columns_and_notices(self) -> None:
         path = self.worker_run()
@@ -1016,7 +1071,7 @@ class PluginTests(Fixture):
         self.assertRegex(rows[0], r"^1 +t1 +ok +accepted ")  # a long sibling ID does not push state off.
         self.assertRegex(rows[1], r"^2 +x+… +unbound ")
         self.assertIn("focus refused: gone", lines)  # notices survive vertical clipping.
-        self.assertRegex(lines[-2], r"^… \d+ more lines")
+        self.assertRegex(lines[-2], r"^Lines \d+-\d+ of \d+")
 
     def test_malformed_snapshot_result_makes_the_board_stale(self) -> None:
         self.worker_run()
@@ -1066,6 +1121,7 @@ class PluginTests(Fixture):
         board = self.board()
         board.refresh()
         board.key("1")
+        board.key("\r")
         board.refresh()
         board.draw()
         self.assertIn("focused t1 at w1:p2", board.console.file.getvalue())
@@ -1241,6 +1297,7 @@ class ReconcileTests(Fixture):
                 self.assertIn("registry entry", board.stale)
                 self.assertIn("showing last good data", render(board.view, board.last_ok, board.stale))
                 board.key("1")
+                board.key("\r")
                 self.assertIn("focus refused", board.notice)
                 with self.assertRaisesRegex(hr.UserError, "registry entry"):
                     pl.focus(SOCKET_A, path, "t1")
@@ -1263,6 +1320,7 @@ class ReconcileTests(Fixture):
         board.refresh()
         self.assertEqual(board.view["run_id"], "r1")
         board.key("1")
+        board.key("\r")
         self.assertIn("focus refused", board.notice)
         self.assertEqual(self.calls, [])
 
