@@ -21,7 +21,6 @@ import os
 import re
 import select
 import signal
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -32,39 +31,17 @@ if TYPE_CHECKING:
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # works under `python -I` too.
 import herdr_run as hr
+from herdr_run import SOURCE, clear_flags, herdr
 
-SOURCE = "zstack.herdr"
 REFRESH_SECONDS = 5
-CALL_TIMEOUT = 5
 FOCUSABLE = ("ok", "moved")
 SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r. ASCII only.
 KEYS = "q quit · r refresh · 1-9/a-z focus worker · c focus coordinator"
 CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
-TOKENS = ("zstack_phase", "zstack_role", "zstack_run", "zstack_task")
 OBSERVATION_VERSION = 1
 
 
 # --- Herdr calls ------------------------------------------------------------
-
-
-def herdr(*args: str, timeout: float = CALL_TIMEOUT) -> dict[str, Any]:
-    """Run one Herdr CLI call; raise UserError on spawn failure, timeout, or an error reply."""
-    binary = os.environ.get("HERDR_BIN_PATH") or "herdr"
-    try:
-        result = subprocess.run(  # noqa: S603 - fixed argv, no shell.
-            [binary, *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout, check=False
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        raise hr.UserError(f"herdr {args[0]} failed: {error}") from error
-    try:
-        reply = json.loads(result.stdout.strip() or result.stderr.strip() or "{}")
-    except ValueError:
-        reply = {}
-    if isinstance(reply, dict) and "error" in reply:  # error JSON can arrive on stdout or stderr.
-        raise hr.UserError(f"herdr {args[0]}: {reply['error'].get('message', reply['error'])}")
-    if result.returncode != 0:
-        raise hr.UserError(f"herdr {args[0]} exited {result.returncode}: {result.stderr.strip()}")
-    return reply
 
 
 def endpoint() -> str:
@@ -288,11 +265,14 @@ def observed_bindings(view: dict[str, Any], snapshot: dict[str, Any]) -> dict[st
     return observed
 
 
-def sync_labels(view: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
+def sync_labels(
+    view: dict[str, Any], snapshot: dict[str, Any], enrolled: Collection[str]
+) -> tuple[list[str], list[str], list[str]]:
     """Make our tokens match validated bindings, compared against live pane tokens so repeats are no-ops.
 
     Sets tokens on ok/moved panes where they differ, clearing our keys their role no longer uses; clears our
-    keys from panes still carrying this run's `zstack_run` that no longer hold a validated binding.
+    keys from panes still carrying this run's `zstack_run` that no longer hold a validated binding. Panes labeled
+    by another run in `enrolled` (this endpoint's run ids) are left alone; labels of unenrolled runs are replaced.
     Returns (labeled panes, actions, errors).
     """
     desired = label_tokens(view)
@@ -300,7 +280,7 @@ def sync_labels(view: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[st
     plan, shared = [], set()
     for pane, tokens in sorted(desired.items()):
         current = live.get(pane, {})
-        if current.get("zstack_run") not in (None, view["run_id"]):
+        if current.get("zstack_run") not in (None, view["run_id"]) and current["zstack_run"] in enrolled:
             shared.add(pane)  # another enrolled run labeled it first; overwriting would flap between runs.
             continue
         unused = clear_flags(current.keys() - tokens.keys())
@@ -322,10 +302,6 @@ def sync_labels(view: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[st
     return sorted(labeled), actions, errors
 
 
-def clear_flags(tokens: Collection[str]) -> list[str]:
-    return [flag for name in TOKENS if name in tokens for flag in ("--clear-token", name)]
-
-
 def try_herdr(argv: list[str]) -> str | None:
     try:
         herdr(*argv)
@@ -341,6 +317,7 @@ def reconcile_run(
     snapshot: dict[str, Any] | None,
     error: str | None,
     trigger: dict[str, Any],
+    enrolled: Collection[str],
 ) -> str:
     """Inspect one run against the shared snapshot and rewrite its observation; sources that fail keep last state."""
     old = read_observation(path)
@@ -364,7 +341,7 @@ def reconcile_run(
     }
     actions: list[str] = []
     if not failures:  # labels change only after every source read succeeded.
-        labeled, actions, errors = sync_labels(view, snapshot)
+        labeled, actions, errors = sync_labels(view, snapshot, enrolled)
         observation |= {"last_good_at": stamp, "bindings": observed_bindings(view, snapshot), "labeled": labeled}
         observation["stale"] = "; ".join(errors) or None
     hr.atomic_write(path, observation)
@@ -379,8 +356,8 @@ def reconcile(socket: str, root: Path, state: Path, event: str, payload: str | N
     Events naming no known pane or workspace of an enrolled run cause no reads of Herdr and no writes.
     """
     targets = event_targets(event, payload)
-    jobs = []
-    for entry in hr.enrolled_runs(socket, root):
+    jobs, entries = [], hr.enrolled_runs(socket, root)
+    for entry in entries:
         if not entry.get("run_file"):
             continue
         path = observation_path(state, socket, entry["run_id"])
@@ -400,7 +377,8 @@ def reconcile(socket: str, root: Path, state: Path, event: str, payload: str | N
         except BlockingIOError:
             return [f"{event}: skipped, another reconcile holds the lock"]
         snapshot, error = snapshot_or_error(socket)
-        return [reconcile_run(socket, entry, path, snapshot, error, trigger) for entry, path in jobs]
+        enrolled = {entry.get("run_id") for entry in entries}
+        return [reconcile_run(socket, entry, path, snapshot, error, trigger, enrolled) for entry, path in jobs]
 
 
 # --- Board rendering --------------------------------------------------------
@@ -549,7 +527,8 @@ class Board:
                 self.message = "no successful read yet"
             return
         self.view, self.message = view, None
-        _, _, errors = sync_labels(view, snapshot)
+        enrolled = {entry.get("run_id") for entry in hr.enrolled_runs(self.socket, self.root)}
+        _, _, errors = sync_labels(view, snapshot, enrolled)
         if errors:
             self.notice = "; ".join(errors)
 

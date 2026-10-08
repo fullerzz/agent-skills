@@ -1053,7 +1053,11 @@ class ReconcileTests(Fixture):
         self.calls: list[tuple[str, ...]] = []
         self.snapshots = 0
         self.raw: dict[str, Any] | None = copy.deepcopy(BASE)
-        for fake in (patch.object(hr, "live_snapshot", self.fake_snapshot), patch.object(pl, "herdr", self.fake_herdr)):
+        for fake in (
+            patch.object(hr, "live_snapshot", self.fake_snapshot),
+            patch.object(pl, "herdr", self.fake_herdr),
+            patch.object(hr, "herdr", self.fake_herdr),
+        ):
             fake.start()
             self.addCleanup(fake.stop)
 
@@ -1109,6 +1113,32 @@ class ReconcileTests(Fixture):
         other = "r2" if owner == "r1" else "r1"
         self.assertNotIn("w1:p2", self.observation(other)["labeled"])
         self.assertIn("w1:p2", self.observation(owner)["labeled"])
+        hr.registry_path(self.registry, SOCKET_A, owner).unlink()  # an owner deleted without unenroll.
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        self.assertEqual(self.tokens("w1:p2")["zstack_run"], other)
+        self.assertIn("w1:p2", self.observation(other)["labeled"])
+
+    def test_unenroll_clears_labels_then_deletes_the_entry(self) -> None:
+        path = self.run_with_worker()
+        entry = hr.registry_path(self.registry, SOCKET_A, "r1")
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        labeled, self.raw = self.raw, None
+        self.assertIn("snapshot failed", self.cli("unenroll", str(path), code=1))
+        self.assertTrue(entry.exists())
+        self.raw = labeled
+        other = self.root / "other" / "herdr-run.json"
+        other.parent.mkdir()
+        other.write_bytes(path.read_bytes())
+        self.assertIn("enrolled on this endpoint for", self.cli("unenroll", str(other), code=1))
+        self.assertTrue(entry.exists())
+        result = self.cli("unenroll", str(path))
+        self.assertEqual(result["cleared_panes"], ["w1:p1", "w1:p2"])
+        self.assertEqual(result["registry_entry"], str(entry))
+        self.assertFalse(entry.exists())
+        self.assertFalse({"zstack_run", "zstack_role"} & (self.tokens("w1:p1").keys() | self.tokens("w1:p2").keys()))
+        self.event("pane.agent_status_changed", pane_id="w1:p2")
+        self.assertNotIn("zstack_run", self.tokens("w1:p2"))
+        self.assertEqual(self.cli("unenroll", str(path)), {"run_id": "r1", "registry_entry": None, "cleared_panes": []})
 
     def test_pane_with_several_bindings_gets_no_labels(self) -> None:
         path = self.run_with_worker()
@@ -1192,7 +1222,7 @@ class ReconcileTests(Fixture):
         self.assertEqual(self.task(board.view, "t1")["binding_check"]["status"], "occupant changed")
         [clear] = self.calls
         self.assertEqual(clear[:5], ("pane", "report-metadata", "w1:p2", "--source", pl.SOURCE))
-        self.assertEqual(sorted(clear[i + 1] for i, arg in enumerate(clear) if arg == "--clear-token"), list(pl.TOKENS))
+        self.assertEqual(sorted(clear[i + 1] for i, arg in enumerate(clear) if arg == "--clear-token"), list(hr.TOKENS))
         board.refresh()
         self.assertEqual(self.calls, [clear])
 
@@ -1371,7 +1401,7 @@ class ReconcileTests(Fixture):
         [call] = self.calls
         self.assertEqual(call[:5], ("pane", "report-metadata", "w1:p2", "--source", pl.SOURCE))
         self.assertEqual({arg for arg in call if arg.startswith("--")}, {"--source", "--clear-token"})
-        self.assertEqual(sorted(call[i + 1] for i, arg in enumerate(call) if arg == "--clear-token"), list(pl.TOKENS))
+        self.assertEqual(sorted(call[i + 1] for i, arg in enumerate(call) if arg == "--clear-token"), list(hr.TOKENS))
         self.assertEqual(self.tokens("w1:p2"), {"other_tok": "keep-me"})
         self.assertEqual(self.tokens("w1:p3"), {"zstack_run": "someone-else", "zstack_role": "worker"})
         self.assertEqual(self.observation()["bindings"]["t1"]["status"], "occupant changed")

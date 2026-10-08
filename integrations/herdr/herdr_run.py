@@ -9,6 +9,7 @@ This helper is the coordinator's tool. Workers supply reports or report pointers
 they never record acceptance, rejection, or verification evidence. Commands that
 change acceptance or evidence refuse to run from a pane bound to one of the run's
 tasks. `inspect` never writes coordinator files, the registry, or orch stores.
+`unenroll` clears the board plugin's display labels for a run, then deletes its registry entry.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Collection, Iterator
 
 ORCH_DIR = Path(__file__).resolve().parents[2] / "skills/z-mode/scripts/orch"
 VERSION = 1
@@ -36,6 +37,8 @@ ACCEPTANCE = ("not recorded", "accepted", "rejected")
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,79}")  # Herdr token values are capped at 80 characters.
 TASK_ID_RULE = "task id must match " + SAFE_ID.pattern + "; 'coordinator' is reserved"
 SNAPSHOT_TIMEOUT = 5
+SOURCE = "zstack.herdr"  # the board plugin's metadata source.
+TOKENS = ("zstack_phase", "zstack_role", "zstack_run", "zstack_task")
 RUN_KEYS = {"version", "run_id", "coordinator", "endpoint", "updated_at", "orch_store", "tasks"}
 TASK_KEYS = {"id", "title", "binding", "repository", "worktree", "reports", "acceptance", "evidence"}
 ORCH_OWNED = {"reports", "acceptance", "evidence"}
@@ -252,6 +255,39 @@ def enroll(run_file: Path, root: Path, replace: bool = False) -> dict[str, Any]:
     return {"registry_entry": str(path), **entry}
 
 
+def unenroll(run_file: Path, root: Path) -> dict[str, Any]:
+    """Clear the board plugin's labels naming this run, then delete its registry entry.
+
+    Rerun after a missing entry clears leftover labels only. A failed Herdr read or clear keeps the entry.
+    """
+    run_file = run_file.absolute()
+    run, gaps = read_run(run_file)
+    if run is None:
+        raise UserError("cannot read run record: " + "; ".join(gaps))
+    socket, run_id = run["endpoint"]["socket"], run["run_id"]
+    path = registry_path(root, socket, run_id)
+    with update_lock(path):
+        if path.exists():
+            try:
+                owner = json.loads(path.read_text(encoding="utf-8")).get("run_file")
+            except (OSError, ValueError, AttributeError):
+                owner = None
+            if owner != str(run_file):
+                raise UserError(f"run {run_id} is enrolled on this endpoint for {owner}, not {run_file}")
+        # ponytail: a hook already reconciling this run can relabel after the clear; rerun unenroll to clear it.
+        cleared = []
+        for pane in live_snapshot(socket)["panes"]:
+            tokens = pane.get("tokens") or {}
+            if tokens.get("zstack_run") == run_id:
+                herdr(
+                    "pane", "report-metadata", pane["pane_id"], "--source", SOURCE, *clear_flags(tokens), socket=socket
+                )
+                cleared.append(pane["pane_id"])
+        existed = path.exists()
+        path.unlink(missing_ok=True)
+    return {"run_id": run_id, "registry_entry": str(path) if existed else None, "cleared_panes": cleared}
+
+
 def enrolled_runs(socket: str, root: Path) -> list[dict[str, Any]]:
     """List registry entries for one endpoint; never reads other endpoints' runs."""
     directory = root / endpoint_key(socket)
@@ -328,6 +364,36 @@ def live_snapshot(socket: str) -> dict[str, Any]:
         detail = " ".join((result.stderr or result.stdout).split())[:200] or str(error)
         raise UserError(f"herdr snapshot failed (exit {result.returncode}): {detail}") from error
     return normalize_snapshot(raw, socket)
+
+
+def herdr(*args: str, socket: str | None = None, timeout: float = SNAPSHOT_TIMEOUT) -> dict[str, Any]:
+    """Run one Herdr CLI call (on `socket`, else $HERDR_SOCKET_PATH); raise UserError on failure or an error reply."""
+    binary = os.environ.get("HERDR_BIN_PATH") or "herdr"
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed argv, no shell.
+            [binary, *args],
+            env={**os.environ, "HERDR_SOCKET_PATH": socket} if socket else None,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise UserError(f"herdr {args[0]} failed: {error}") from error
+    try:
+        reply = json.loads(result.stdout.strip() or result.stderr.strip() or "{}")
+    except ValueError:
+        reply = {}
+    if isinstance(reply, dict) and "error" in reply:  # error JSON can arrive on stdout or stderr.
+        raise UserError(f"herdr {args[0]}: {reply['error'].get('message', reply['error'])}")
+    if result.returncode != 0:
+        raise UserError(f"herdr {args[0]} exited {result.returncode}: {result.stderr.strip()}")
+    return reply
+
+
+def clear_flags(tokens: Collection[str]) -> list[str]:
+    return [flag for name in TOKENS if name in tokens for flag in ("--clear-token", name)]
 
 
 def occupant(snapshot: dict[str, Any], pane_id: str) -> dict[str, Any] | None:
@@ -740,6 +806,9 @@ def parser() -> argparse.ArgumentParser:
     enroll_parser.add_argument("run_file")
     enroll_parser.add_argument("--registry")
     enroll_parser.add_argument("--replace", action="store_true", help="replace another file's same-ID enrollment")
+    unenroll_parser = commands.add_parser("unenroll", help="clear a run's board labels, then delete its enrollment")
+    unenroll_parser.add_argument("run_file")
+    unenroll_parser.add_argument("--registry")
     runs = commands.add_parser("runs", help="list runs enrolled on an endpoint")
     runs.add_argument("--socket", help="default $HERDR_SOCKET_PATH")
     runs.add_argument("--registry")
@@ -787,6 +856,8 @@ def main(argv: list[str] | None = None) -> int:
             result: Any = command_init(args)
         elif args.command == "enroll":
             result = enroll(Path(args.run_file), registry_root(args.registry), args.replace)
+        elif args.command == "unenroll":
+            result = unenroll(Path(args.run_file), registry_root(args.registry))
         elif args.command == "runs":
             socket = args.socket or os.environ.get("HERDR_SOCKET_PATH")
             if not socket:

@@ -680,7 +680,7 @@ A read-only final review of `integrations/herdr/` reported six findings, each re
 - Every writer validates the record it is about to store, so a bad argument can no longer leave a record the helper later refuses.
 - The coordinator-only guard resolves the caller pane to its terminal, so a moved worker still cannot record acceptance.
 - Relabelling a pane clears `zstack_*` keys its new role does not use.
-- Writes through a symlinked run file reach the target, and the board accepts only ASCII `1`–`9` keys.
+- Writes through a symlinked run file reach the target, and the board accepts only ASCII `1`–`9` keys. (The PR #28 review below later added letter keys for entries after the ninth.)
 
 Phase 9's failed criterion led to one more change: when a rebind captures a new terminal that reports the previous binding's agent session, the helper records no session and prints a warning, so the binding is checked by terminal and agent kind only. A regression test reproduces the Phase 9 snapshot. These changes landed after Phases 7–9 ran; the live checks above used the pre-repair code (hashes in `phase9-live/tested-source-hashes.json`), and the repaired paths are covered by unit tests only.
 
@@ -705,3 +705,12 @@ A second Codex review of `676e116` raised two more issues, both fixed with regre
 - A pane holding more than one of a run's bindings gets none of that run's tokens instead of the last binding's role.
 
 Checks: 187 Python tests, 15 Node tests, `validate.py`, Ruff, and `git diff --check`. No live Herdr check was rerun for these changes.
+
+A third review round on `db9692a` (cubic and Codex) raised four issues; all were fixed:
+
+- `herdr_run.py unenroll RUN_FILE` clears the plugin's labels from panes whose `zstack_run` names the run, then deletes the registry entry. It refuses when the entry belongs to another file, and it keeps the entry if the Herdr snapshot fails. Before this, cleanup left labels behind that no later reconcile could clear.
+- A label naming a run that is no longer enrolled on the endpoint no longer blocks another run from labeling the pane.
+- The guide scopes the coordinator-pane rule to runs without an orchestration store.
+- The pre-landing record above notes the later letter keys.
+
+Each code fix has a regression test that failed with the fix reverted. Checks: 188 Python tests, 15 Node tests, `validate.py`, Ruff, and `git diff --check`. No live Herdr check was rerun for these changes, so `unenroll`'s metadata clears against a real server are unverified.
