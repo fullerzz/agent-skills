@@ -893,13 +893,24 @@ class PluginTests(Fixture):
         board.refresh()
         text = render(board.view, board.last_ok, board.stale)
         self.assertIn("! task t1: invalid acceptance", text)
-        self.assertNotIn("no report registered", text)  # report details appear on selection.
+        self.assertIn("no report registered", text)
         self.assertRegex(text, r"\n1 +t1 · Phase two +idle +pending ")
         self.assertIn("no report registered", render(board.view, board.last_ok, selected_task="t1", width=100))
         nobody = self.board("w1:p9")
         nobody.refresh()
         self.assertIsNone(nobody.view)
         self.assertIn("no enrolled run for pane w1:p9", render(nobody.view, {}, None, nobody.message))
+
+    def test_unselected_task_without_reports_is_a_problem(self) -> None:
+        self.worker_run()
+        board = self.board()
+        board.refresh()
+        self.assertIsNone(board.selected_task)
+        self.assertEqual(pl.problem_notes(board.view), ["task t1: no report registered"])
+        output = render(board.view, board.last_ok, width=120, height=32)
+        self.assertIn("! task t1: no report registered", output)
+        self.assertIn("1 problems / data gaps", output)
+        self.assertIn("All problems / data gaps", output)
 
     def test_board_choose_run(self) -> None:
         self.worker_run("a", "alpha")

@@ -53,7 +53,7 @@ FOCUSABLE = ("ok", "moved")
 SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r. ASCII only.
 CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
 OBSERVATION_VERSION = 1
-TABLE_GAPS = ("no report registered", "report file missing")  # the rpt column and missing-report notes say these.
+DETAIL_GAPS = ("no report registered", "report file missing")  # inspector report fields already show these.
 BIND_STYLE = {"ok": "green", "moved": "yellow", "unbound": "dim"}  # any other status is a broken binding: red.
 ACCEPT_STYLE = {"accepted": "green", "rejected": "red"}
 LIFE_STYLE = {"blocked": "bold red", "working": "cyan", "idle": "green", "done": "green"}
@@ -440,7 +440,7 @@ def task_notes(task: dict[str, Any]) -> list[str]:
     notes += [f"{task['id']}: missing report {item['ref']}" for item in reports if item["exists"] is False]
     if remote := sum(item["exists"] is None for item in reports):
         notes.append(f"{task['id']}: {remote} remote report(s) not checked")
-    return notes + [gap for gap in task.get("data_gaps", []) if not gap.endswith(TABLE_GAPS)]
+    return notes + [gap for gap in task.get("data_gaps", []) if not gap.endswith("report file missing")]
 
 
 def select_key(index: int) -> str:
@@ -519,7 +519,7 @@ def detail_panel(task: dict[str, Any]) -> Panel:
         values.append(("Evidence", item["ref"]))
         if item.get("revision"):
             values.append(("Revision", item["revision"]))
-    values.extend(("Data gap", gap) for gap in task.get("data_gaps") or [] if not gap.endswith(TABLE_GAPS))
+    values.extend(("Data gap", gap) for gap in task.get("data_gaps") or [] if not gap.endswith(DETAIL_GAPS))
     styles = {
         "Binding": BIND_STYLE.get(binding_cells(task)[1], "red"),
         "Lifecycle": LIFE_STYLE.get(lifecycle.get("observed"), ""),

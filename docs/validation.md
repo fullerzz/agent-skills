@@ -775,3 +775,5 @@ Live on Herdr 0.9.3 in workspace `w1S`, using the dedicated sample registry unde
 Not checked live in this pass: narrow-window resizing, worker identity replacement, or server restart/hooks. Narrow and tiny rendering are covered by synthetic Rich tests; identity replacement remains covered by fixture tests.
 
 Tab naming follow-up: renamed the existing demo tab to `zstack status`, changed the manifest pane title, and made `open-board` rename the tab returned by Herdr. Verified live that a new board tab receives the name without moving focus; closed that temporary test pane. All 76 plugin tests and Ruff passed. The existing demo remains open.
+
+PR #29 review follow-up: restored `no report registered` gaps to overview diagnostics after removal of the report-count column. A regression using an unselected task reproduced the missing problem before the fix and verifies both the diagnostic list and header count. The inspector still avoids duplicate report-gap fields. Checks: 211 Python tests, Ruff, and `git diff --check`. No live Herdr check was rerun for this rendering-filter change.
