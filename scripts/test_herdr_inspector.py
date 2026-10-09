@@ -51,6 +51,12 @@ class InspectorRendering(unittest.TestCase):
         self.assertIn("Select a task", result)
         self.assertNotIn("Task ID", result)
 
+    def test_table_uses_full_region_width(self) -> None:
+        result, _ = render(view([task()]), selected_task="task-0")
+        rule = next(line for line in result.splitlines() if line.startswith("─"))
+        self.assertEqual(rule.split("│")[0], "─" * 65)
+        self.assertTrue(all(line.index("│") == 65 for line in result.splitlines() if "│" in line))
+
     def test_inspector_scroll_preserves_table_and_reaches_final_evidence(self) -> None:
         selected = task()
         selected["evidence"] = [{"ref": f"evidence-{i}", "revision": "a" * 40} for i in range(40)]

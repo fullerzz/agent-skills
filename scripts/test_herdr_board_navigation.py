@@ -49,7 +49,7 @@ class NavigationTests(Fixture):
 
     def test_row_keys_change_selection_without_focus(self) -> None:
         path = self.worker_run()
-        for index in range(2, 11):
+        for index in range(2, 12):
             self.cli("task", "add", str(path), f"t{index}")
         board = self.board()
         board.refresh()
@@ -57,8 +57,9 @@ class NavigationTests(Fixture):
         self.assertEqual(board.selected_task, "t10")
         self.calls.clear()
         board.key("1")
-        board.key("b")
         self.assertEqual(board.selected_task, "t1")
+        board.key("b")
+        self.assertEqual(board.selected_task, "t11")
         self.assertEqual(self.calls, [])
 
     def test_selection_survives_reorder_and_stale_read_then_removed_task_returns(self) -> None:
@@ -83,7 +84,11 @@ class NavigationTests(Fixture):
         self.raw = copy.deepcopy(BASE)
         data["tasks"] = [task for task in data["tasks"] if task["id"] != "t1"]
         path.write_text(json.dumps(data), encoding="utf-8")
+        board.offset, board.inspector_offset = 4, 7
+        board.active_region = "inspector"
         board.refresh()
+        self.assertEqual(board.inspector_offset, 0)
+        self.assertEqual(board.active_region, "tasks")
         self.assertIsNone(board.selected_task)
         self.assertIn("t1 is no longer", board.notice)
         self.assertEqual(board.offset, 0)

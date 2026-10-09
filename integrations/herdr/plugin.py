@@ -457,7 +457,7 @@ def line(*parts: Text) -> Text:
     return Text.assemble(*parts, no_wrap=True, overflow="ellipsis")
 
 
-def task_table(tasks: list[dict[str, Any]], width: int, selected_task: str | None = None) -> Table:
+def task_table(tasks: list[dict[str, Any]], selected_task: str | None = None) -> Table:
     table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, expand=True, header_style="bold")
     table.add_column("", width=2, no_wrap=True)
     table.add_column("Task / title", ratio=1, no_wrap=True, overflow="ellipsis")
@@ -617,7 +617,7 @@ class InspectorFrame(Frame):
         task_height = room if wide else room // 2
         inspector_height = room if wide else room - task_height
         task_body: list[RenderableType] = [
-            task_table(self.tasks, max(1, left_width - 2), self.selected["id"] if self.selected else None)
+            task_table(self.tasks, self.selected["id"] if self.selected else None)
         ]
         if not self.tasks:
             task_body = [text("no tasks recorded", "dim")]
@@ -626,13 +626,13 @@ class InspectorFrame(Frame):
                 text("All problems / data gaps", "bold yellow"),
                 *(detail_text(f"! {note}", "yellow") for note in self.notes),
             ]
-        task_lines = lines(Group(*task_body), max(1, left_width - 2))
+        task_lines = lines(Group(*task_body), left_width)
         inspector = (
             detail_panel(self.selected).renderable
             if self.selected
             else detail_text("Select a task with its row key or ↑/↓ to inspect binding, reports and evidence.", "dim")
         )
-        inspector_lines = lines(inspector, max(1, right_width - 2))
+        inspector_lines = lines(inspector, right_width)
 
         def region(
             content: list[list[Segment]], size: int, rows: int, name: str, offset: int
@@ -909,8 +909,15 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
     escape = ""
     escape_due = 0.0
     while True:
-        deadline = min(due, escape_due) if escape == "\x1b" else due
+        deadline = min(due, escape_due) if escape else due
         ready, _, _ = select.select([stdin_fd], [], [], max(0.0, deadline - time.monotonic()))
+        if escape and time.monotonic() >= escape_due:
+            standalone = escape == "\x1b"
+            escape = ""
+            if standalone:
+                if not board.key("\x1b"):
+                    return 0
+                board.draw()
         if ready:
             data = os.read(stdin_fd, 64)
             if not data:  # EOF: the pane's input is gone.
@@ -919,6 +926,7 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
                 if escape == "\x1b":
                     if char in "[O":  # CSI / SS3: consume the entire key, even across reads.
                         escape += char
+                        escape_due = time.monotonic() + 0.1
                         continue
                     if not board.key("\x1b"):
                         return 0
@@ -930,6 +938,7 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
                         escape = ""
                     else:
                         escape = (escape + char)[:32]
+                        escape_due = time.monotonic() + 0.1
                     continue
                 if char == "\x1b":
                     escape = char
@@ -937,11 +946,6 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
                     continue
                 if not board.key(char):
                     return 0
-            board.draw()
-        if escape == "\x1b" and time.monotonic() >= escape_due:
-            escape = ""
-            if not board.key("\x1b"):
-                return 0
             board.draw()
         if time.monotonic() >= due:
             board.refresh()  # sequential: the next refresh is scheduled only after this one returns.
@@ -1026,7 +1030,7 @@ def command_focus(role: str) -> int:
         bound = [task["id"] for task in resolution["view"]["tasks"] if task.get("binding")]
         if len(bound) != 1:
             notify(
-                f"run {resolution['run_id']} has {len(bound)} bound tasks; choose a worker with the board's number keys"
+                f"run {resolution['run_id']} has {len(bound)} bound tasks; select a task in the board, then press Enter"
             )
             return 1
         target = bound[0]

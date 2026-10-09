@@ -1123,6 +1123,24 @@ class PluginTests(Fixture):
         self.addCleanup(directory.cleanup)
         self.assertEqual(pl.reconcile(SOCKET_A, self.registry, Path(directory.name), "startup")[0][:6], "r1: ok")
 
+    def test_multi_worker_focus_guidance_mentions_enter(self) -> None:
+        resolution = {
+            "run_id": "r1",
+            "run_file": "unused",
+            "view": {
+                "tasks": [
+                    {"id": "t1", "binding": {"pane_id": "w1:p1"}},
+                    {"id": "t2", "binding": {"pane_id": "w1:p2"}},
+                ]
+            },
+        }
+        with (
+            patch.object(pl, "action_resolution", return_value=(SOCKET_A, resolution)),
+            patch.object(pl, "notify") as notify,
+        ):
+            self.assertEqual(pl.command_focus("worker"), 1)
+        self.assertIn("select a task in the board, then press Enter", notify.call_args.args[0])
+
     def test_focus_revalidates(self) -> None:
         path = self.worker_run()
         self.assertEqual(pl.focus(SOCKET_A, path, "t1"), "focused t1 at w1:p2")
