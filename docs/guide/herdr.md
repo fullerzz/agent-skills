@@ -96,7 +96,7 @@ Run and task IDs use 1–80 ASCII letters, digits, dots, underscores, colons, or
 
 Invoke one from a shell with `herdr plugin action invoke open-board --plugin zstack.herdr`, or bind actions to keys with `type = "plugin_action"` entries, as described in Herdr's [plugin documentation](https://herdr.dev/docs/plugins/#keybindings). The board resolves its run from the pane `open-board` was invoked from, which it receives as `ZSTACK_BOARD_PANE` because Herdr tab panes take no target pane. If no run or more than one run binds that pane, it says so; with several runs, choose one by number. It never guesses.
 
-The board refreshes the run record, any orchestration store, and the Herdr snapshot when it opens and every five seconds after that. Its Rich overview panel separates acceptance counts (accepted, rejected, pending) from observed lifecycle counts (working, blocked), and shows the coordinator and last hook reconcile. A highlighted problems panel calls out broken bindings, rejected or blocked tasks, missing reports, and data gaps. It previews up to three problems; longer lists appear below the task table.
+The board refreshes the run record, any orchestration store, and the Herdr snapshot when it opens and every five seconds after that. The `open-board` action names its new tab `zstack status` without moving focus.
 
 The pane keeps a compact task table and an inspector visible together. At 110 columns or wider they sit side by side; narrower panes stack them. The table shows task IDs and titles, observed lifecycle, and acceptance. The pinned header shows run counts, coordinator, last successful read time in UTC, and prominent problems. Failed reads retain the last good view marked `STALE`. Full diagnostics follow the table and remain scrollable.
 
