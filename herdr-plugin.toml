@@ -28,7 +28,7 @@ command = ["uv", "run", "--no-project", "--no-config", "--script", "integrations
 
 [[panes]]
 id = "board"
-title = "zstack board"
+title = "zstack status"
 placement = "tab"
 command = ["uv", "run", "--no-project", "--no-config", "--with", "rich>=13.7", "--script", "integrations/herdr/plugin.py", "board"]
 

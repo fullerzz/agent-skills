@@ -148,6 +148,8 @@ class Fixture(unittest.TestCase):
 
     def fake_herdr(self, *args: str, **_: Any) -> dict[str, Any]:  # noqa: ANN401
         self.calls.append(args)
+        if args[:3] == ("plugin", "pane", "open"):
+            return {"result": {"plugin_pane": {"pane": {"tab_id": "w1:t9"}}}}
         if self.raw is BASE:
             self.raw = copy.deepcopy(BASE)
         panes = self.raw["result"]["snapshot"]["panes"] if self.raw else []
@@ -845,12 +847,14 @@ class PluginTests(Fixture):
         for expected in (
             "zstack r1 · read ",
             "coord  claude @ w1:p1 ok",
-            "1 focus · c coord · r refresh · q quit",
+            "Enter focus · Tab region",
         ):
             self.assertIn(expected, text)
-        self.assertRegex(
-            text, r'\n1 +t1 +ok +accepted +1@0123456 +1/1 +idle +codex "worker" @ w1:p2 +repo wt +Phase two'
-        )
+        self.assertRegex(text, r"\n1 +t1 · Phase two +idle +accepted ")
+        self.assertIn("Inspector", text)
+        detail = render(board.view, board.last_ok, selected_task="t1", width=100)
+        for expected in ('codex "worker" @ w1:p2 ok', "/repo wt", "r.md · available", "0123456789abcdef"):
+            self.assertIn(expected, detail)
         self.assertNotIn("!", text)  # nothing outside the table needs saying.
         self.assertNotIn("STALE", text)
         self.assertNotIn("never", text)
@@ -889,12 +893,24 @@ class PluginTests(Fixture):
         board.refresh()
         text = render(board.view, board.last_ok, board.stale)
         self.assertIn("! task t1: invalid acceptance", text)
-        self.assertNotIn("no report registered", text)  # the rpt column shows "-".
-        self.assertRegex(text, r"\n1 +t1 +ok +- ")
+        self.assertIn("no report registered", text)
+        self.assertRegex(text, r"\n1 +t1 · Phase two +idle +pending ")
+        self.assertIn("no report registered", render(board.view, board.last_ok, selected_task="t1", width=100))
         nobody = self.board("w1:p9")
         nobody.refresh()
         self.assertIsNone(nobody.view)
         self.assertIn("no enrolled run for pane w1:p9", render(nobody.view, {}, None, nobody.message))
+
+    def test_unselected_task_without_reports_is_a_problem(self) -> None:
+        self.worker_run()
+        board = self.board()
+        board.refresh()
+        self.assertIsNone(board.selected_task)
+        self.assertEqual(pl.problem_notes(board.view), ["task t1: no report registered"])
+        output = render(board.view, board.last_ok, width=120, height=32)
+        self.assertIn("! task t1: no report registered", output)
+        self.assertIn("1 problems / data gaps", output)
+        self.assertIn("All problems / data gaps", output)
 
     def test_board_choose_run(self) -> None:
         self.worker_run("a", "alpha")
@@ -944,8 +960,10 @@ class PluginTests(Fixture):
         text = render(board.view, board.last_ok)
         self.assertRegex(text, r"\n9 +t9 ")
         self.assertRegex(text, r"\na +t10 ")
-        self.assertIn("1-a focus", text)
+        self.assertIn("Enter focus · Tab region", text)
         self.assertTrue(board.key("a"))
+        self.assertEqual(board.selected_task, "t10")
+        board.key("\r")
         self.assertIn(("agent", "focus", "w1:p2"), self.calls)
 
     def test_render_strips_terminal_controls(self) -> None:
@@ -956,6 +974,59 @@ class PluginTests(Fixture):
         text = render(board.view, board.last_ok, message="note \x1b[31m")
         self.assertFalse(set(text) & {"\x1b", "\x07", "\x9b"})
         self.assertIn("evil ]0;owned [2J title", text)
+
+    def test_detail_shows_literal_full_refs_and_separate_statuses(self) -> None:
+        path = self.worker_run()
+        self.cli("task", "report", str(path), "t1", "https://example.test/[red]/report")
+        self.cli("task", "evidence", str(path), "t1", "checks.log", "--revision", "0123456789abcdef")
+        view = self.inspect(path)
+        task = view["tasks"][0]
+        task["title"] = "[bold]literal[/bold]\nsecond line\x1b"
+        task["lifecycle"] = {"observed": "idle", "orch_state": "review", "reported_status": "done"}
+        output = render(view, {}, selected_task="t1", width=100)
+        for expected in (
+            "[bold]literal[/bold] second line",
+            "/repo wt",
+            "0123456789abcdef",
+            "https://example.test/[red]/report",
+            "remote; not checked",
+            "Agent session",
+        ):
+            self.assertIn(expected, output)
+        self.assertRegex(output, r"Lifecycle +idle")
+        self.assertRegex(output, r"Reported status +done")
+        self.assertRegex(output, r"Acceptance +not recorded")
+        self.assertNotIn("\x1b", output)
+
+    def test_frame_scroll_reaches_last_line_and_respects_tiny_sizes(self) -> None:
+        for width, height in ((1, 1), (10, 2), (20, 5), (80, 24)):
+            with self.subTest(width=width, height=height):
+                console = pl.Console(file=io.StringIO(), width=width, height=height, color_system=None)
+                frame = pl.Frame([pl.text("head")], [pl.text(f"body {i}") for i in range(40)], "keys", 10000)
+                console.print(frame)
+                lines = console.file.getvalue().splitlines()
+                self.assertLessEqual(len(lines), height)
+                self.assertTrue(all(pl.Text(line).cell_len <= width for line in lines))
+                if height > 2:
+                    self.assertIn("body 39", console.file.getvalue())
+                    self.assertEqual(lines[-1], "keys")
+
+    def test_overview_preserves_title_before_worker_identity(self) -> None:
+        path = self.worker_run()
+        view = self.inspect(path)
+        view["tasks"][0]["title"] = "Refine Rich overview and task details"
+        view["tasks"][0]["worktree"] = "/worktrees/plugin-pane-info"
+        output = render(view, {}, width=80)
+        row = next(line for line in output.splitlines() if line.startswith("1 ") and "t1 ·" in line)
+        self.assertIn("Refine Rich overview and task details", row)
+        self.assertNotIn("…", row.split())
+
+    def test_long_problem_preview_does_not_hide_tasks(self) -> None:
+        view = self.inspect(self.worker_run())
+        view["data_gaps"] = ["long diagnostic " * 100 + "END-OF-DIAGNOSTIC"]
+        output = render(view, {}, width=80, height=24)
+        self.assertRegex(output, r"\n1 +t1 · Phase two +idle +pending ")
+        self.assertIn("END-OF-DIAGNOSTIC", render(view, {}, width=80, height=24, offset=10000))
 
     def test_open_board_without_enrollment_fails(self) -> None:
         with patch.dict(os.environ, {"HERDR_SOCKET_PATH": SOCKET_A, "HERDR_PANE_ID": "w1:p9"}):
@@ -976,6 +1047,7 @@ class PluginTests(Fixture):
         self.assertEqual(opened[opened.index("--workspace") + 1], "w1")
         self.assertEqual(opened[opened.index("--env") + 1], "ZSTACK_BOARD_PANE=w1:p2")
         self.assertNotIn("--target-pane", opened)  # Herdr rejects a target pane for tab plugin panes.
+        self.assertIn(("tab", "rename", "w1:t9", "zstack status"), self.calls)
         with patch.dict(os.environ, {**environment, "ZSTACK_BOARD_PANE": "w1:p1"}):
             self.assertEqual(pl.context_pane(), "w1:p1")  # the board tab resolves its caller, not itself.
 
@@ -992,13 +1064,15 @@ class PluginTests(Fixture):
         self.assertIn('! t1: codex "worker" @ w2:p7 moved from w1:p2', text)
         self.assertIn("! t1: missing report gone.md", text)
         self.assertNotIn("report file missing", text)
-        self.assertRegex(text, r" 0/1 ")
+        self.assertIn("gone.md · missing", render(board.view, board.last_ok, selected_task="t1", width=100))
         lines = render(board.view, board.last_ok, width=20, height=5).rstrip("\n").split("\n")
         self.assertEqual(len(lines), 5)
         self.assertTrue(all(len(line) <= 20 for line in lines))
         self.assertTrue(lines[0].startswith("zstack r1"))
-        self.assertTrue(lines[3].startswith("… "))
-        self.assertEqual(lines[4], "1 focus · c coord ·…")  # the key line survives, cut with an ellipsis.
+        self.assertIn("Tasks", lines[1])
+        self.assertEqual(lines[2], "Inspector")
+        self.assertIn("+/- scroll", lines[3])
+        self.assertTrue(lines[4].startswith("↑/↓ select"))  # footer survives with an ellipsis.
 
     def test_narrow_overflowing_pane_keeps_state_columns_and_notices(self) -> None:
         path = self.worker_run()
@@ -1012,11 +1086,12 @@ class PluginTests(Fixture):
         lines = frame.rstrip("\n").split("\n")
         self.assertEqual(len(lines), 24)
         self.assertTrue(all(len(line) <= 80 for line in lines), lines)
-        rows = [line for line in lines if line[:2] in ("1 ", "2 ")]
-        self.assertRegex(rows[0], r"^1 +t1 +ok +accepted ")  # a long sibling ID does not push state off.
-        self.assertRegex(rows[1], r"^2 +x+… +unbound ")
+        rows = [line for line in lines if line[:2] in ("1 ", "2 ") and "tasks ·" not in line]
+        self.assertRegex(rows[0], r"^1 +t1 · Phase two +idle +accepted ")  # sibling ID does not push state off.
+        self.assertRegex(rows[1], r"^2 +x+… +- +pending ")
         self.assertIn("focus refused: gone", lines)  # notices survive vertical clipping.
-        self.assertRegex(lines[-2], r"^… \d+ more lines")
+        self.assertRegex(lines[-2], r"^\d+-\d+/\d+ · \+/- scroll")
+        self.assertTrue(any(line == "Inspector" for line in lines))
 
     def test_malformed_snapshot_result_makes_the_board_stale(self) -> None:
         self.worker_run()
@@ -1048,6 +1123,24 @@ class PluginTests(Fixture):
         self.addCleanup(directory.cleanup)
         self.assertEqual(pl.reconcile(SOCKET_A, self.registry, Path(directory.name), "startup")[0][:6], "r1: ok")
 
+    def test_multi_worker_focus_guidance_mentions_enter(self) -> None:
+        resolution = {
+            "run_id": "r1",
+            "run_file": "unused",
+            "view": {
+                "tasks": [
+                    {"id": "t1", "binding": {"pane_id": "w1:p1"}},
+                    {"id": "t2", "binding": {"pane_id": "w1:p2"}},
+                ]
+            },
+        }
+        with (
+            patch.object(pl, "action_resolution", return_value=(SOCKET_A, resolution)),
+            patch.object(pl, "notify") as notify,
+        ):
+            self.assertEqual(pl.command_focus("worker"), 1)
+        self.assertIn("select a task in the board, then press Enter", notify.call_args.args[0])
+
     def test_focus_revalidates(self) -> None:
         path = self.worker_run()
         self.assertEqual(pl.focus(SOCKET_A, path, "t1"), "focused t1 at w1:p2")
@@ -1066,6 +1159,7 @@ class PluginTests(Fixture):
         board = self.board()
         board.refresh()
         board.key("1")
+        board.key("\r")
         board.refresh()
         board.draw()
         self.assertIn("focused t1 at w1:p2", board.console.file.getvalue())
@@ -1241,6 +1335,7 @@ class ReconcileTests(Fixture):
                 self.assertIn("registry entry", board.stale)
                 self.assertIn("showing last good data", render(board.view, board.last_ok, board.stale))
                 board.key("1")
+                board.key("\r")
                 self.assertIn("focus refused", board.notice)
                 with self.assertRaisesRegex(hr.UserError, "registry entry"):
                     pl.focus(SOCKET_A, path, "t1")
@@ -1263,6 +1358,7 @@ class ReconcileTests(Fixture):
         board.refresh()
         self.assertEqual(board.view["run_id"], "r1")
         board.key("1")
+        board.key("\r")
         self.assertIn("focus refused", board.notice)
         self.assertEqual(self.calls, [])
 

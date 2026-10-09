@@ -728,3 +728,54 @@ A Codex adversarial review of this change raised two medium findings, both fixed
 The board now draws with [rich](https://rich.readthedocs.io/): a `SIMPLE_HEAD` table, styles by state, and a full-screen `Live` display in the alternate screen with explicit refreshes only. When the table is too wide, rich divides the shortfall evenly across columns; at 60 columns it dropped the task ID. The board therefore keeps its own priority widths (`SHRINK`) and passes them to rich as fixed column widths. A `Frame` renderable fits head, body, and key line to the pane height and puts any overflow in a `… N more lines` marker. All run and snapshot text goes through `Text` objects after stripping control characters, so rich markup in a title or ID is never interpreted. Only the board pane's manifest command adds `--with rich>=13.7`, and `plugin.py` imports rich only if it is installed, so hooks and actions run unchanged without it. When stdout is not a terminal, the board prints each frame instead of using `Live`. The isolated-interpreter test now runs the board subprocess without `-S` so it can import rich; other entrypoints keep `-S`, and no `store` module is installed in the test environment.
 
 Live, on the personal Herdr 0.9.3 server: the `open-board` action opened a tab whose pane ran `uv run … --with rich>=13.7 --script integrations/herdr/plugin.py board` and showed the `demo-board` table. `herdr pane read --ansi` showed bold and cyan for the run ID, green for the `ok` coordinator binding, and dim secondary text. Checks: 191 Python tests (72 plugin tests), 15 Node tests, `validate.py`, Ruff, and `git diff --check`. Not verified live: a short pane's `… N more lines` marker, resizing an open board (it redraws at the next key or five-second refresh), and a first board open without network access before rich is cached.
+
+
+### Rich board refinement — 2026-10-08
+
+The board now renders a Rich run summary, a bounded problem preview, a task table, and scrollable task details. Row keys open details; Enter focuses the selected worker after a fresh identity check. Previous/next task navigation reaches tasks beyond the 32 row shortcuts. Selection survives reordered or stale data; removing the selected task returns to the overview. CSI/SS3 terminal key sequences are consumed without triggering row shortcuts; standalone Escape returns after a 50 ms input timeout.
+
+Local macOS checks passed:
+
+- `uv run scripts/validate.py`: 51 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the documentation build and isolated installer checks.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 205 tests passed (86 focused Herdr tests).
+- Ruff lint and formatting, and `git diff --check` passed.
+- Rich render checks covered literal markup/control handling, full evidence revisions and report references, distinct acceptance/lifecycle states, the final scrollable line, and terminal dimensions from 1×1 through 80×24.
+- Pipe-input tests covered complete and split terminal escape sequences, standalone Escape, ordinary keys, quit, and EOF. A pseudo-terminal smoke run exercised the real board loop with fixture data through detail selection, Escape, and quit. A 120-column Rich HTML export was visually inspected with Obscura.
+
+The initial checks above used temporary records and fake Herdr calls; they did not establish live host integration. Report contents and remote references are not fetched.
+
+### Live workspace demo — 2026-10-08
+
+The follow-up used the already enabled local `zstack.herdr` plugin on Herdr client/server 0.9.3 (protocol 22), pointing at this checkout. The inherited pane ID was stale; live inspection identified the Codex caller as `w1S:p1` in workspace `w1S`, which was then used explicitly. No plugin installation, relink, or server restart was needed.
+
+The real plugin pane opened with a dedicated registry and sample run under `.agent-work/pane-demo-20261008/`. A newly created shell pane reported a **simulated** `demo-worker` through a custom Herdr source; it was not an AI worker. The caller remained the real coordinator binding. Sample acceptance and evidence were demonstration data, not claims about completed agent work.
+
+Live checks passed:
+
+- Rich overview and full task detail rendering, including literal brackets, full revisions, local missing reports, and unchecked remote references.
+- Automatic five-second working/blocked refresh from the live snapshot; rendering adapted from the initial narrow size to the full tab width after the client resize settled.
+- Enter focused the bound demo worker. Changing its agent identity caused focus refusal without moving focus.
+- Before the table-and-inspector refinement added arrow-key selection, Delete, Page Down, and arrow escape sequences did not change the selected task.
+- All 36 temporary tasks were reachable, including the last task beyond the row shortcuts. Removing the selected task returned to the overview.
+- A 60-entry evidence list scrolled through its final revision.
+- Invalid JSON produced `STALE` while retaining the last good view; restoring the record recovered normally.
+- `q` closed the original plugin pane; reopening produced a working overview.
+
+The final demo was left open as `w1S:p1Z` (`zstack Rich demo`) with simulated worker `w1S:p1X`. Evidence captures, the demo record, and an explicit cleanup script are under `.agent-work/pane-demo-20261008/`. These pane IDs describe this test session only. The default run registry and unrelated pane metadata were not used by the demo. Real worker-agent lifecycle, hook reconciliation against the custom registry, and server restart were not tested in this follow-up.
+
+### Table and inspector — 2026-10-08
+
+The Rich board now keeps a compact task table beside an inspector at 110 columns and wider, and stacks the regions below that width. Each region scrolls independently; task selection reveals its row, and full task IDs wrap in the inspector. Arrow keys and row shortcuts select without focusing; Enter still revalidates the worker binding.
+
+Checks: 210 Python tests, 15 Node tests, 51 skills with zero structural problems, Ruff, and `git diff --check`. Five new renderer tests cover wide/narrow/tiny bounds, no implicit selection, independent scrolling to the final evidence item, complete long IDs, and selection reveal beyond shortcut keys. Input/navigation checks cover arrows split across reads, ignored escape sequences, region switching, selection persistence and fresh focus validation. A separate read-only review found no actionable issues.
+
+Live on Herdr 0.9.3 in workspace `w1S`, using the dedicated sample registry under `.agent-work/pane-demo-20261008`: opened the updated board, selected task rows, confirmed missing-worker focus refusal, scrolled the inspector to evidence item 59 while keeping the task table visible, changed selection with an actual arrow escape sequence, and verified stale JSON retained the selected task and recovered after restoration. Temporary evidence changes were restored. Closed and reopened the board on the final code, leaving task `navigation` selected in pane `w1S:p21`. The old simulated worker had already been closed; no replacement worker was created. Captures are `inspector-*.txt` in the demo directory.
+
+Not checked live in this pass: narrow-window resizing, worker identity replacement, or server restart/hooks. Narrow and tiny rendering are covered by synthetic Rich tests; identity replacement remains covered by fixture tests.
+
+Tab naming follow-up: renamed the existing demo tab to `zstack status`, changed the manifest pane title, and made `open-board` rename the tab returned by Herdr. Verified live that a new board tab receives the name without moving focus; closed that temporary test pane. All 76 plugin tests and Ruff passed. The existing demo remains open.
+
+PR #29 review follow-up: restored `no report registered` gaps to overview diagnostics after removal of the report-count column. A regression using an unselected task reproduced the missing problem before the fix and verifies both the diagnostic list and header count. The inspector still avoids duplicate report-gap fields. Checks: 211 Python tests, Ruff, and `git diff --check`. No live Herdr check was rerun for this rendering-filter change.
+
+PR #29 second review follow-up: incomplete CSI/SS3 input now expires after 100 ms without another byte; bare Escape retains its 50 ms deadline. Controlled-clock tests replace scheduling-sensitive elapsed-time assertions and cover fragmented input and recovery to row, scroll, and quit keys. Navigation tests now set both offsets before task removal and select an in-range eleventh task. Removed the unused table-width argument, aligned region content with its divider, and updated multi-worker guidance to require Enter. The long-ID extraction finding was not reproduced: the renderer uses a central divider and no outer inspector border, and the full-ID assertion passes. Validation history is grouped chronologically. Checks: 215 Python tests, 15 Node tests, 51 skills with zero structural problems, Ruff, and `git diff --check`. Live Herdr was not rerun for this follow-up; input delayed more than 100 ms between sequence bytes is discarded.

@@ -30,6 +30,7 @@ try:  # only the board pane runs with rich (herdr-plugin.toml adds it there); ho
     from rich import box
     from rich.console import Console, Group
     from rich.live import Live
+    from rich.panel import Panel
     from rich.segment import Segment
     from rich.table import Table
     from rich.text import Text
@@ -52,14 +53,7 @@ FOCUSABLE = ("ok", "moved")
 SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r. ASCII only.
 CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
 OBSERVATION_VERSION = 1
-TABLE_GAPS = ("no report registered", "report file missing")  # the rpt column and missing-report notes say these.
-COLUMNS = ("", "task", "bind", "accept", "ev", "rpt", "life", "worker", "worktree", "title")
-# Rich divides columns equally when a table is too wide, so the board sets widths itself. Past the pane width it
-# shrinks these columns, first to last, to a minimum (0 drops the column): title, worktree, worker, lifecycle,
-# task id. Key, bind, accept, ev, and rpt never shrink, and sit right after the task id, so a pane too narrow
-# even for the minimums cuts descriptive columns first.
-SHRINK = ((9, 0), (8, 0), (7, 0), (6, 0), (1, 6))
-GAP = 3  # between columns in a SIMPLE_HEAD table: padding, divider, padding.
+DETAIL_GAPS = ("no report registered", "report file missing")  # inspector report fields already show these.
 BIND_STYLE = {"ok": "green", "moved": "yellow", "unbound": "dim"}  # any other status is a broken binding: red.
 ACCEPT_STYLE = {"accepted": "green", "rejected": "red"}
 LIFE_STYLE = {"blocked": "bold red", "working": "cyan", "idle": "green", "done": "green"}
@@ -437,25 +431,6 @@ def worker_line(item: dict[str, Any]) -> str:
     return text + (f": {check['detail']}" if check.get("detail") else "")
 
 
-def report_cell(reports: list[dict[str, Any]]) -> str:
-    return f"{sum(item['exists'] is True for item in reports)}/{len(reports)}" if reports else "-"
-
-
-def evidence_cell(evidence: list[dict[str, Any]]) -> str:
-    if not evidence:
-        return "-"
-    latest = next((item["revision"] for item in reversed(evidence) if item.get("revision")), None)
-    return f"{len(evidence)}@{latest[:7]}" if latest else str(len(evidence))
-
-
-def lifecycle_cell(task: dict[str, Any]) -> str:
-    lifecycle = task.get("lifecycle") or {}
-    parts = [lifecycle.get("observed") or "-"]
-    if "orch_state" in lifecycle:
-        parts += [f"orch {lifecycle.get('orch_state') or '-'}", f"rep {lifecycle.get('reported_status') or '-'}"]
-    return " ".join(parts)
-
-
 def task_notes(task: dict[str, Any]) -> list[str]:
     """Detail that does not fit a table row: binding problems, missing or remote reports, data gaps."""
     notes, check = [], task.get("binding_check") or {}
@@ -465,7 +440,7 @@ def task_notes(task: dict[str, Any]) -> list[str]:
     notes += [f"{task['id']}: missing report {item['ref']}" for item in reports if item["exists"] is False]
     if remote := sum(item["exists"] is None for item in reports):
         notes.append(f"{task['id']}: {remote} remote report(s) not checked")
-    return notes + [gap for gap in task.get("data_gaps", []) if not gap.endswith(TABLE_GAPS)]
+    return notes + [gap for gap in task.get("data_gaps", []) if not gap.endswith("report file missing")]
 
 
 def select_key(index: int) -> str:
@@ -474,7 +449,7 @@ def select_key(index: int) -> str:
 
 def text(value: object, style: str = "") -> Text:
     """Run and snapshot data as one literal line: no markup, no terminal controls, cut with an ellipsis."""
-    return Text(CONTROLS.sub("", str(value)), style=style, no_wrap=True, overflow="ellipsis")
+    return Text(CONTROLS.sub("", str(value)).replace("\n", " "), style=style, no_wrap=True, overflow="ellipsis")
 
 
 def line(*parts: Text) -> Text:
@@ -482,68 +457,240 @@ def line(*parts: Text) -> Text:
     return Text.assemble(*parts, no_wrap=True, overflow="ellipsis")
 
 
-def task_row(index: int, task: dict[str, Any]) -> tuple[Text, ...]:
-    who, status = binding_cells(task)
-    acceptance = "-" if task.get("acceptance") in (None, "not recorded") else task["acceptance"]
-    reports = report_cell(task.get("reports") or [])
-    missing = any(item["exists"] is False for item in task.get("reports") or [])
-    life = lifecycle_cell(task)
-    return (
-        text(select_key(index), "bold"),
-        text(task["id"], "bold"),
-        text(status, BIND_STYLE.get(status, "red")),
-        text(acceptance, ACCEPT_STYLE.get(acceptance, "dim")),
-        text(evidence_cell(task.get("evidence") or [])),
-        text(reports, "red" if missing else "dim" if reports == "-" else ""),
-        text(life, LIFE_STYLE.get(life.split(" ")[0], "")),
-        text(who),
-        text(Path(task.get("worktree") or task.get("repository") or "-").name, "dim"),
-        text(task.get("title") or ""),
-    )
-
-
-def column_widths(rows: list[tuple[Text, ...]], width: int) -> list[int]:
-    """Natural column widths; past `width`, shrink descriptive columns in SHRINK order, never state columns."""
-    widths = [max(row[i].cell_len for row in rows) for i in range(len(rows[0]))]
-    for column, least in SHRINK:
-        over = sum(widths) + GAP * (sum(1 for w in widths if w) - 1) - width
-        if over <= 0:
-            break
-        widths[column] = max(least, widths[column] - over)
-    return widths
-
-
-def task_table(tasks: list[dict[str, Any]], width: int) -> Table:
-    rows = [task_row(index, task) for index, task in enumerate(tasks)]
-    widths = column_widths([tuple(Text(name) for name in COLUMNS), *rows], width)
-    shown = [index for index, size in enumerate(widths) if size]
-    table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, header_style="bold")
-    for index in shown:
-        table.add_column(COLUMNS[index], width=widths[index], no_wrap=True, overflow="ellipsis")
-    for row in rows:
-        table.add_row(*(row[index] for index in shown))
+def task_table(tasks: list[dict[str, Any]], selected_task: str | None = None) -> Table:
+    table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, expand=True, header_style="bold")
+    table.add_column("", width=2, no_wrap=True)
+    table.add_column("Task / title", ratio=1, no_wrap=True, overflow="ellipsis")
+    table.add_column("Lifecycle", width=9, no_wrap=True, overflow="ellipsis")
+    table.add_column("Acceptance", width=10, no_wrap=True, overflow="ellipsis")
+    for index, task in enumerate(tasks):
+        life = (task.get("lifecycle") or {}).get("observed") or "-"
+        acceptance = task.get("acceptance") or "not recorded"
+        acceptance = "pending" if acceptance == "not recorded" else acceptance
+        selected = task["id"] == selected_task
+        table.add_row(
+            text((">" if selected else "") + select_key(index), "bold"),
+            text(f"{task['id']} · {task.get('title') or ''}", "bold" if selected else ""),
+            text(life, LIFE_STYLE.get(life, "")),
+            text(acceptance, ACCEPT_STYLE.get(acceptance, "dim")),
+            style="on #26393f" if selected else None,
+        )
     return table
 
 
+def detail_text(value: object, style: str = "") -> Text:
+    """Literal wrapped detail retains full titles, paths, and revisions."""
+    return Text(CONTROLS.sub("", str(value)).replace("\n", " "), style=style, overflow="fold")
+
+
+def detail_panel(task: dict[str, Any]) -> Panel:
+    lifecycle = task.get("lifecycle") or {}
+    fields = Table.grid(padding=(0, 1), expand=True)
+    fields.add_column(style="bold", ratio=1)
+    fields.add_column(ratio=3, overflow="fold")
+    values = [
+        ("Task ID", task["id"]),
+        ("Title", task.get("title") or "not recorded"),
+        ("Binding", worker_line(task)),
+        ("Repository", task.get("repository") or "not recorded"),
+        ("Worktree", task.get("worktree") or "not recorded"),
+        ("Lifecycle", lifecycle.get("observed") or "not recorded"),
+        ("Orchestrator state", lifecycle.get("orch_state") or "not recorded"),
+        ("Reported status", lifecycle.get("reported_status") or "not recorded"),
+        ("Acceptance", task.get("acceptance") or "not recorded"),
+    ]
+    binding = task.get("binding") or {}
+    for key, label in (("terminal_id", "Terminal ID"), ("agent_session", "Agent session"), ("bound_at", "Bound at")):
+        if binding.get(key) is not None:
+            values.append((label, binding[key]))
+    check = task.get("binding_check") or {}
+    if check.get("detail") and not binding:
+        values.append(("Binding detail", check["detail"]))
+    reports = task.get("reports") or []
+    if not reports:
+        values.append(("Reports", "no report registered"))
+    for report in reports:
+        availability = {True: "available", False: "missing", None: "remote; not checked"}[report.get("exists")]
+        values.append(("Report", f"{report['ref']} · {availability}"))
+    evidence = task.get("evidence") or []
+    if not evidence:
+        values.append(("Evidence", "none registered"))
+    for item in evidence:
+        values.append(("Evidence", item["ref"]))
+        if item.get("revision"):
+            values.append(("Revision", item["revision"]))
+    values.extend(("Data gap", gap) for gap in task.get("data_gaps") or [] if not gap.endswith(DETAIL_GAPS))
+    styles = {
+        "Binding": BIND_STYLE.get(binding_cells(task)[1], "red"),
+        "Lifecycle": LIFE_STYLE.get(lifecycle.get("observed"), ""),
+        "Acceptance": ACCEPT_STYLE.get(task.get("acceptance"), "dim"),
+        "Data gap": "yellow",
+    }
+    for label, value in values:
+        fields.add_row(detail_text(label), detail_text(value, styles.get(label, "")))
+    return Panel(fields, title=text("Selected task", "bold cyan"), border_style="cyan")
+
+
 class Frame:
-    """Head, body, and key line fitted to the pane height; overflowing body lines become one `… N more` line.
+    """Bounded header/footer around a scrollable Rich body."""
 
-    The head (run, coordinator, STALE, and action notices) and the key line always stay visible.
-    """
-
-    def __init__(self, head: list[RenderableType], body: list[RenderableType], keys: str) -> None:
+    def __init__(self, head: list[RenderableType], body: list[RenderableType], keys: str, offset: int = 0) -> None:
         self.head, self.body, self.keys = Group(*head), Group(*body), text(keys, "dim")
+        self.offset = max(0, offset)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> Iterator[Segment]:
         def lines(renderable: RenderableType) -> list[list[Segment]]:
             return console.render_lines(renderable, options.update(height=None), pad=False)
 
+        height = max(1, options.height if options.height is not None else console.height)
         head, body, keys = lines(self.head), lines(self.body), lines(self.keys)
-        room = max((options.height or console.height) - len(head) - len(keys), 1)
-        if len(body) > room:
-            body = [*body[: room - 1], *lines(text(f"… {len(body) - room + 1} more lines; enlarge the pane", "dim"))]
-        for line in (*head, *body, *keys):
-            yield from line
+        footer = keys[:1] if height > 1 else []
+        head = head[: max(1, min(len(head), height - len(footer) - (1 if height > 2 else 0)))]
+        room = max(0, height - len(head) - len(footer))
+        body_room = room - 1 if len(body) > room and room > 1 else room
+        self.offset = min(self.offset, max(0, len(body) - body_room)) if body_room else 0
+        shown = body[self.offset : self.offset + body_room]
+        if len(body) > room and room > 1:
+            shown += lines(
+                text(f"Lines {self.offset + 1}-{self.offset + len(shown)} of {len(body)} · +/- scroll", "dim")
+            )[:1]
+        for rendered_line in (*head, *shown, *footer):
+            yield from rendered_line
+            yield Segment.line()
+
+
+def problem_notes(view: dict[str, Any]) -> list[str]:
+    notes = list(view.get("data_gaps") or [])
+    coordinator = view.get("coordinator") or {}
+    if binding_cells(coordinator)[1] not in FOCUSABLE:
+        notes.append(f"Coordinator: {worker_line(coordinator)}")
+    for task in view.get("tasks", []):
+        status = binding_cells(task)[1]
+        if status not in (*FOCUSABLE, "unbound"):
+            notes.append(f"{task['id']}: binding {status}")
+        if task.get("acceptance") == "rejected":
+            notes.append(f"{task['id']}: acceptance rejected")
+        if (task.get("lifecycle") or {}).get("observed") == "blocked":
+            notes.append(f"{task['id']}: lifecycle blocked")
+        notes.extend(task_notes(task))
+    return list(dict.fromkeys(notes))
+
+
+class InspectorFrame(Frame):
+    """Pinned run context and independently scrollable task and inspector regions."""
+
+    def __init__(
+        self,
+        head: list[RenderableType],
+        tasks: list[dict[str, Any]],
+        notes: list[str],
+        selected: dict[str, Any] | None,
+        offset: int,
+        inspector_offset: int,
+        active_region: str,
+        reveal_selection: bool,
+    ) -> None:
+        super().__init__(
+            head,
+            [],
+            "↑/↓ select · Enter focus · Tab region · +/- scroll · Esc clear · c coord · r refresh · q quit",
+            offset,
+        )
+        self.tasks, self.notes, self.selected = tasks, notes, selected
+        self.inspector_offset = max(0, inspector_offset)
+        self.active_region, self.reveal_selection = active_region, reveal_selection
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> Iterator[Segment]:  # noqa: C901 - bounded dual-region rendering.
+        width = options.max_width
+        height = max(1, options.height if options.height is not None else console.height)
+
+        def lines(renderable: RenderableType, size: int) -> list[list[Segment]]:
+            return console.render_lines(renderable, options.update(width=max(1, size), height=None), pad=False)
+
+        head = lines(self.head, width)
+        footer = lines(self.keys, width)[:1] if height > 1 else []
+        head = head[: max(0, height - len(footer) - min(4, max(0, height - 2)))]
+        room = max(0, height - len(head) - len(footer))
+        wide = width >= 110
+        left_width = (width - 1) * 55 // 100 if wide else width
+        right_width = width - left_width - 1 if wide else width
+        task_height = room if wide else room // 2
+        inspector_height = room if wide else room - task_height
+        task_body: list[RenderableType] = [
+            task_table(self.tasks, self.selected["id"] if self.selected else None)
+        ]
+        if not self.tasks:
+            task_body = [text("no tasks recorded", "dim")]
+        if self.notes:
+            task_body += [
+                text("All problems / data gaps", "bold yellow"),
+                *(detail_text(f"! {note}", "yellow") for note in self.notes),
+            ]
+        task_lines = lines(Group(*task_body), left_width)
+        inspector = (
+            detail_panel(self.selected).renderable
+            if self.selected
+            else detail_text("Select a task with its row key or ↑/↓ to inspect binding, reports and evidence.", "dim")
+        )
+        inspector_lines = lines(inspector, right_width)
+
+        def region(
+            content: list[list[Segment]], size: int, rows: int, name: str, offset: int
+        ) -> tuple[list[list[Segment]], int]:
+            if rows <= 0:
+                return [], 0
+            body_rows = max(0, rows - 2)
+            offset = min(offset, max(0, len(content) - body_rows)) if body_rows else 0
+            if name == "Tasks" and self.reveal_selection and self.selected and body_rows:
+                key = ">" + select_key(
+                    next(i for i, task in enumerate(self.tasks) if task["id"] == self.selected["id"])
+                )
+                selected_line = next(
+                    (
+                        i
+                        for i, row in enumerate(content)
+                        if "".join(segment.text for segment in row).lstrip().startswith(key)
+                    ),
+                    None,
+                )
+                if selected_line is not None and not offset <= selected_line < offset + body_rows:
+                    offset = (
+                        max(0, selected_line - body_rows + 1) if selected_line >= offset + body_rows else selected_line
+                    )
+            active = self.active_region == ("tasks" if name == "Tasks" else "inspector")
+            title = text(f"{'▸ ' if active else ''}{name}", "bold cyan" if active else "bold")
+            result = lines(title, size)[:1]
+            result += content[offset : offset + body_rows]
+            while len(result) < rows - 1:
+                result.append([])
+            if rows > 1:
+                result += lines(
+                    text(
+                        f"{offset + 1 if content else 0}-{min(len(content), offset + body_rows)}/{len(content)}"
+                        " · +/- scroll",
+                        "dim",
+                    ),
+                    size,
+                )[:1]
+            return result[:rows], offset
+
+        left, self.offset = region(task_lines, left_width, task_height, "Tasks", self.offset)
+        right, self.inspector_offset = region(
+            inspector_lines, right_width, inspector_height, "Inspector", self.inspector_offset
+        )
+        body = left + right
+        if wide:
+            body = []
+            for lrow, rrow in zip(left, right, strict=True):
+                body.append(
+                    [
+                        *Segment.adjust_line_length(lrow, left_width),
+                        Segment("│", style=None),
+                        *Segment.adjust_line_length(rrow, right_width),
+                    ]
+                )
+        for row in (*head, *body, *footer):
+            yield from row
             yield Segment.line()
 
 
@@ -555,6 +702,11 @@ def board_frame(
     choices: list[dict[str, Any]] | None = None,
     hook: dict[str, Any] | None = None,
     width: int = 80,
+    selected_task: str | None = None,
+    offset: int = 0,
+    inspector_offset: int = 0,
+    active_region: str = "tasks",
+    reveal_selection: bool = False,
 ) -> Frame:
     """The board for one inspection view (or a choose-run / no-run screen): one table row per task."""
     title = text("zstack board", "bold")
@@ -564,16 +716,17 @@ def board_frame(
             text(f"[{select_key(index)}] {item['run_id']}  {item['run_file']}") for index, item in enumerate(choices)
         ]
         return Frame(
-            [title, text(ask, "bold yellow")], rows, "press an entry's key to choose; nothing is guessed · q quit"
+            [title, text(ask, "bold yellow")], rows, "entry key choose · +/- scroll · r refresh · q quit", offset
         )
     if view is None:
         head = [title, text(message or "no run selected", "bold yellow")]
-        return Frame(head + ([text(f"STALE: {stale}", "bold red")] if stale else []), [], "r refresh · q quit")
+        return Frame(head + ([text(f"STALE: {stale}", "bold red")] if stale else []), [], "r refresh · q quit", offset)
     coordinator, tasks = view.get("coordinator") or {}, view.get("tasks", [])
     times = {name: clock(last_ok.get(name)) for name in view.get("sources", {})}
     read = " ".join(f"{name} {stamp}" for name, stamp in times.items())
-    if len(set(times.values())) == 1:  # one refresh reads every source; differing times follow a failure.
+    if times and len(set(times.values())) == 1:  # one refresh reads every source; differing times follow a failure.
         read = next(iter(times.values()))
+    read = read or "never"
     label = f" · {coordinator['label']}" if coordinator.get("label") else ""
     head = [
         line(
@@ -589,16 +742,31 @@ def board_frame(
         trigger = (hook.get("trigger") or {}).get("event")
         last = f"{clock(hook.get('reconciled_at'))} via {trigger}" if hook else "none recorded"
         coord.append_text(text(f" · hooks {last}" + (f" (stale: {hook['stale']})" if hook.get("stale") else ""), "dim"))
-    head.append(coord)
     if stale:
         head.append(text(f"STALE: {stale} — showing last good data", "bold red"))
     if message:
         head.append(text(message, "bold yellow"))
-    body: list[RenderableType] = [task_table(tasks, width) if tasks else text("no tasks recorded", "dim")]
-    notes = view.get("data_gaps", []) + [note for task in tasks for note in task_notes(task)]
-    body += [text(f"! {note}", "yellow") for note in notes]
-    keys = f"1-{select_key(len(tasks) - 1)}" if len(tasks) > 1 else "1"
-    return Frame(head, body, (f"{keys} focus · " if tasks else "") + "c coord · r refresh · q quit")
+    accepted = sum(task.get("acceptance") == "accepted" for task in tasks)
+    rejected = sum(task.get("acceptance") == "rejected" for task in tasks)
+    working = sum((task.get("lifecycle") or {}).get("observed") == "working" for task in tasks)
+    blocked = sum((task.get("lifecycle") or {}).get("observed") == "blocked" for task in tasks)
+    head.insert(
+        1,
+        line(
+            text(f"{len(tasks)} tasks · ", "bold"),
+            text(f"{accepted} accepted", "green"),
+            text(f" · {rejected} rejected", "red"),
+            text(f" · {len(tasks) - accepted - rejected} pending · "),
+            text(f"{working} working", "cyan"),
+            text(f" · {blocked} blocked", "bold red"),
+        ),
+    )
+    head.insert(2, coord)
+    notes = problem_notes(view)
+    if notes:
+        head.append(text(f"! {notes[0]} · {len(notes)} problems / data gaps; full list after tasks", "yellow"))
+    selected = next((task for task in tasks if task["id"] == selected_task), None)
+    return InspectorFrame(head, tasks, notes, selected, offset, inspector_offset, active_region, reveal_selection)
 
 
 # --- Board loop -------------------------------------------------------------
@@ -619,6 +787,11 @@ class Board:
         self.stale: str | None = None
         self.message: str | None = None  # run resolution / data state; refresh-owned.
         self.notice: str | None = None  # last key or label result; kept until the next key.
+        self.selected_task: str | None = None
+        self.offset = 0
+        self.inspector_offset = 0
+        self.active_region = "tasks"
+        self.reveal_selection = False
 
     def refresh(self) -> None:
         snapshot, error = snapshot_or_error(self.socket)
@@ -644,30 +817,59 @@ class Board:
             if self.view is None:
                 self.message = "no successful read yet"
             return
+        self.reveal_selection |= [t["id"] for t in (self.view or {}).get("tasks", [])] != [
+            t["id"] for t in view.get("tasks", [])
+        ]
         self.view, self.message = view, None
+        if self.selected_task and not any(task["id"] == self.selected_task for task in view.get("tasks", [])):
+            self.notice = f"task {self.selected_task} is no longer in this run; selection cleared"
+            self.selected_task, self.offset, self.inspector_offset = None, 0, 0
+            self.active_region = "tasks"
         enrolled = {entry.get("run_id") for entry in hr.enrolled_runs(self.socket, self.root)}
         _, _, errors = sync_labels(view, snapshot, enrolled)
         if errors:
             self.notice = "; ".join(errors)
 
-    def key(self, char: str) -> bool:
+    def key(self, char: str) -> bool:  # noqa: C901 - keep explicit key dispatch and selection state together.
         """Handle one key; return False to exit."""
         self.notice = None
         if char in ("q", "Q", "\x04"):
             return False
         if char in ("r", "R"):
             self.refresh()
+        elif char == "\x1b":
+            self.selected_task, self.offset, self.inspector_offset = None, 0, 0
+            self.active_region = "tasks"
+        elif char == "\t" and self.view:
+            self.active_region = "inspector" if self.active_region == "tasks" else "tasks"
+        elif char in ("+", "-"):
+            delta = 1 if char == "+" else -1
+            if self.active_region == "inspector":
+                self.inspector_offset = max(0, self.inspector_offset + delta)
+            else:
+                self.offset = max(0, self.offset + delta)
+                self.reveal_selection = False
         elif char in SELECT and self.choices:
             index = SELECT.index(char)
             if index < len(self.choices):
                 self.run_id = self.choices[index]["run_id"]
                 self.run_file, self.choices, self.message = Path(self.choices[index]["run_file"]), [], None
                 self.refresh()
-        elif (char in SELECT or char in ("c", "C")) and self.run_file and self.view:
+        elif self.run_file and self.view:
             tasks = self.view.get("tasks", [])
             target = "coordinator" if char in ("c", "C") else None
-            if char in SELECT and SELECT.index(char) < len(tasks):
-                target = tasks[SELECT.index(char)]["id"]
+            if char in ("[", "]", "up", "down") and tasks:
+                forward = char in ("]", "down")
+                start = -1 if forward else 0
+                index = next((i for i, task in enumerate(tasks) if task["id"] == self.selected_task), start)
+                index = (index + (1 if forward else -1)) % len(tasks)
+                self.selected_task, self.inspector_offset = tasks[index]["id"], 0
+                self.reveal_selection = True
+            elif char in ("\r", "\n"):
+                target = self.selected_task
+            elif char in SELECT and SELECT.index(char) < len(tasks):
+                self.selected_task, self.inspector_offset = tasks[SELECT.index(char)]["id"], 0
+                self.reveal_selection = True
             if target:
                 try:
                     self.notice = focus(self.socket, self.run_file, target, self.root, self.run_id)
@@ -677,24 +879,71 @@ class Board:
 
     def draw(self) -> None:
         message = " · ".join(part for part in (self.message, self.notice) if part) or None
-        frame = board_frame(self.view, self.last_ok, self.stale, message, self.choices, self.hook, self.console.width)
+        frame = board_frame(
+            self.view,
+            self.last_ok,
+            self.stale,
+            message,
+            self.choices,
+            self.hook,
+            self.console.width,
+            selected_task=self.selected_task,
+            offset=self.offset,
+            inspector_offset=self.inspector_offset,
+            active_region=self.active_region,
+            reveal_selection=self.reveal_selection,
+        )
         if self.live is None:
             self.console.print(frame)
         else:
             self.live.update(frame, refresh=True)
+        self.offset = frame.offset
+        self.inspector_offset = getattr(frame, "inspector_offset", 0)
+        self.reveal_selection = False
 
 
-def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) -> int:
+def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) -> int:  # noqa: C901 - one input/refresh state machine.
     board.refresh()
     board.draw()
     due = time.monotonic() + interval
+    escape = ""
+    escape_due = 0.0
     while True:
-        ready, _, _ = select.select([stdin_fd], [], [], max(0.0, due - time.monotonic()))
+        deadline = min(due, escape_due) if escape else due
+        ready, _, _ = select.select([stdin_fd], [], [], max(0.0, deadline - time.monotonic()))
+        if escape and time.monotonic() >= escape_due:
+            standalone = escape == "\x1b"
+            escape = ""
+            if standalone:
+                if not board.key("\x1b"):
+                    return 0
+                board.draw()
         if ready:
             data = os.read(stdin_fd, 64)
             if not data:  # EOF: the pane's input is gone.
                 return 0
             for char in data.decode(errors="ignore"):
+                if escape == "\x1b":
+                    if char in "[O":  # CSI / SS3: consume the entire key, even across reads.
+                        escape += char
+                        escape_due = time.monotonic() + 0.1
+                        continue
+                    if not board.key("\x1b"):
+                        return 0
+                    escape = ""
+                elif escape:
+                    if "@" <= char <= "~":
+                        if escape in ("\x1b[", "\x1bO") and char in "AB":
+                            board.key("up" if char == "A" else "down")
+                        escape = ""
+                    else:
+                        escape = (escape + char)[:32]
+                        escape_due = time.monotonic() + 0.1
+                    continue
+                if char == "\x1b":
+                    escape = char
+                    escape_due = time.monotonic() + 0.05
+                    continue
                 if not board.key(char):
                     return 0
             board.draw()
@@ -758,7 +1007,13 @@ def command_open_board() -> int:
     argv = ["plugin", "pane", "open", "--plugin", plugin, "--entrypoint", "board", "--placement", "tab"]
     if workspace := plugin_context().get("workspace_id") or os.environ.get("HERDR_WORKSPACE_ID"):
         argv += ["--workspace", str(workspace)]
-    herdr(*argv, "--env", f"{BOARD_PANE_ENV}={pane}", "--no-focus")
+    opened = herdr(*argv, "--env", f"{BOARD_PANE_ENV}={pane}", "--no-focus")
+    tab = opened.get("result", {}).get("plugin_pane", {}).get("pane", {}).get("tab_id")
+    if tab:
+        try:
+            herdr("tab", "rename", tab, "zstack status")
+        except hr.UserError as error:
+            print(f"board opened, but tab rename failed: {error}")
     print(f"board opened for pane {pane} on {socket}")
     return 0
 
@@ -775,7 +1030,7 @@ def command_focus(role: str) -> int:
         bound = [task["id"] for task in resolution["view"]["tasks"] if task.get("binding")]
         if len(bound) != 1:
             notify(
-                f"run {resolution['run_id']} has {len(bound)} bound tasks; choose a worker with the board's number keys"
+                f"run {resolution['run_id']} has {len(bound)} bound tasks; select a task in the board, then press Enter"
             )
             return 1
         target = bound[0]
@@ -810,7 +1065,10 @@ def main(argv: list[str] | None = None) -> int:
             return command_reconcile()
         return command_focus("coordinator" if args.command == "focus-coordinator" else "worker")
     except hr.UserError as error:
-        print(f"error: {error}", file=sys.stderr)
+        if args.command == "board" and HAVE_RICH:
+            Console(stderr=True).print(Panel(detail_text(error), title="Unable to open board", border_style="red"))
+        else:
+            print(f"error: {error}", file=sys.stderr)
         return 1
 
 
