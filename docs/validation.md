@@ -756,7 +756,7 @@ Live checks passed:
 - Rich overview and full task detail rendering, including literal brackets, full revisions, local missing reports, and unchecked remote references.
 - Automatic five-second working/blocked refresh from the live snapshot; rendering adapted from the initial narrow size to the full tab width after the client resize settled.
 - Enter focused the bound demo worker. Changing its agent identity caused focus refusal without moving focus.
-- Delete, Page Down, and arrow escape sequences did not change the selected task.
+- Before the table-and-inspector refinement added arrow-key selection, Delete, Page Down, and arrow escape sequences did not change the selected task.
 - All 36 temporary tasks were reachable, including the last task beyond the row shortcuts. Removing the selected task returned to the overview.
 - A 60-entry evidence list scrolled through its final revision.
 - Invalid JSON produced `STALE` while retaining the last good view; restoring the record recovered normally.
