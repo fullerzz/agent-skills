@@ -46,13 +46,13 @@ class BoardInputTests(unittest.TestCase):
 
     def test_complete_sequences_and_normal_keys(self) -> None:
         keys, _ = self.run_input([(0, b"1\x1b[A\x1b[B\x1b[C\x1b[D\x1b[3~\x1b[6~\x1bOA+r\rq")])
-        self.assertEqual(keys, ["1", "+", "r", "\r", "q"])
+        self.assertEqual(keys, ["1", "up", "down", "up", "+", "r", "\r", "q"])
 
     def test_split_sequences(self) -> None:
         keys, _ = self.run_input(
             [(0, b"1\x1b"), (0.01, b"["), (0.07, b"3"), (0.01, b"~\x1bO"), (0.01, b"A\x1b[6"), (0.01, b"~q")]
         )
-        self.assertEqual(keys, ["1", "q"])
+        self.assertEqual(keys, ["1", "up", "q"])
 
     def test_standalone_escape_is_prompt(self) -> None:
         keys, stamps = self.run_input([(0, b"1\x1b"), (0.2, b"q")])

@@ -148,6 +148,8 @@ class Fixture(unittest.TestCase):
 
     def fake_herdr(self, *args: str, **_: Any) -> dict[str, Any]:  # noqa: ANN401
         self.calls.append(args)
+        if args[:3] == ("plugin", "pane", "open"):
+            return {"result": {"plugin_pane": {"pane": {"tab_id": "w1:t9"}}}}
         if self.raw is BASE:
             self.raw = copy.deepcopy(BASE)
         panes = self.raw["result"]["snapshot"]["panes"] if self.raw else []
@@ -845,12 +847,14 @@ class PluginTests(Fixture):
         for expected in (
             "zstack r1 · read ",
             "coord  claude @ w1:p1 ok",
-            "row key details",
+            "Enter focus · Tab region",
         ):
             self.assertIn(expected, text)
-        self.assertRegex(
-            text, r'\n1 +t1 +ok +accepted +1@0123456 +1/1 +idle +codex "worker" @ w1:p2 +repo wt +Phase two'
-        )
+        self.assertRegex(text, r"\n1 +t1 · Phase two +idle +accepted ")
+        self.assertIn("Inspector", text)
+        detail = render(board.view, board.last_ok, selected_task="t1", width=100)
+        for expected in ('codex "worker" @ w1:p2 ok', "/repo wt", "r.md · available", "0123456789abcdef"):
+            self.assertIn(expected, detail)
         self.assertNotIn("!", text)  # nothing outside the table needs saying.
         self.assertNotIn("STALE", text)
         self.assertNotIn("never", text)
@@ -889,8 +893,9 @@ class PluginTests(Fixture):
         board.refresh()
         text = render(board.view, board.last_ok, board.stale)
         self.assertIn("! task t1: invalid acceptance", text)
-        self.assertNotIn("no report registered", text)  # the rpt column shows "-".
-        self.assertRegex(text, r"\n1 +t1 +ok +- ")
+        self.assertNotIn("no report registered", text)  # report details appear on selection.
+        self.assertRegex(text, r"\n1 +t1 · Phase two +idle +pending ")
+        self.assertIn("no report registered", render(board.view, board.last_ok, selected_task="t1", width=100))
         nobody = self.board("w1:p9")
         nobody.refresh()
         self.assertIsNone(nobody.view)
@@ -944,7 +949,7 @@ class PluginTests(Fixture):
         text = render(board.view, board.last_ok)
         self.assertRegex(text, r"\n9 +t9 ")
         self.assertRegex(text, r"\na +t10 ")
-        self.assertIn("row key details", text)
+        self.assertIn("Enter focus · Tab region", text)
         self.assertTrue(board.key("a"))
         self.assertEqual(board.selected_task, "t10")
         board.key("\r")
@@ -1000,8 +1005,8 @@ class PluginTests(Fixture):
         view = self.inspect(path)
         view["tasks"][0]["title"] = "Refine Rich overview and task details"
         view["tasks"][0]["worktree"] = "/worktrees/plugin-pane-info"
-        output = render(view, {}, width=120)
-        row = next(line for line in output.splitlines() if line.startswith("1 "))
+        output = render(view, {}, width=80)
+        row = next(line for line in output.splitlines() if line.startswith("1 ") and "t1 ·" in line)
         self.assertIn("Refine Rich overview and task details", row)
         self.assertNotIn("…", row.split())
 
@@ -1009,7 +1014,7 @@ class PluginTests(Fixture):
         view = self.inspect(self.worker_run())
         view["data_gaps"] = ["long diagnostic " * 100 + "END-OF-DIAGNOSTIC"]
         output = render(view, {}, width=80, height=24)
-        self.assertRegex(output, r"\n1 +t1 +ok ")
+        self.assertRegex(output, r"\n1 +t1 · Phase two +idle +pending ")
         self.assertIn("END-OF-DIAGNOSTIC", render(view, {}, width=80, height=24, offset=10000))
 
     def test_open_board_without_enrollment_fails(self) -> None:
@@ -1031,6 +1036,7 @@ class PluginTests(Fixture):
         self.assertEqual(opened[opened.index("--workspace") + 1], "w1")
         self.assertEqual(opened[opened.index("--env") + 1], "ZSTACK_BOARD_PANE=w1:p2")
         self.assertNotIn("--target-pane", opened)  # Herdr rejects a target pane for tab plugin panes.
+        self.assertIn(("tab", "rename", "w1:t9", "zstack status"), self.calls)
         with patch.dict(os.environ, {**environment, "ZSTACK_BOARD_PANE": "w1:p1"}):
             self.assertEqual(pl.context_pane(), "w1:p1")  # the board tab resolves its caller, not itself.
 
@@ -1047,13 +1053,15 @@ class PluginTests(Fixture):
         self.assertIn('! t1: codex "worker" @ w2:p7 moved from w1:p2', text)
         self.assertIn("! t1: missing report gone.md", text)
         self.assertNotIn("report file missing", text)
-        self.assertRegex(text, r" 0/1 ")
+        self.assertIn("gone.md · missing", render(board.view, board.last_ok, selected_task="t1", width=100))
         lines = render(board.view, board.last_ok, width=20, height=5).rstrip("\n").split("\n")
         self.assertEqual(len(lines), 5)
         self.assertTrue(all(len(line) <= 20 for line in lines))
         self.assertTrue(lines[0].startswith("zstack r1"))
-        self.assertTrue(lines[3].startswith("Lines "))
-        self.assertTrue(lines[4].startswith("row key details"))  # footer survives with an ellipsis.
+        self.assertIn("Tasks", lines[1])
+        self.assertEqual(lines[2], "Inspector")
+        self.assertIn("+/- scroll", lines[3])
+        self.assertTrue(lines[4].startswith("↑/↓ select"))  # footer survives with an ellipsis.
 
     def test_narrow_overflowing_pane_keeps_state_columns_and_notices(self) -> None:
         path = self.worker_run()
@@ -1067,11 +1075,12 @@ class PluginTests(Fixture):
         lines = frame.rstrip("\n").split("\n")
         self.assertEqual(len(lines), 24)
         self.assertTrue(all(len(line) <= 80 for line in lines), lines)
-        rows = [line for line in lines if line[:2] in ("1 ", "2 ")]
-        self.assertRegex(rows[0], r"^1 +t1 +ok +accepted ")  # a long sibling ID does not push state off.
-        self.assertRegex(rows[1], r"^2 +x+… +unbound ")
+        rows = [line for line in lines if line[:2] in ("1 ", "2 ") and "tasks ·" not in line]
+        self.assertRegex(rows[0], r"^1 +t1 · Phase two +idle +accepted ")  # sibling ID does not push state off.
+        self.assertRegex(rows[1], r"^2 +x+… +- +pending ")
         self.assertIn("focus refused: gone", lines)  # notices survive vertical clipping.
-        self.assertRegex(lines[-2], r"^Lines \d+-\d+ of \d+")
+        self.assertRegex(lines[-2], r"^\d+-\d+/\d+ · \+/- scroll")
+        self.assertTrue(any(line == "Inspector" for line in lines))
 
     def test_malformed_snapshot_result_makes_the_board_stale(self) -> None:
         self.worker_run()

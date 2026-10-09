@@ -47,7 +47,7 @@ class NavigationTests(Fixture):
         self.assertEqual(tree(self.root), before)
         self.assertFalse(board.key("q"))
 
-    def test_detail_letters_do_not_change_selection(self) -> None:
+    def test_row_keys_change_selection_without_focus(self) -> None:
         path = self.worker_run()
         for index in range(2, 11):
             self.cli("task", "add", str(path), f"t{index}")
@@ -58,7 +58,7 @@ class NavigationTests(Fixture):
         self.calls.clear()
         board.key("1")
         board.key("b")
-        self.assertEqual(board.selected_task, "t10")
+        self.assertEqual(board.selected_task, "t1")
         self.assertEqual(self.calls, [])
 
     def test_selection_survives_reorder_and_stale_read_then_removed_task_returns(self) -> None:
@@ -110,10 +110,18 @@ class NavigationTests(Fixture):
         board.console.height = 8
         board.console.width = 80
         board.key("1")
+        board.key("\t")
+        board.key("+")
+        self.assertEqual(board.inspector_offset, 1)
+        board.inspector_offset = 10000
         board.offset = 10000
         board.draw()
         self.assertGreaterEqual(board.offset, 0)
         self.assertLess(board.offset, 10000)
+        self.assertLess(board.inspector_offset, 10000)
+        board.key("\x1b")
+        self.assertEqual(board.active_region, "tasks")
+        self.assertEqual(board.inspector_offset, 0)
 
     def test_every_task_is_reachable_beyond_shortcut_keys(self) -> None:
         path = self.worker_run()
@@ -124,12 +132,12 @@ class NavigationTests(Fixture):
         self.calls.clear()
         visited = set()
         for _ in board.view["tasks"]:
-            board.key("]")
+            board.key("down")
             visited.add(board.selected_task)
         self.assertEqual(visited, {task["id"] for task in board.view["tasks"]})
         board.key("]")
         self.assertEqual(board.selected_task, "t1")
-        board.key("[")
+        board.key("up")
         self.assertEqual(board.selected_task, board.view["tasks"][-1]["id"])
         self.assertEqual(self.calls, [])
 

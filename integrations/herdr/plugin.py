@@ -54,13 +54,6 @@ SELECT = "123456789abdefghijklmnopstuvwxyz"  # one key per entry; skips c, q, r.
 CONTROLS = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")  # terminal controls from run/snapshot text.
 OBSERVATION_VERSION = 1
 TABLE_GAPS = ("no report registered", "report file missing")  # the rpt column and missing-report notes say these.
-COLUMNS = ("", "Task", "Binding", "Acceptance", "Evidence", "Reports", "Lifecycle", "Worker", "Worktree", "Title")
-# Rich divides columns equally when a table is too wide, so the board sets widths itself. Past the pane width it
-# shrinks these columns, first to last, to a minimum (0 drops the column): worktree, worker, lifecycle, title,
-# task id. Key, bind, accept, ev, and rpt never shrink, and sit right after the task id, so a pane too narrow
-# even for the minimums cuts descriptive columns first.
-SHRINK = ((8, 0), (7, 0), (6, 0), (9, 0), (1, 6))
-GAP = 3  # between columns in a SIMPLE_HEAD table: padding, divider, padding.
 BIND_STYLE = {"ok": "green", "moved": "yellow", "unbound": "dim"}  # any other status is a broken binding: red.
 ACCEPT_STYLE = {"accepted": "green", "rejected": "red"}
 LIFE_STYLE = {"blocked": "bold red", "working": "cyan", "idle": "green", "done": "green"}
@@ -438,25 +431,6 @@ def worker_line(item: dict[str, Any]) -> str:
     return text + (f": {check['detail']}" if check.get("detail") else "")
 
 
-def report_cell(reports: list[dict[str, Any]]) -> str:
-    return f"{sum(item['exists'] is True for item in reports)}/{len(reports)}" if reports else "-"
-
-
-def evidence_cell(evidence: list[dict[str, Any]]) -> str:
-    if not evidence:
-        return "-"
-    latest = next((item["revision"] for item in reversed(evidence) if item.get("revision")), None)
-    return f"{len(evidence)}@{latest[:7]}" if latest else str(len(evidence))
-
-
-def lifecycle_cell(task: dict[str, Any]) -> str:
-    lifecycle = task.get("lifecycle") or {}
-    parts = [lifecycle.get("observed") or "-"]
-    if "orch_state" in lifecycle:
-        parts += [f"orch {lifecycle.get('orch_state') or '-'}", f"rep {lifecycle.get('reported_status') or '-'}"]
-    return " ".join(parts)
-
-
 def task_notes(task: dict[str, Any]) -> list[str]:
     """Detail that does not fit a table row: binding problems, missing or remote reports, data gaps."""
     notes, check = [], task.get("binding_check") or {}
@@ -483,48 +457,24 @@ def line(*parts: Text) -> Text:
     return Text.assemble(*parts, no_wrap=True, overflow="ellipsis")
 
 
-def task_row(index: int, task: dict[str, Any]) -> tuple[Text, ...]:
-    who, status = binding_cells(task)
-    acceptance = "-" if task.get("acceptance") in (None, "not recorded") else task["acceptance"]
-    reports = report_cell(task.get("reports") or [])
-    missing = any(item["exists"] is False for item in task.get("reports") or [])
-    life = lifecycle_cell(task)
-    return (
-        text(select_key(index), "bold"),
-        text(task["id"], "bold"),
-        text(status, BIND_STYLE.get(status, "red")),
-        text(acceptance, ACCEPT_STYLE.get(acceptance, "dim")),
-        text(evidence_cell(task.get("evidence") or [])),
-        text(reports, "red" if missing else "dim" if reports == "-" else ""),
-        text(life, LIFE_STYLE.get(life.split(" ")[0], "")),
-        text(who),
-        text(Path(task.get("worktree") or task.get("repository") or "-").name, "dim"),
-        text(task.get("title") or ""),
-    )
-
-
-def column_widths(rows: list[tuple[Text, ...]], width: int) -> list[int]:
-    """Natural column widths; past `width`, shrink descriptive columns in SHRINK order, never state columns."""
-    widths = [max(row[i].cell_len for row in rows) for i in range(len(rows[0]))]
-    for column, least in SHRINK:
-        over = sum(widths) + GAP * (sum(1 for w in widths if w) - 1) - width
-        if over <= 0:
-            break
-        widths[column] = max(least, widths[column] - over)
-        if least == 0 and widths[column] < rows[0][column].cell_len:
-            widths[column] = 0  # a column too narrow for its label is no longer useful.
-    return widths
-
-
-def task_table(tasks: list[dict[str, Any]], width: int) -> Table:
-    rows = [task_row(index, task) for index, task in enumerate(tasks)]
-    widths = column_widths([tuple(Text(name) for name in COLUMNS), *rows], width)
-    shown = [index for index, size in enumerate(widths) if size]
-    table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, header_style="bold")
-    for index in shown:
-        table.add_column(COLUMNS[index], width=widths[index], no_wrap=True, overflow="ellipsis")
-    for row in rows:
-        table.add_row(*(row[index] for index in shown))
+def task_table(tasks: list[dict[str, Any]], width: int, selected_task: str | None = None) -> Table:
+    table = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, expand=True, header_style="bold")
+    table.add_column("", width=2, no_wrap=True)
+    table.add_column("Task / title", ratio=1, no_wrap=True, overflow="ellipsis")
+    table.add_column("Lifecycle", width=9, no_wrap=True, overflow="ellipsis")
+    table.add_column("Acceptance", width=10, no_wrap=True, overflow="ellipsis")
+    for index, task in enumerate(tasks):
+        life = (task.get("lifecycle") or {}).get("observed") or "-"
+        acceptance = task.get("acceptance") or "not recorded"
+        acceptance = "pending" if acceptance == "not recorded" else acceptance
+        selected = task["id"] == selected_task
+        table.add_row(
+            text((">" if selected else "") + select_key(index), "bold"),
+            text(f"{task['id']} · {task.get('title') or ''}", "bold" if selected else ""),
+            text(life, LIFE_STYLE.get(life, "")),
+            text(acceptance, ACCEPT_STYLE.get(acceptance, "dim")),
+            style="on #26393f" if selected else None,
+        )
     return table
 
 
@@ -539,6 +489,7 @@ def detail_panel(task: dict[str, Any]) -> Panel:
     fields.add_column(style="bold", ratio=1)
     fields.add_column(ratio=3, overflow="fold")
     values = [
+        ("Task ID", task["id"]),
         ("Title", task.get("title") or "not recorded"),
         ("Binding", worker_line(task)),
         ("Repository", task.get("repository") or "not recorded"),
@@ -577,7 +528,7 @@ def detail_panel(task: dict[str, Any]) -> Panel:
     }
     for label, value in values:
         fields.add_row(detail_text(label), detail_text(value, styles.get(label, "")))
-    return Panel(fields, title=text(f"Task {task['id']}", "bold cyan"), border_style="cyan")
+    return Panel(fields, title=text("Selected task", "bold cyan"), border_style="cyan")
 
 
 class Frame:
@@ -608,57 +559,139 @@ class Frame:
             yield Segment.line()
 
 
-def overview_body(view: dict[str, Any], coord: Text, width: int) -> list[RenderableType]:
-    coordinator, tasks = view.get("coordinator") or {}, view.get("tasks", [])
-    accepted = sum(task.get("acceptance") == "accepted" for task in tasks)
-    rejected = sum(task.get("acceptance") == "rejected" for task in tasks)
-    blocked = sum((task.get("lifecycle") or {}).get("observed") == "blocked" for task in tasks)
-    active = sum((task.get("lifecycle") or {}).get("observed") == "working" for task in tasks)
-    summary = [
-        Text.assemble(
-            text(f"{len(tasks)} tasks · acceptance: ", "bold"),
-            text(f"{accepted} accepted", "green"),
-            text(" · "),
-            text(f"{rejected} rejected", "red"),
-            text(f" · {len(tasks) - accepted - rejected} pending"),
-        ),
-        Text.assemble(
-            text("Lifecycle: "), text(f"{active} working", "cyan"), text(" · "), text(f"{blocked} blocked", "bold red")
-        ),
-        coord,
-    ]
-    body: list[RenderableType] = [Panel(Group(*summary), title=text("Run overview", "bold"), border_style="cyan")]
+def problem_notes(view: dict[str, Any]) -> list[str]:
     notes = list(view.get("data_gaps") or [])
+    coordinator = view.get("coordinator") or {}
     if binding_cells(coordinator)[1] not in FOCUSABLE:
         notes.append(f"Coordinator: {worker_line(coordinator)}")
-    for task in tasks:
-        binding_status = binding_cells(task)[1]
-        if binding_status not in (*FOCUSABLE, "unbound"):
-            notes.append(f"{task['id']}: binding {binding_status}")
+    for task in view.get("tasks", []):
+        status = binding_cells(task)[1]
+        if status not in (*FOCUSABLE, "unbound"):
+            notes.append(f"{task['id']}: binding {status}")
         if task.get("acceptance") == "rejected":
             notes.append(f"{task['id']}: acceptance rejected")
         if (task.get("lifecycle") or {}).get("observed") == "blocked":
             notes.append(f"{task['id']}: lifecycle blocked")
         notes.extend(task_notes(task))
-    notes = list(dict.fromkeys(notes))
-    expanded = len(notes) > 3 or any(text(note).cell_len + 2 > max(1, width - 4) for note in notes)
-    if notes:
-        teaser = [text(f"! {note}", "yellow") for note in notes[:3]]
-        if expanded:
-            teaser.append(
-                detail_text(f"{len(notes)} problems / data gaps total · scroll below tasks for full list", "dim")
-            )
-        body.append(Panel(Group(*teaser), title=text("Problems / data gaps", "bold yellow"), border_style="yellow"))
-    body.append(task_table(tasks, width) if tasks else text("no tasks recorded", "dim"))
-    if expanded:
-        body.append(
-            Panel(
-                Group(*(detail_text(f"! {note}", "yellow") for note in notes)),
-                title=text("All problems / data gaps", "bold yellow"),
-                border_style="yellow",
-            )
+    return list(dict.fromkeys(notes))
+
+
+class InspectorFrame(Frame):
+    """Pinned run context and independently scrollable task and inspector regions."""
+
+    def __init__(
+        self,
+        head: list[RenderableType],
+        tasks: list[dict[str, Any]],
+        notes: list[str],
+        selected: dict[str, Any] | None,
+        offset: int,
+        inspector_offset: int,
+        active_region: str,
+        reveal_selection: bool,
+    ) -> None:
+        super().__init__(
+            head,
+            [],
+            "↑/↓ select · Enter focus · Tab region · +/- scroll · Esc clear · c coord · r refresh · q quit",
+            offset,
         )
-    return body
+        self.tasks, self.notes, self.selected = tasks, notes, selected
+        self.inspector_offset = max(0, inspector_offset)
+        self.active_region, self.reveal_selection = active_region, reveal_selection
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> Iterator[Segment]:  # noqa: C901 - bounded dual-region rendering.
+        width = options.max_width
+        height = max(1, options.height if options.height is not None else console.height)
+
+        def lines(renderable: RenderableType, size: int) -> list[list[Segment]]:
+            return console.render_lines(renderable, options.update(width=max(1, size), height=None), pad=False)
+
+        head = lines(self.head, width)
+        footer = lines(self.keys, width)[:1] if height > 1 else []
+        head = head[: max(0, height - len(footer) - min(4, max(0, height - 2)))]
+        room = max(0, height - len(head) - len(footer))
+        wide = width >= 110
+        left_width = (width - 1) * 55 // 100 if wide else width
+        right_width = width - left_width - 1 if wide else width
+        task_height = room if wide else room // 2
+        inspector_height = room if wide else room - task_height
+        task_body: list[RenderableType] = [
+            task_table(self.tasks, max(1, left_width - 2), self.selected["id"] if self.selected else None)
+        ]
+        if not self.tasks:
+            task_body = [text("no tasks recorded", "dim")]
+        if self.notes:
+            task_body += [
+                text("All problems / data gaps", "bold yellow"),
+                *(detail_text(f"! {note}", "yellow") for note in self.notes),
+            ]
+        task_lines = lines(Group(*task_body), max(1, left_width - 2))
+        inspector = (
+            detail_panel(self.selected).renderable
+            if self.selected
+            else detail_text("Select a task with its row key or ↑/↓ to inspect binding, reports and evidence.", "dim")
+        )
+        inspector_lines = lines(inspector, max(1, right_width - 2))
+
+        def region(
+            content: list[list[Segment]], size: int, rows: int, name: str, offset: int
+        ) -> tuple[list[list[Segment]], int]:
+            if rows <= 0:
+                return [], 0
+            body_rows = max(0, rows - 2)
+            offset = min(offset, max(0, len(content) - body_rows)) if body_rows else 0
+            if name == "Tasks" and self.reveal_selection and self.selected and body_rows:
+                key = ">" + select_key(
+                    next(i for i, task in enumerate(self.tasks) if task["id"] == self.selected["id"])
+                )
+                selected_line = next(
+                    (
+                        i
+                        for i, row in enumerate(content)
+                        if "".join(segment.text for segment in row).lstrip().startswith(key)
+                    ),
+                    None,
+                )
+                if selected_line is not None and not offset <= selected_line < offset + body_rows:
+                    offset = (
+                        max(0, selected_line - body_rows + 1) if selected_line >= offset + body_rows else selected_line
+                    )
+            active = self.active_region == ("tasks" if name == "Tasks" else "inspector")
+            title = text(f"{'▸ ' if active else ''}{name}", "bold cyan" if active else "bold")
+            result = lines(title, size)[:1]
+            result += content[offset : offset + body_rows]
+            while len(result) < rows - 1:
+                result.append([])
+            if rows > 1:
+                result += lines(
+                    text(
+                        f"{offset + 1 if content else 0}-{min(len(content), offset + body_rows)}/{len(content)}"
+                        " · +/- scroll",
+                        "dim",
+                    ),
+                    size,
+                )[:1]
+            return result[:rows], offset
+
+        left, self.offset = region(task_lines, left_width, task_height, "Tasks", self.offset)
+        right, self.inspector_offset = region(
+            inspector_lines, right_width, inspector_height, "Inspector", self.inspector_offset
+        )
+        body = left + right
+        if wide:
+            body = []
+            for lrow, rrow in zip(left, right, strict=True):
+                body.append(
+                    [
+                        *Segment.adjust_line_length(lrow, left_width),
+                        Segment("│", style=None),
+                        *Segment.adjust_line_length(rrow, right_width),
+                    ]
+                )
+        for row in (*head, *body, *footer):
+            yield from row
+            yield Segment.line()
 
 
 def board_frame(
@@ -671,6 +704,9 @@ def board_frame(
     width: int = 80,
     selected_task: str | None = None,
     offset: int = 0,
+    inspector_offset: int = 0,
+    active_region: str = "tasks",
+    reveal_selection: bool = False,
 ) -> Frame:
     """The board for one inspection view (or a choose-run / no-run screen): one table row per task."""
     title = text("zstack board", "bold")
@@ -710,21 +746,27 @@ def board_frame(
         head.append(text(f"STALE: {stale} — showing last good data", "bold red"))
     if message:
         head.append(text(message, "bold yellow"))
-    selected = next((task for task in tasks if task["id"] == selected_task), None)
-    if selected is not None:
-        return Frame(
-            head,
-            [detail_panel(selected)],
-            "Enter focus · Esc back · [/] task · +/- scroll · c coord · r refresh · q quit",
-            offset,
-        )
-    body = overview_body(view, coord, width)
-    return Frame(
-        head,
-        body,
-        ("row key details · [/] task · " if tasks else "") + "+/- scroll · c coord · r refresh · q quit",
-        offset,
+    accepted = sum(task.get("acceptance") == "accepted" for task in tasks)
+    rejected = sum(task.get("acceptance") == "rejected" for task in tasks)
+    working = sum((task.get("lifecycle") or {}).get("observed") == "working" for task in tasks)
+    blocked = sum((task.get("lifecycle") or {}).get("observed") == "blocked" for task in tasks)
+    head.insert(
+        1,
+        line(
+            text(f"{len(tasks)} tasks · ", "bold"),
+            text(f"{accepted} accepted", "green"),
+            text(f" · {rejected} rejected", "red"),
+            text(f" · {len(tasks) - accepted - rejected} pending · "),
+            text(f"{working} working", "cyan"),
+            text(f" · {blocked} blocked", "bold red"),
+        ),
     )
+    head.insert(2, coord)
+    notes = problem_notes(view)
+    if notes:
+        head.append(text(f"! {notes[0]} · {len(notes)} problems / data gaps; full list after tasks", "yellow"))
+    selected = next((task for task in tasks if task["id"] == selected_task), None)
+    return InspectorFrame(head, tasks, notes, selected, offset, inspector_offset, active_region, reveal_selection)
 
 
 # --- Board loop -------------------------------------------------------------
@@ -747,6 +789,9 @@ class Board:
         self.notice: str | None = None  # last key or label result; kept until the next key.
         self.selected_task: str | None = None
         self.offset = 0
+        self.inspector_offset = 0
+        self.active_region = "tasks"
+        self.reveal_selection = False
 
     def refresh(self) -> None:
         snapshot, error = snapshot_or_error(self.socket)
@@ -772,10 +817,14 @@ class Board:
             if self.view is None:
                 self.message = "no successful read yet"
             return
+        self.reveal_selection |= [t["id"] for t in (self.view or {}).get("tasks", [])] != [
+            t["id"] for t in view.get("tasks", [])
+        ]
         self.view, self.message = view, None
         if self.selected_task and not any(task["id"] == self.selected_task for task in view.get("tasks", [])):
-            self.notice = f"task {self.selected_task} is no longer in this run; returned to overview"
-            self.selected_task, self.offset = None, 0
+            self.notice = f"task {self.selected_task} is no longer in this run; selection cleared"
+            self.selected_task, self.offset, self.inspector_offset = None, 0, 0
+            self.active_region = "tasks"
         enrolled = {entry.get("run_id") for entry in hr.enrolled_runs(self.socket, self.root)}
         _, _, errors = sync_labels(view, snapshot, enrolled)
         if errors:
@@ -789,9 +838,17 @@ class Board:
         if char in ("r", "R"):
             self.refresh()
         elif char == "\x1b":
-            self.selected_task, self.offset = None, 0
+            self.selected_task, self.offset, self.inspector_offset = None, 0, 0
+            self.active_region = "tasks"
+        elif char == "\t" and self.view:
+            self.active_region = "inspector" if self.active_region == "tasks" else "tasks"
         elif char in ("+", "-"):
-            self.offset = max(0, self.offset + (1 if char == "+" else -1))
+            delta = 1 if char == "+" else -1
+            if self.active_region == "inspector":
+                self.inspector_offset = max(0, self.inspector_offset + delta)
+            else:
+                self.offset = max(0, self.offset + delta)
+                self.reveal_selection = False
         elif char in SELECT and self.choices:
             index = SELECT.index(char)
             if index < len(self.choices):
@@ -801,15 +858,18 @@ class Board:
         elif self.run_file and self.view:
             tasks = self.view.get("tasks", [])
             target = "coordinator" if char in ("c", "C") else None
-            if char in ("[", "]") and tasks:
-                start = -1 if char == "]" else 0
+            if char in ("[", "]", "up", "down") and tasks:
+                forward = char in ("]", "down")
+                start = -1 if forward else 0
                 index = next((i for i, task in enumerate(tasks) if task["id"] == self.selected_task), start)
-                index = (index + (1 if char == "]" else -1)) % len(tasks)
-                self.selected_task, self.offset = tasks[index]["id"], 0
+                index = (index + (1 if forward else -1)) % len(tasks)
+                self.selected_task, self.inspector_offset = tasks[index]["id"], 0
+                self.reveal_selection = True
             elif char in ("\r", "\n"):
                 target = self.selected_task
-            elif char in SELECT and self.selected_task is None and SELECT.index(char) < len(tasks):
-                self.selected_task, self.offset = tasks[SELECT.index(char)]["id"], 0
+            elif char in SELECT and SELECT.index(char) < len(tasks):
+                self.selected_task, self.inspector_offset = tasks[SELECT.index(char)]["id"], 0
+                self.reveal_selection = True
             if target:
                 try:
                     self.notice = focus(self.socket, self.run_file, target, self.root, self.run_id)
@@ -829,12 +889,17 @@ class Board:
             self.console.width,
             selected_task=self.selected_task,
             offset=self.offset,
+            inspector_offset=self.inspector_offset,
+            active_region=self.active_region,
+            reveal_selection=self.reveal_selection,
         )
         if self.live is None:
             self.console.print(frame)
         else:
             self.live.update(frame, refresh=True)
         self.offset = frame.offset
+        self.inspector_offset = getattr(frame, "inspector_offset", 0)
+        self.reveal_selection = False
 
 
 def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) -> int:  # noqa: C901 - one input/refresh state machine.
@@ -860,7 +925,11 @@ def run_board(board: Board, stdin_fd: int, interval: float = REFRESH_SECONDS) ->
                     escape = ""
                 elif escape:
                     if "@" <= char <= "~":
+                        if escape in ("\x1b[", "\x1bO") and char in "AB":
+                            board.key("up" if char == "A" else "down")
                         escape = ""
+                    else:
+                        escape = (escape + char)[:32]
                     continue
                 if char == "\x1b":
                     escape = char
@@ -934,7 +1003,13 @@ def command_open_board() -> int:
     argv = ["plugin", "pane", "open", "--plugin", plugin, "--entrypoint", "board", "--placement", "tab"]
     if workspace := plugin_context().get("workspace_id") or os.environ.get("HERDR_WORKSPACE_ID"):
         argv += ["--workspace", str(workspace)]
-    herdr(*argv, "--env", f"{BOARD_PANE_ENV}={pane}", "--no-focus")
+    opened = herdr(*argv, "--env", f"{BOARD_PANE_ENV}={pane}", "--no-focus")
+    tab = opened.get("result", {}).get("plugin_pane", {}).get("pane", {}).get("tab_id")
+    if tab:
+        try:
+            herdr("tab", "rename", tab, "zstack status")
+        except hr.UserError as error:
+            print(f"board opened, but tab rename failed: {error}")
     print(f"board opened for pane {pane} on {socket}")
     return 0
 
