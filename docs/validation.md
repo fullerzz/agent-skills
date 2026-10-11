@@ -22,6 +22,10 @@ Tool caches and installer fixtures were isolated under temporary directories. Th
 
 These are local structural, packaging, registration, and installer results. No fresh native host session invoked ketchup, and no live PR/CI or running-agent catch-up scenario was exercised. Model handling of partial history, notification boundaries, stale checks, and decision recommendations remains behaviorally unverified. No global skills were changed.
 
+### PR #30 Codex invocation documentation correction
+
+The long-work guide now distinguishes `$ketchup` for linked Codex skills from selecting `zstack:ketchup` through the native Codex plugin's skill picker, matching the host setup and workflow reference. On macOS, `uv run scripts/validate.py` reported 52 skills and zero structural problems; `node --test scripts/docs.test.mjs` passed all four documentation tests, including the VitePress build; `git diff --check` passed. These are documentation and structural checks; no live native-host invocation was exercised.
+
 ## Selective pstack 0.15.12–0.15.13 guide port — 2026-10-05
 
 Updated four guide pages with native Claude Code/Codex examples for prompting, prototypes, verification, benchmark validation, repeated-mistake prevention, and trust before unattended work. [Provenance](provenance.md) records the selection and cites both source commits. Skill behavior, invocation metadata, and plugin versions are unchanged. Removed existing trailing whitespace from the README note marker so structural validation passes.
