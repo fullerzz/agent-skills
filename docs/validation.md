@@ -6,6 +6,27 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Selective pstack 0.15.16 prompt cleanup — 2026-10-11 {#pstack-0-15-16-cleanup}
+
+Reviewed the pinned upstream diff at `00b14f1df36b32a8dd1529324a3a459f6563b127` and adapted 28 corresponding Markdown files in an isolated macOS worktree based on `e0e57f8` (main after ketchup PR #30). [Provenance](provenance.md#pstack-0-15-16-cleanup) records adopted and skipped areas. All skill frontmatter and invocation metadata remain unchanged; native plugin versions advance together to `0.5.1`.
+
+Across only the 28 changed files under `skills/`, words decrease from 17,968 to 16,485 (1,483 fewer, 8.3%) and bytes from 114,965 to 105,831 (9,134 fewer, 7.9%). Counts include frontmatter. The selection is `git diff --name-only e0e57f8 HEAD -- skills` at this PR's head; compare each file's `git show e0e57f8:<path>` contents with the adaptation contents using `wc -w` and byte lengths. Provenance, validation documentation, and manifests are excluded. These are source-size measurements, not token, latency, cost, or model-adherence results.
+
+Checks on this host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the actual VitePress build, rendered reference anchors, license notices, and isolated linked-host installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 119 tests passed, including bundled Python helpers, native hooks, registration, packaging, and invocation policy.
+- The documented `ty` helper check passed. Project-wide `mypy` passed for 27 source files.
+- `uv run scripts/package_plugin.py`: packaged 52 skills and native manifest `0.5.1`. Compared every tracked packaged resource byte for byte with the worktree, including edited prompts, sibling references, hooks, and the unchanged MIT license. Compared changed skill frontmatter against main; all matched. Packaging writes only ignored `dist/zstack`, without refreshing installed plugins.
+- `git diff --check`: passed.
+
+Ruff 0.17.0 (`uv run --with ruff ruff check --no-cache --output-format json .`) exits 1 with five findings, all reproduced identically on untouched main: UP017 in `hooks/xray.py`, `skills/z-mode/scripts/orch/store.py`, and `skills/z-mode/scripts/watch-pr/policy.py`; I001 and RUF100 in `scripts/validate.py`. This wording port changes no Python source and leaves those baseline issues outside its scope.
+
+Dependency caches and installer fixtures were isolated under temporary directories. Initial sandboxed uv calls could not resolve PyPI; the suites passed with approved dependency access, Homebrew uv, and a PATH that avoids the restricted mise shim. Locked pnpm dependencies were installed only in this worktree. No personal configuration or globally installed skills changed.
+
+These are structural, rendered-documentation, packaging, and regression results. No fresh Codex, Claude Code, or Hermes session exercised the edited prompts, and no reflection panel or live Datadog/Sentry investigation ran. Semantic preservation was reviewed against the local instructions and upstream diff; model adherence remains behaviorally unverified. The final docs checks also cover this record and its provenance links.
+
 ## Ketchup skill — 2026-10-11
 
 Adapted the pinned pstack ketchup source at `978ca6e9c0e012047cd5058b8e829240336e704e` in an isolated worktree on macOS. The final checks below use the ketchup branch based on `main`, excluding the unrelated Herdr board plugin. The port preserves explicit-only invocation, the preceding human-message boundary, read-only inspection, older unresolved decisions, and decision summaries. Shared discovery supplies registration for Codex, Claude Code, and Hermes; the native plugin versions advance together to `0.5.0` under the repository's new-skill versioning policy.
