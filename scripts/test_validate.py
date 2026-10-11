@@ -185,7 +185,7 @@ class ValidateTests(unittest.TestCase):
             if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
                 implicit.add(skill.name)
         self.assertEqual(implicit, {"how", "why"})
-        for name in implicit:
+        for name in implicit | {"ketchup"}:
             self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)
 
     def test_xray_session_requires_explicit_invocation_on_both_hosts(self) -> None:

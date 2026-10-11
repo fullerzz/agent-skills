@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 27 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 28 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -362,6 +362,32 @@ Persists until you say stop z-mode or choose another style, subject to retained 
 
 [Full z-mode instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md)
 
+## Ketchup {#ketchup}
+
+You want to catch up on this chat since your last message and decide anything still awaiting you.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$ketchup` |
+| Claude Code | `/ketchup` |
+| Hermes | `Load zstack:ketchup with skill_view and catch me up on this chat.` |
+
+For native plugins, select `zstack:ketchup` through the Codex skill picker or invoke `/zstack:ketchup` in Claude Code.
+
+### How it works
+
+The agent summarizes work after your preceding human message; notifications and worker reports do not move that boundary. It takes a current read-only snapshot of relevant PRs, CI, branches, and existing agents where tools and access permit. Earlier unresolved decisions are included; later answers remove resolved ones.
+
+### Expected result
+
+A count of decisions awaiting you, the most consequential results and their meaning, current status, and a brief line of remaining agent work. Each decision includes context, options, tradeoffs, a recommendation, and the known consequence of no answer. Supporting links are optional reading.
+
+### Dependencies and limits
+
+Explicit-only on all hosts. Uses available conversation evidence, native history/status readers, and GitHub readers or an already available authenticated `gh`. Missing history, tools, or access are disclosed. The invocation stays read-only, creates no new agents, and takes no proposed action. Existing workers can continue. [Recall](#recall) rebuilds context across sessions; [xray-session](#xray-session) provides a chronological zstack activity ledger on its own explicit request.
+
+[Full ketchup instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/ketchup/SKILL.md)
+
 ## Recall {#recall}
 
 You need current context across recent sessions before starting or resuming work.
@@ -381,7 +407,7 @@ A short context capsule, accurate per-thread status, recurring blockers, and one
 
 ### Dependencies and limits
 
-Unavailable history and digest-based evidence are labeled. Adjacent work is excluded unless it blocks the task. A single-session resume belongs to session-pickup. Habit mining belongs to automate-me.
+Unavailable history and digest-based evidence are labeled. Adjacent work is excluded unless it blocks the task. A single-session resume belongs to session-pickup. A catch-up on the current chat belongs to [ketchup](#ketchup). Habit mining belongs to automate-me.
 
 [Full recall instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/recall/SKILL.md)
 

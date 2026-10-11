@@ -63,6 +63,9 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(readFileSync(missingCopy, 'utf8'), readFileSync(join(root, 'agents/codex/z-agent.toml'), 'utf8'));
     assert.equal(realpathSync(join(home, '.agents/skills/how')), join(root, 'skills/how'));
     assert.equal(realpathSync(join(home, '.claude/skills/how')), join(root, 'skills/how'));
+    for (const native of ['.agents', '.claude']) {
+      assert.equal(realpathSync(join(home, native, 'skills/ketchup')), join(root, 'skills/ketchup'));
+    }
     assert.match(readFileSync(join(home, '.codex/agents/z-agent.toml'), 'utf8'), /developer_instructions/);
     assert.match(readFileSync(join(home, '.claude/agents/comment-sicko.md'), 'utf8'), /model: inherit/);
     assert.equal(run([...args, '--apply']).status, 0);
@@ -82,6 +85,8 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(readlinkSync(dangling), destination);
     assert.equal(existsSync(join(home, '.codex/agents/z-agent.toml')), false);
     assert.equal(existsSync(join(home, '.claude/skills/how')), false);
+    assert.equal(existsSync(join(home, '.agents/skills/ketchup')), false);
+    assert.equal(existsSync(join(home, '.claude/skills/ketchup')), false);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 test('preflight collisions do not partially install; project scope is explicit', () => {

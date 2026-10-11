@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Ketchup skill — 2026-10-11
+
+Adapted the pinned pstack ketchup source at `978ca6e9c0e012047cd5058b8e829240336e704e` in an isolated worktree on macOS. The final checks below use the ketchup branch based on `main`, excluding the unrelated Herdr board plugin. The port preserves explicit-only invocation, the preceding human-message boundary, read-only inspection, older unresolved decisions, and decision summaries. Shared discovery supplies registration for Codex, Claude Code, and Hermes; the native plugin versions advance together to `0.5.0` under the repository's new-skill versioning policy.
+
+Checks against the implementation:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress build, rendered reference anchors, license notices, and isolated ketchup link installation/removal for both linked hosts.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 119 tests passed, including explicit invocation policy and Hermes registration from another working directory.
+- A disposable Git repository containing copies of the current plugin resources exercised `scripts/package_plugin.py`: all 52 skills were packaged, ketchup instructions and policy matched byte for byte, its sibling references resolved, the manifest declared `0.5.0`, and the MIT license was preserved. No staging, commits, or installation in the real repository or personal configuration were needed.
+- `git diff --check`: passed. The original `herdr-plugin` checkout remained clean and on its original branch.
+
+Tool caches and installer fixtures were isolated under temporary directories. The final Node and Python suites passed after allowing dependency access; initial sandboxed attempts encountered blocked PyPI DNS. The generic skill-creator `quick_validate.py` was also tried; it rejects `disable-model-invocation` because its allowed-field list lacks the shared Claude Code flag. The repository validator accepts that required field; the flag was retained rather than weakening invocation policy.
+
+These are local structural, packaging, registration, and installer results. No fresh native host session invoked ketchup, and no live PR/CI or running-agent catch-up scenario was exercised. Model handling of partial history, notification boundaries, stale checks, and decision recommendations remains behaviorally unverified. No global skills were changed.
+
 ## Selective pstack 0.15.12–0.15.13 guide port — 2026-10-05
 
 Updated four guide pages with native Claude Code/Codex examples for prompting, prototypes, verification, benchmark validation, repeated-mistake prevention, and trust before unattended work. [Provenance](provenance.md) records the selection and cites both source commits. Skill behavior, invocation metadata, and plugin versions are unchanged. Removed existing trailing whitespace from the README note marker so structural validation passes.
