@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Encode recurring fixes in mechanisms (tools, code, metadata, automation) instead of textual instructions. Every error, human correction, and unexpected outcome is a learning signal. Capture it, route it, and close the loop.
 
-**Why:** Textual instructions are easy to miss. They require the reader to notice, remember, and comply. Structural mechanisms (lint rules, metadata flags, runtime checks, automation scripts) enforce the rule without cooperation.
+Textual instructions are easy to miss. Structural mechanisms enforce the rule without cooperation.
 
 **Pattern:**
 When you catch yourself writing the same instruction a second time:
@@ -20,10 +20,7 @@ When you catch yourself writing the same instruction a second time:
 
 **Corollary:** If the fix is structural, only use the structural fix. The instruction is the symptom.
 
-**Feedback loop:**
-- **Capture every correction.** When the human intervenes or tests fail, decide if it's a one-off or a pattern.
-- **Route to the right layer.** One-off -> local task note; do not silently persist user memory. Recurring fix -> skill or lint rule. Systemic issue -> principle.
-- **Close the loop.** Don't just record. Apply within the requested scope or record a local concrete todo. External backlog filing is a separate action.
+When the human intervenes or tests fail, decide if it's a one-off or a pattern. Route it: one-off -> local task note, recurring fix -> skill or lint rule, systemic issue -> principle. Do not silently persist user memory. Close the loop: apply within the requested scope or record a local concrete todo. External backlog filing is a separate action.
 
 **Anti-patterns:**
 - Acknowledging without recording ("I'll keep that in mind" does not persist)

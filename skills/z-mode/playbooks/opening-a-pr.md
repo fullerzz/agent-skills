@@ -1,7 +1,7 @@
 # Opening a PR
 Run only when publication is part of the user's request.
 1. Verify repository, branch, base, dirty state, and task files. Preserve unrelated work. Use an isolated worktree when needed; never routine reset --hard recovery.
-2. Read repository requirements and run appropriate checks. Stage intended files explicitly and commit only with authorization.
+2. Read repository requirements and run appropriate checks. Stage intended files explicitly and commit only with authorization. Commit bodies do not restate the subject.
 3. Resolve the forge and the available PR tools. Use the host's built-in PR tool for creation, edits, retargeting, and readiness when it supports that operation, following its instructions. For unsupported operations or when no built-in tool exists, use the repository's forge or stack tooling; for GitHub the fallback is gh with a body file containing real newlines. Complete any host-required PR attachment or registration after creation, including CLI creation. An attachment-only tool does not replace a creation tool.
 4. Write a title/body around the concrete problem and resulting behavior, using the description format below unless the repository template or user requests another format. Use technical-writing and unslop guidance where helpful.
 5. Push/open the PR if requested, then read back its head, base, and URL. Opening does not authorize merge, auto-merge, or unsolicited babysitting.
@@ -9,7 +9,7 @@ Return what was published, the link, checks, and limits. Local fixes remain loca
 
 ## Description format
 
-Keep the briefing readable in under a minute, normally under 40 lines. Use actual `##` headings rather than bold lead-ins. Keep these sections in order. Only `## Tradeoffs` and `## Blast Radius` are optional, under the conditions below:
+Keep the briefing readable in under a minute, normally under 40 lines. Use `##` headings in this order. Only `## Tradeoffs` and `## Blast Radius` are optional, under these conditions:
 
 - `## Why`: one to three short sentences stating the problem and approach.
 - `## What changed`: one to three bullets. Name symbols or paths only when they explain the change; name both sides of a rename.
