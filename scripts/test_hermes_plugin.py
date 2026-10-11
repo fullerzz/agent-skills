@@ -69,6 +69,7 @@ class HermesPluginTests(unittest.TestCase):
             expected = sorted(path.name for path in (ROOT / "skills").iterdir() if (path / "SKILL.md").is_file())
             self.assertEqual(list(registry.skills), expected)
             self.assertIn("xray-session", registry.skills)
+            self.assertIn("ketchup", registry.skills)
             self.assertIn("pre_llm_call", registry.hooks)
             self.assertIn("on_session_reset", registry.hooks)
             mode = registry.skills["z-mode"].parent
