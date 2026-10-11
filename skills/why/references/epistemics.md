@@ -20,7 +20,7 @@ Phrasing: confident but clearly derived, citing each item. "The evidence points 
 
 ### 3. Inferred
 
-A reasonable reading of the context that nothing explicitly supports. It is *your interpretation*, not a fact from the record. For example, the PR doesn't say why, but the error was happening in production (per the incident channel timing) and the fix was rushed (merged the same day), so it was likely a hotfix. Or the function name suggests retry logic, and its retry count of 3 matches the team's 3-retry convention elsewhere in the codebase.
+A reasonable reading of the context, but nothing in the record explicitly supports that reading. It is *your interpretation*, not a fact from the record. For example, the PR doesn't say why, but the error was happening in production (per the incident channel timing) and the fix was rushed (merged the same day), so it was likely a hotfix. Or the function name suggests retry logic, and its retry count of 3 matches the team's 3-retry convention elsewhere in the codebase.
 
 Phrasing: hedged, with the chain explicit. "Given A and B, C seems likely because D."
 

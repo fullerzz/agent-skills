@@ -63,7 +63,7 @@ Use the Sentry MCP.
    analyze_issue_with_seer
    ```
 
-   Seer's AI root-cause analyses are a hypothesis generator. Treat them as inference, not authoritative. The actual events and stack traces are the primary evidence.
+   Use Seer's AI root-cause analyses to generate hypotheses. Treat them as inference, not authoritative. The actual events and stack traces are the primary evidence.
 
 ## What good evidence looks like here
 

@@ -10,7 +10,7 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 Reviewed the pinned upstream diff at `00b14f1df36b32a8dd1529324a3a459f6563b127` and adapted 28 corresponding Markdown files in an isolated macOS worktree based on `e0e57f8` (main after ketchup PR #30). [Provenance](provenance.md#pstack-0-15-16-cleanup) records adopted and skipped areas. All skill frontmatter and invocation metadata remain unchanged; native plugin versions advance together to `0.5.1`.
 
-Across only the 28 changed files under `skills/`, words decrease from 17,968 to 16,485 (1,483 fewer, 8.3%) and bytes from 114,965 to 105,831 (9,134 fewer, 7.9%). Counts include frontmatter. The selection is `git diff --name-only e0e57f8 HEAD -- skills` at this PR's head; compare each file's `git show e0e57f8:<path>` contents with the adaptation contents using `wc -w` and byte lengths. Provenance, validation documentation, and manifests are excluded. These are source-size measurements, not token, latency, cost, or model-adherence results.
+Across only the 28 changed files under `skills/`, after the PR #31 review repairs, words decrease from 17,968 to 16,545 (1,423 fewer, 7.9%) and bytes from 114,965 to 106,228 (8,737 fewer, 7.6%). Counts include frontmatter. The selection is `git diff --name-only e0e57f8 HEAD -- skills` at this PR's head; compare each file's `git show e0e57f8:<path>` contents with the adaptation contents using `wc -w` and byte lengths. Provenance, validation documentation, and manifests are excluded. These are source-size measurements, not token, latency, cost, or model-adherence results.
 
 Checks on this host:
 
@@ -26,6 +26,14 @@ Ruff 0.17.0 (`uv run --with ruff ruff check --no-cache --output-format json .`) 
 Dependency caches and installer fixtures were isolated under temporary directories. Initial sandboxed uv calls could not resolve PyPI; the suites passed with approved dependency access, Homebrew uv, and a PATH that avoids the restricted mise shim. Locked pnpm dependencies were installed only in this worktree. No personal configuration or globally installed skills changed.
 
 These are structural, rendered-documentation, packaging, and regression results. No fresh Codex, Claude Code, or Hermes session exercised the edited prompts, and no reflection panel or live Datadog/Sentry investigation ran. Semantic preservation was reviewed against the local instructions and upstream diff; model adherence remains behaviorally unverified. The final docs checks also cover this record and its provenance links.
+
+### PR #31 review repairs
+
+Checked all seven review threads against head `6b4339c` and verified the remote and local heads matched before editing. Retained literal expected values and meaningful empty-result assertions; the weak-coverage list no longer treats an assertion method as a verdict. The type example now supplies `{ completedAt: Date | null }` as a non-optional single source. Clarified architect's named skill, the Inferred tier's referent, and within-source link following. Restored the quotation qualifier to match the accurate-paraphrase output option. Seer analyses still supply hypotheses rather than authoritative evidence.
+
+On this macOS host, bounded Node assertions confirmed that an empty-result equality check and a zero-length check reject `undefined`. The nullable completion predicate returned false for `null` and true for a Date; `undefined !== null` reproduced the omitted-field bug. This verifies JavaScript examples with Node's assertion library, not Jest/Vitest execution or native agent adherence to the prose.
+
+After the skill fixes, structural validation again reported 52 skills and zero problems; all 15 Node tests and all 119 Python tests passed; packaging again matched every tracked resource byte for byte with 52 skills and manifest `0.5.1`. The final documentation and whitespace rechecks passed after updating this record, provenance, and the size measurements above. Initial sandboxed runs failed on PyPI DNS, including one Node installer fixture; approved dependency-access reruns passed. No executable source, invocation metadata, personal configuration, or installed skills changed. The unmerged PR retains version `0.5.1`; the five previously reproduced Ruff baseline issues and fresh-host behavior limits remain.
 
 ## Ketchup skill — 2026-10-11
 

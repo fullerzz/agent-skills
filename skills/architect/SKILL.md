@@ -10,7 +10,7 @@ Design the smallest coherent shape before code. A design request produces a desi
 
 ## Phase A: Ground the problem
 
-Produce the architectural explanation how prescribes where useful, grounded in runtime flow and callers. Use why when changing ownership risks discarding a historical constraint. Greenfield work still has boundaries.
+Where useful, produce the architectural explanation that `how` prescribes, grounded in runtime flow and callers. Use why when changing ownership risks discarding a historical constraint. Greenfield work still has boundaries.
 
 ## Phase B: Sketch
 
