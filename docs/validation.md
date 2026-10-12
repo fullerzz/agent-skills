@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Verification skill readiness — 2026-10-12 {#verification-skill-readiness}
+
+Selectively adapted [upstream PR #573](https://github.com/cursor/plugins/pull/573) at `8dd98e90937149ca1b8dba7103d45dce5003676d`, starting from main `7497a21`. The generator now requires usable state after migrations and seed data from an empty data directory, reports missing seed prerequisites without weakening journeys, and discloses setup gaps when proof uses a stand-in. The workflow reference reflects these limits. Shared native manifests advance to `0.6.1` for this compatible fix; native paths, frontmatter, explicit invocation metadata, helper portability, and the retained MIT license remain intact.
+
+Checks on this macOS host (Node 26.11.1, Homebrew uv 0.13.0):
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress build, reference anchors, license notices, and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 120 tests passed, including native hooks, packaging, and bundled helpers.
+- `uv run scripts/package_plugin.py`: all 183 tracked packaged resources matched the working tree byte for byte, and the packaged manifest declared `0.6.1`. The generator's frontmatter and the license matched base main exactly.
+- `git diff --check`: passed.
+
+Commands used Homebrew uv and a PATH preferring Homebrew tools after the mise shim returned a sandbox permission error. Installer fixtures stayed isolated from personal configuration; packaging wrote ignored `dist/zstack` only. These are structural, documentation, packaging, and regression results. No fresh native host generated and drove an application with the revised instructions; model adherence, empty-data startup, and real-target setup remain behaviorally unverified. No personal installation, merge, or deployment was performed.
+
+The independent oracle review found one provenance ambiguity: the new attribution paragraph interrupted an older commit's PR-workflow attribution. Moving it below that paragraph addressed the finding. No other actionable findings were reported. Final structural, documentation-build, and whitespace rechecks passed after this repair and validation record.
+
 ## Ketchup decision visuals — 2026-10-12 {#ketchup-decision-visuals}
 
 Selectively adapted pstack 0.15.18's ketchup update at `ea32d9562a1c9f077d7cdd3be53d07383eb18866` and HumanLayer show-me at `653b6411c1f70c275a18e37673b042ff99f67ceb`. The isolated macOS worktree starts at main `1e363c0f32512cf53db796ddd87eaef9bb95aacf`; no later pstack changes are included. The bundled reference and full HumanLayer MIT notice preserve portable discovery without a separate installation. Existing explicit invocation and read-only catch-up policies remain intact. Review repairs below advance the shared plugin version to `0.6.0` for the new behavior.
