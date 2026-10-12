@@ -31,7 +31,7 @@ With native execution, use the selected host's native agent tool and omit model 
 
 Use `z-agent` for scoped engineering work and `comment-sicko` for comment reports when installed. The Claude Code plugin registers them as `zstack:z-agent` and `zstack:comment-sicko`. A built-in agent with the same scoped brief is a fallback; disclose it. A child reads the selected workflow instructions, but does not recursively launch another copy of itself merely because the mode is active.
 
-Every brief names goal, context paths, read/write scope, acceptance check, and report format. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
+Every brief names goal, context paths, read/write scope, acceptance check, and report format. A z-agent brief also gives the absolute real path of the loaded z-mode `SKILL.md`; the child cannot discover it, and relative links resolve from it. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
 
 ### Agent lifecycle
 

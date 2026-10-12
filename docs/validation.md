@@ -645,3 +645,9 @@ Hardened `docs/nginx.conf` for a TLS-terminating reverse proxy. Against the rebu
 `scripts/install.py` now renders a Rich panel per host when stdout is a terminal. Entries are grouped by operation, with counts, a short meaning, and wrapped names; skill and agent directories appear once at the top of each panel. Piped output keeps the tab-separated lines that existing tests and scripts parse. A new Node test forces terminal rendering with `TTY_COMPATIBLE=1` and checks grouping, both host panels, and the agents directory. Rendering was inspected at 60 and 100 columns against the real `~/.claude` and `~/.agents` state. Long names fold instead of truncating.
 
 Validation: 13 Node tests, structural validation (46 skills), and 4 Python unit tests pass. This was not checked in an interactive TTY session; `TTY_COMPATIBLE=1` stood in for one.
+
+## z-agent hub path <Badge type="info" text="2026-10-12" />
+
+Adapted [cursor/plugins#577](https://github.com/cursor/plugins/pull/577). z-mode leaf links were already relative to its `SKILL.md`, but no brief told a spawned z-agent where that file lives. The delegation contract now requires the parent to pass its absolute real path, and both native z-agent roles read z-mode from that path.
+
+Validation: structural validation (52 skills, zero problems), 15 Node tests, and 120 Python unit tests pass. These are static checks. No live z-agent spawn was run, so leaf resolution from a passed path under the zstack names remains unobserved.
