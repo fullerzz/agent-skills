@@ -8,7 +8,7 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Verification skill readiness — 2026-10-12 {#verification-skill-readiness}
 
-Selectively adapted [upstream PR #573](https://github.com/cursor/plugins/pull/573) at `8dd98e90937149ca1b8dba7103d45dce5003676d`, starting from main `7497a21`. The generator now requires usable state after migrations and seed data from an empty data directory, reports missing seed prerequisites without weakening journeys, and discloses setup gaps when proof uses a stand-in. The workflow reference reflects these limits. Shared native manifests advance to `0.6.1` for this compatible fix; native paths, frontmatter, explicit invocation metadata, helper portability, and the retained MIT license remain intact.
+Selectively adapted [upstream PR #573](https://github.com/cursor/plugins/pull/573) at `8dd98e90937149ca1b8dba7103d45dce5003676d`, starting from main `7497a21`. The generator now requires usable state, with stateful targets completing required migrations and seed data from empty isolated state, reports missing seed prerequisites without weakening journeys, and discloses setup gaps when proof uses a stand-in. The workflow reference reflects these limits. Shared native manifests advance to `0.6.1` for this compatible fix; native paths, frontmatter, explicit invocation metadata, helper portability, and the retained MIT license remain intact.
 
 Checks on this macOS host (Node 26.11.1, Homebrew uv 0.13.0):
 
@@ -21,6 +21,14 @@ Checks on this macOS host (Node 26.11.1, Homebrew uv 0.13.0):
 Commands used Homebrew uv and a PATH preferring Homebrew tools after the mise shim returned a sandbox permission error. Installer fixtures stayed isolated from personal configuration; packaging wrote ignored `dist/zstack` only. These are structural, documentation, packaging, and regression results. No fresh native host generated and drove an application with the revised instructions; model adherence, empty-data startup, and real-target setup remain behaviorally unverified. No personal installation, merge, or deployment was performed.
 
 The independent oracle review found one provenance ambiguity: the new attribution paragraph interrupted an older commit's PR-workflow attribution. Moving it below that paragraph addressed the finding. No other actionable findings were reported. Final structural, documentation-build, and whitespace rechecks passed after this repair and validation record.
+
+### PR #33 review repairs
+
+Assessed all four review threads on `b40f09f`; both thread and comment pagination were complete. Scoped empty-state initialization to stateful targets, with data directories required only where applicable, while retaining usable readiness for every surface. Clarified that missing seed prerequisites belong in the feature's Gotchas and kept obligation wording in the workflow reference. Provenance explains the compatible-fix version: these changes repair existing real-user-path and honest-proof requirements rather than adding a capability, unlike ketchup's visual guidance.
+
+The request to mark an entire stand-in proof unverified was not adopted. The pinned upstream diff explicitly leaves the uncovered setup steps unverified, preserving evidence for behavior actually exercised in the stand-in; it does not claim that the real target was verified. The existing generator and workflow reference retain that distinction.
+
+On this macOS host, structural validation again reported 52 skills and zero problems; all 15 Node tests and 120 Python tests passed. Rebuilt packaging again matched all 183 tracked resources byte for byte with manifest `0.6.1`. Final documentation and whitespace rechecks passed after adding this record. These checks do not prove native model adherence or startup on a real target; no wording-matching tests were added.
 
 ## Ketchup decision visuals — 2026-10-12 {#ketchup-decision-visuals}
 

@@ -212,7 +212,7 @@ The project lacks a reusable way to launch, drive, and prove real user behavior.
 
 ### How it works
 
-The agent inspects the project’s real launch commands, interaction tools, observables, and isolation requirements. It creates a project-local `verify-<app>` skill with Launch, Doctor, Drive, Evidence, and Cleanup instructions, plus a feature index and initial feature files. Launch reaches usable state from an empty data directory, including migrations and seed data. Missing seed prerequisites fail the journey and are recorded in its Gotchas without weakening the journey. It runs one mapped feature end to end and invokes bundled helpers from a different working directory to check portability.
+The agent inspects the project’s real launch commands, interaction tools, observables, and isolation requirements. It creates a project-local `verify-<app>` skill with Launch, Doctor, Drive, Evidence, and Cleanup instructions, plus a feature index and initial feature files. Launch must reach a usable state. For stateful targets, prove launch from empty isolated state (an empty data directory where applicable), including any required migrations and seed data. Missing seed prerequisites fail the journey and are recorded in the feature’s Gotchas without weakening the journey. It runs one mapped feature end to end and invokes bundled helpers from a different working directory to check portability.
 
 ### Expected result
 
