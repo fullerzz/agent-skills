@@ -212,7 +212,7 @@ The project lacks a reusable way to launch, drive, and prove real user behavior.
 
 ### How it works
 
-The agent inspects the project’s real launch commands, interaction tools, observables, and isolation requirements. It creates a project-local `verify-<app>` skill with Launch, Doctor, Drive, Evidence, and Cleanup instructions, plus a feature index and initial feature files. It runs one mapped feature end to end and invokes bundled helpers from a different working directory to check portability.
+The agent inspects the project’s real launch commands, interaction tools, observables, and isolation requirements. It creates a project-local `verify-<app>` skill with Launch, Doctor, Drive, Evidence, and Cleanup instructions, plus a feature index and initial feature files. Launch must reach a usable state. For stateful targets, prove launch from empty isolated state (an empty data directory where applicable), including any required migrations and seed data. Missing seed prerequisites fail the journey and are recorded in the feature’s Gotchas without weakening the journey. It runs one mapped feature end to end and invokes bundled helpers from a different working directory to check portability.
 
 ### Expected result
 
@@ -220,7 +220,7 @@ A verification skill and feature map with a demonstrated launch, health check, u
 
 ### Dependencies and limits
 
-Prefers existing project tooling. If the checkout cannot build or start, the agent reports the blocker before generating executable instructions. A draft can remain unverified until that blocker is resolved. Product fixes need authorization. Discovery-directory restrictions leave registration pending. An unexecuted generated skill is a draft.
+Prefers existing project tooling. If the checkout cannot build or start, the agent reports the blocker before generating executable instructions. A draft can remain unverified until that blocker is resolved. Product fixes need authorization. Discovery-directory restrictions leave registration pending. An unexecuted generated skill is a draft. When proof uses a stand-in, setup steps supplied by that stand-in but absent on the real target remain unverified until exercised on the real target.
 
 [Full create-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/create-verification-skill/SKILL.md)
 
