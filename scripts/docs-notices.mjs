@@ -32,6 +32,9 @@ export function docsNotices() {
         packages.set(`${metadata.name}@${metadata.version}`, directory);
       }
       const sections = [`zstack / upstream pstack (MIT)\n\n${fs.readFileSync(path.join(root, 'LICENSE'), 'utf8').trim()}`];
+      const humanlayer = fs.readFileSync(path.join(root, 'skills/ketchup/references/HUMANLAYER-LICENSE.txt'), 'utf8').trim();
+      if (!humanlayer) throw new Error('Empty license text for HumanLayer show-me');
+      sections.push(`HumanLayer show-me adaptation (MIT)\n\n${humanlayer}`);
       for (const [name, directory] of [...packages].sort(([a], [b]) => a.localeCompare(b))) {
         const files = fs.readdirSync(directory)
           .filter(file => /^(licen[cs]e|notice|copying)([.-]|$)/i.test(file)).sort()

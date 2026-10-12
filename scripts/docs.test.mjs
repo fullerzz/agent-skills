@@ -44,6 +44,7 @@ test('published docs ship license texts and the personal-use policy without an e
   const notices = read('docs/.vitepress/dist/third-party-notices.txt');
   for (const source of [
     'LICENSE',
+    'skills/ketchup/references/HUMANLAYER-LICENSE.txt',
     'node_modules/@fontsource/ibm-plex-mono/LICENSE',
     'node_modules/@fontsource-variable/schibsted-grotesk/LICENSE',
     'node_modules/vitepress/LICENSE',

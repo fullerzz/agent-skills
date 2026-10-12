@@ -380,11 +380,11 @@ The agent summarizes work after your preceding human message; notifications and 
 
 ### Expected result
 
-A count of decisions awaiting you, the most consequential results and their meaning, current status, and a brief line of remaining agent work. Each decision includes context, options, tradeoffs, a recommendation, and the known consequence of no answer. Supporting links are optional reading.
+A count of decisions awaiting you, the most consequential results and their meaning, current status, and a brief line of remaining agent work. Each decision includes context, options, tradeoffs, a recommendation, and the known consequence of no answer. When available evidence and host rendering support a useful comparison, the summary is paired with a before/after or option comparison; otherwise it names the gap and retains the summary without a visual. Existing screenshots or video show visible changes; tables, diffs, and diagrams explain other choices. Supporting links are optional reading.
 
 ### Dependencies and limits
 
-Explicit-only on all hosts. Uses available conversation evidence, native history/status readers, and GitHub readers or an already available authenticated `gh`. Missing history, tools, or access are disclosed. The invocation stays read-only, creates no new agents, and takes no proposed action. Existing workers can continue. [Recall](#recall) rebuilds context across sessions; [xray-session](#xray-session) provides a chronological zstack activity ledger on its own explicit request.
+Explicit-only on all hosts. Uses available conversation evidence, native history/status readers, and GitHub readers or an already available authenticated `gh`. Missing history, tools, access, captures, or rendering are disclosed. HumanLayer's show-me guidance is adapted into a bundled reference; no separate skill installation is needed. Comparisons stay in chat and use recorded evidence, with proposals and unknowns labeled. The invocation stays read-only, writes no visual files, launches no app or job, creates no new agents, and takes no proposed action. Existing workers can continue. [Recall](#recall) rebuilds context across sessions; [xray-session](#xray-session) provides a chronological zstack activity ledger on its own explicit request.
 
 [Full ketchup instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/ketchup/SKILL.md)
 

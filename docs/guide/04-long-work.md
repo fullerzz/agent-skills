@@ -25,9 +25,9 @@ Until those checks hold, supervise the run. Give unattended work an isolated wri
 
 Invoke [ketchup](../../skills/ketchup/SKILL.md) when you return to an active conversation. Use `$ketchup` for linked Codex skills; for the native Codex plugin, select `zstack:ketchup` through the skill picker. Use `/zstack:ketchup` in the Claude Code plugin, or load `zstack:ketchup` with Hermes `skill_view`.
 
-It reports what happened since your last message, checks relevant live status where available, and explains unresolved decisions with options and a recommendation. Earlier decisions still waiting on you remain included.
+It reports what happened since your last message, checks relevant live status where available, and explains unresolved decisions with options and a recommendation. When available evidence and host rendering support a useful comparison, each decision gets a before/after or option comparison using existing captures, a table, a diff, or a diagram. Otherwise it names the gap and keeps the decision summary without a visual. Earlier decisions still waiting on you remain included.
 
-Catch-up stays read-only. It reports remaining agent work without resuming it; unavailable history or status remains a gap. Use [recall](../../skills/recall/SKILL.md) for context across sessions and [session-pickup](../../skills/z-mode/playbooks/session-pickup.md) to resume a specific prior session.
+Catch-up stays read-only, composing comparisons in chat from existing evidence without writing files or launching apps. It reports missing captures and unknown values instead of inventing visuals. It reports remaining agent work without resuming it; unavailable history or status remains a gap. Use [recall](../../skills/recall/SKILL.md) for context across sessions and [session-pickup](../../skills/z-mode/playbooks/session-pickup.md) to resume a specific prior session.
 
 ## Save a handoff
 
