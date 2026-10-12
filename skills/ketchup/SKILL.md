@@ -28,4 +28,8 @@ Describe the most consequential results first, pairing each outcome with its mea
 
 Give each user action item a short, self-contained decision summary: the choice, why it matters now, feasible options and their costs or tradeoffs, your recommendation and reason, and the known consequence of no answer. Unknown costs or default behavior stay unknown; silence is not approval. Link supporting details when available, but provide enough context to decide without opening them. Use concise, ordinary language without invoking bro's restatement workflow.
 
+Show each action item as a before/after comparison beside its summary. Put the current state beside each option, or compare the options when there is no current state. Prefer existing captured screenshots or video for visible changes; otherwise use a compact table, diff, or diagram. Follow the bundled [decision visual guidance](references/decision-visuals.md), adapted from HumanLayer's show-me, to choose the smallest useful view.
+
+Compose missing comparisons in the chat reply from evidence already gathered. Do not write files, change code, start an app or job, capture new screens, or post anything to obtain a visual. If evidence or host rendering prevents a useful comparison, state what is missing and keep the decision summary. Never fabricate numbers, screenshots, video, or artifact links; label proposed behavior and unknowns. Link only artifacts that exist. Prefer concise visuals to dense prose when they help explain the results.
+
 For context across sessions use [recall](../recall/SKILL.md). For a chronological zstack activity ledger use [xray-session](../xray-session/SKILL.md) only on its own explicit request.

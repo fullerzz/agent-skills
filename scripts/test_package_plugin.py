@@ -1,5 +1,6 @@
 # Retain the stdlib unittest runner used by the repository.
 
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -14,6 +15,30 @@ def track(root: Path) -> None:
 
 
 class PackagePluginTests(unittest.TestCase):
+    def test_ketchup_bundles_visual_guidance_attribution_and_policy(self) -> None:
+        source = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in (".codex-plugin/plugin.json", "LICENSE", "hooks/codex.json"):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / name, target)
+            shutil.copytree(source / "skills/ketchup", root / "skills/ketchup")
+            track(root)
+            staged = package(root)
+            for name in (
+                "SKILL.md",
+                "agents/openai.yaml",
+                "references/decision-visuals.md",
+                "references/HUMANLAYER-LICENSE.txt",
+            ):
+                with self.subTest(resource=name):
+                    self.assertEqual(
+                        (staged / "skills/ketchup" / name).read_bytes(),
+                        (source / "skills/ketchup" / name).read_bytes(),
+                    )
+            self.assertEqual((staged / "LICENSE").read_bytes(), (source / "LICENSE").read_bytes())
+
     def test_resources_dependencies_and_rebuild(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

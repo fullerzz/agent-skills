@@ -6,6 +6,28 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Ketchup decision visuals — 2026-10-12 {#ketchup-decision-visuals}
+
+Selectively adapted pstack 0.15.18's ketchup update at `ea32d9562a1c9f077d7cdd3be53d07383eb18866` and HumanLayer show-me at `653b6411c1f70c275a18e37673b042ff99f67ceb`. The isolated macOS worktree starts at main `1e363c0f32512cf53db796ddd87eaef9bb95aacf`; no later pstack changes are included. The bundled reference and full HumanLayer MIT notice preserve portable discovery without a separate installation. Existing explicit invocation and read-only catch-up policies remain intact. The shared plugin patch version is `0.5.2`.
+
+Actual checks on this MacBook (Darwin arm64, Node 26.11.1, uv 0.13.0):
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress build, full HumanLayer notice in published output, and both linked-host installers accessing the reference, notice, and policy from temporary configuration roots.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 120 tests passed. The added packaging regression used a disposable Git repository and verified ketchup's entrypoint, visual reference, HumanLayer notice, Codex policy, and retained pstack license byte for byte.
+- `uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy`: no issues in 27 source files.
+- The documented `ty` bundled-helper check passed.
+- `uv run scripts/package_plugin.py`: packaged 52 skills with manifest `0.5.2`; every tracked packaged resource matched the worktree byte for byte, including the visual reference, HumanLayer notice, invocation policy, hooks, and original pstack license.
+- Ruff lint and formatting checks passed for the changed Python regression test. `git diff --check` passed.
+
+Repository-wide Ruff 0.17.0 reported five findings, reproduced identically on an untouched archive of base main `1e363c0`: UP017 in `hooks/xray.py`, `skills/z-mode/scripts/orch/store.py`, and `skills/z-mode/scripts/watch-pr/policy.py`; I001 and RUF100 in `scripts/validate.py`. No new lint findings were introduced; the baseline findings remain outside this change.
+
+Initial dependency fetches failed on sandboxed DNS; the same checks passed after allowing dependency access. Caches and installer fixtures stayed under temporary directories, and the lockfile was unchanged. A disconnection removed the first temporary worktree before validation; the surviving task branch was recreated at the same base, and the prepared changes restored before these checks. The primary checkout was not edited.
+
+A manual synthetic catch-up walkthrough covered an older unresolved label choice, a user-role worker notification, absent screenshots and measurements, unverified acceptance/current-head checks, and unavailable Mermaid rendering. The constructed reply used a current/proposed Markdown table, retained unknowns and the missing-capture disclosure, and took no action. This was an implementing-agent prompt walkthrough, not an independent or native-host behavior test.
+
+These results establish local structure, distribution, rendered documentation, and existing regressions. No fresh Codex, Claude Code, or Hermes session invoked ketchup; live capture display, model adherence, PR/CI catch-up, and running-agent scenarios remain untested. No personal installation, merge, or deployment was performed.
+
 ## Selective pstack 0.15.16 prompt cleanup — 2026-10-11 {#pstack-0-15-16-cleanup}
 
 Reviewed the pinned upstream diff at `00b14f1df36b32a8dd1529324a3a459f6563b127` and adapted 28 corresponding Markdown files in an isolated macOS worktree based on `e0e57f8` (main after ketchup PR #30). [Provenance](provenance.md#pstack-0-15-16-cleanup) records adopted and skipped areas. All skill frontmatter and invocation metadata remain unchanged; native plugin versions advance together to `0.5.1`.

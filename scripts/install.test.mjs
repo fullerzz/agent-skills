@@ -65,6 +65,12 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(realpathSync(join(home, '.claude/skills/how')), join(root, 'skills/how'));
     for (const native of ['.agents', '.claude']) {
       assert.equal(realpathSync(join(home, native, 'skills/ketchup')), join(root, 'skills/ketchup'));
+      for (const resource of ['references/decision-visuals.md', 'references/HUMANLAYER-LICENSE.txt', 'agents/openai.yaml']) {
+        assert.equal(
+          readFileSync(join(home, native, 'skills/ketchup', resource), 'utf8'),
+          readFileSync(join(root, 'skills/ketchup', resource), 'utf8'),
+        );
+      }
     }
     assert.match(readFileSync(join(home, '.codex/agents/z-agent.toml'), 'utf8'), /developer_instructions/);
     assert.match(readFileSync(join(home, '.claude/agents/comment-sicko.md'), 'utf8'), /model: inherit/);
