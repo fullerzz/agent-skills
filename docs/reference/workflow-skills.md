@@ -380,7 +380,7 @@ The agent summarizes work after your preceding human message; notifications and 
 
 ### Expected result
 
-A count of decisions awaiting you, the most consequential results and their meaning, current status, and a brief line of remaining agent work. Each decision includes context, options, tradeoffs, a recommendation, and the known consequence of no answer, paired with a before/after or option comparison. Existing screenshots or video show visible changes; tables, diffs, and diagrams explain other choices. Supporting links are optional reading.
+A count of decisions awaiting you, the most consequential results and their meaning, current status, and a brief line of remaining agent work. Each decision includes context, options, tradeoffs, a recommendation, and the known consequence of no answer. When available evidence and host rendering support a useful comparison, the summary is paired with a before/after or option comparison; otherwise it names the gap and retains the summary without a visual. Existing screenshots or video show visible changes; tables, diffs, and diagrams explain other choices. Supporting links are optional reading.
 
 ### Dependencies and limits
 

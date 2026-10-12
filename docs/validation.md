@@ -8,9 +8,9 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Ketchup decision visuals — 2026-10-12 {#ketchup-decision-visuals}
 
-Selectively adapted pstack 0.15.18's ketchup update at `ea32d9562a1c9f077d7cdd3be53d07383eb18866` and HumanLayer show-me at `653b6411c1f70c275a18e37673b042ff99f67ceb`. The isolated macOS worktree starts at main `1e363c0f32512cf53db796ddd87eaef9bb95aacf`; no later pstack changes are included. The bundled reference and full HumanLayer MIT notice preserve portable discovery without a separate installation. Existing explicit invocation and read-only catch-up policies remain intact. The shared plugin patch version is `0.5.2`.
+Selectively adapted pstack 0.15.18's ketchup update at `ea32d9562a1c9f077d7cdd3be53d07383eb18866` and HumanLayer show-me at `653b6411c1f70c275a18e37673b042ff99f67ceb`. The isolated macOS worktree starts at main `1e363c0f32512cf53db796ddd87eaef9bb95aacf`; no later pstack changes are included. The bundled reference and full HumanLayer MIT notice preserve portable discovery without a separate installation. Existing explicit invocation and read-only catch-up policies remain intact. Review repairs below advance the shared plugin version to `0.6.0` for the new behavior.
 
-Actual checks on this MacBook (Darwin arm64, Node 26.11.1, uv 0.13.0):
+Initial checks on this MacBook (Darwin arm64, Node 26.11.1, uv 0.13.0), before the PR review repairs:
 
 - `uv run scripts/validate.py`: 52 skills, zero structural problems.
 - `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress build, full HumanLayer notice in published output, and both linked-host installers accessing the reference, notice, and policy from temporary configuration roots.
@@ -27,6 +27,12 @@ Initial dependency fetches failed on sandboxed DNS; the same checks passed after
 A manual synthetic catch-up walkthrough covered an older unresolved label choice, a user-role worker notification, absent screenshots and measurements, unverified acceptance/current-head checks, and unavailable Mermaid rendering. The constructed reply used a current/proposed Markdown table, retained unknowns and the missing-capture disclosure, and took no action. This was an implementing-agent prompt walkthrough, not an independent or native-host behavior test.
 
 These results establish local structure, distribution, rendered documentation, and existing regressions. No fresh Codex, Claude Code, or Hermes session invoked ketchup; live capture display, model adherence, PR/CI catch-up, and running-agent scenarios remain untested. No personal installation, merge, or deployment was performed.
+
+### PR #32 review repairs — 2026-10-12
+
+Assessed all five review threads on head `0c60853`: two identified the same version-policy issue, and three identified documentation gaps. Restored the README's preceding-message boundary, qualified comparisons in the guide and workflow reference by available evidence and rendering, and retained a decision summary with a disclosed gap when a useful visual is unavailable. Advanced all three native manifests to `0.6.0` because the visual guidance adds packaged behavior under the repository's minor-version policy.
+
+On this macOS host, final structural validation passed with 52 skills and zero problems; all 15 Node tests and 120 Python tests passed, including the existing minor-bump, manifest-drift, installer, docs-build, license, and packaging regressions. The rebuilt plugin's 183 tracked resources matched the worktree byte for byte, and its manifest declared `0.6.0`. Whitespace checks passed. The prose corrections were reviewed against ketchup's existing fallback; no brittle tests matching the rewritten sentences were added. Final documentation rechecks include this repair record. Earlier native-host behavior limits and the five unchanged baseline lint findings remain.
 
 ## Selective pstack 0.15.16 prompt cleanup — 2026-10-11 {#pstack-0-15-16-cleanup}
 

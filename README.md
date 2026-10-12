@@ -98,7 +98,7 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 - Verify with project harnesses and create-verification-skill.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
-- Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): read-only status and decision summaries with evidence-based visual comparisons, including earlier unresolved decisions.
+- Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): read-only status and decision summaries since your last message, with visual comparisons where evidence supports them and earlier unresolved decisions.
 - Inspect observable zstack activity in the current session with explicitly invoked [xray-session](docs/reference/workflow-skills.md#xray-session), a chronological ledger and ASCII diagram with history coverage gaps.
 - Publish or merge only when the user's request authorizes those actions.
 
