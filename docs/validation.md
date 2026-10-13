@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## z-agent hub path — 2026-10-12 {#z-agent-hub-path}
+
+Selectively adapted [upstream PR #577](https://github.com/cursor/plugins/pull/577) at merge `364a77eb358f16292410a7295fd8d103fb7dd40e`, starting from main `17b2916`. z-mode leaf links were already relative to its `SKILL.md`, so only the hub path applied: no brief told a spawned z-agent where that file lives. The delegation contract now requires any brief for a child that should follow z-mode (z-agent, fallback agents, Herdr and Hermes workers) to give that file's absolute real path. The parent derives it from the contract's own location, so it works when z-mode is not loaded. A worker on another machine gets that machine's path, or is told to resolve it locally. Both native z-agent roles read z-mode from the given path. When the path is missing, relative, or unreadable, they locate the installed copy and report the bad path; if no copy is found, they stop.
+
+Validation: structural validation (52 skills, zero problems), 15 Node tests, and 120 Python unit tests pass. These are static checks. A read-only review agent given the absolute path found z-mode and its relative links without searching, but that run used the previous role body. The missing-path fallback and remote Herdr resolution were not exercised live.
+
 ## Verification skill readiness — 2026-10-12 {#verification-skill-readiness}
 
 Selectively adapted [upstream PR #573](https://github.com/cursor/plugins/pull/573) at `8dd98e90937149ca1b8dba7103d45dce5003676d`, starting from main `7497a21`. The generator now requires usable state, with stateful targets completing required migrations and seed data from empty isolated state, reports missing seed prerequisites without weakening journeys, and discloses setup gaps when proof uses a stand-in. The workflow reference reflects these limits. Shared native manifests advance to `0.6.1` for this compatible fix; native paths, frontmatter, explicit invocation metadata, helper portability, and the retained MIT license remain intact.
@@ -645,9 +651,3 @@ Hardened `docs/nginx.conf` for a TLS-terminating reverse proxy. Against the rebu
 `scripts/install.py` now renders a Rich panel per host when stdout is a terminal. Entries are grouped by operation, with counts, a short meaning, and wrapped names; skill and agent directories appear once at the top of each panel. Piped output keeps the tab-separated lines that existing tests and scripts parse. A new Node test forces terminal rendering with `TTY_COMPATIBLE=1` and checks grouping, both host panels, and the agents directory. Rendering was inspected at 60 and 100 columns against the real `~/.claude` and `~/.agents` state. Long names fold instead of truncating.
 
 Validation: 13 Node tests, structural validation (46 skills), and 4 Python unit tests pass. This was not checked in an interactive TTY session; `TTY_COMPATIBLE=1` stood in for one.
-
-## z-agent hub path <Badge type="info" text="2026-10-12" />
-
-Adapted [cursor/plugins#577](https://github.com/cursor/plugins/pull/577). z-mode leaf links were already relative to its `SKILL.md`, but no brief told a spawned z-agent where that file lives. The delegation contract now requires any brief for a child that should follow z-mode (z-agent, fallback agents, Herdr and Hermes workers) to pass that file's absolute real path, computed from the contract's own location so it works when z-mode is not loaded. Both native z-agent roles read z-mode from that path, fall back to locating the installed copy, and report a missing path rather than proceeding without the rules.
-
-Validation: structural validation (52 skills, zero problems), 15 Node tests, and 120 Python unit tests pass. These are static checks. No live z-agent spawn was run, so leaf resolution from a passed path under the zstack names remains unobserved.
