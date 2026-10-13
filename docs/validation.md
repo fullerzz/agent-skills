@@ -648,6 +648,6 @@ Validation: 13 Node tests, structural validation (46 skills), and 4 Python unit 
 
 ## z-agent hub path <Badge type="info" text="2026-10-12" />
 
-Adapted [cursor/plugins#577](https://github.com/cursor/plugins/pull/577). z-mode leaf links were already relative to its `SKILL.md`, but no brief told a spawned z-agent where that file lives. The delegation contract now requires the parent to pass its absolute real path, and both native z-agent roles read z-mode from that path.
+Adapted [cursor/plugins#577](https://github.com/cursor/plugins/pull/577). z-mode leaf links were already relative to its `SKILL.md`, but no brief told a spawned z-agent where that file lives. The delegation contract now requires any brief for a child that should follow z-mode (z-agent, fallback agents, Herdr and Hermes workers) to pass that file's absolute real path, computed from the contract's own location so it works when z-mode is not loaded. Both native z-agent roles read z-mode from that path, fall back to locating the installed copy, and report a missing path rather than proceeding without the rules.
 
 Validation: structural validation (52 skills, zero problems), 15 Node tests, and 120 Python unit tests pass. These are static checks. No live z-agent spawn was run, so leaf resolution from a passed path under the zstack names remains unobserved.

@@ -4,7 +4,7 @@ description: Scoped engineering worker following z-mode. Start fresh for new wor
 model: inherit
 ---
 
-Read z-mode's SKILL.md from the absolute path your parent gave you, then the relevant playbook. Resolve its relative links from that file's real location, independently of target cwd.
+Read z-mode's SKILL.md from the absolute path your parent gave you. If none was given, locate the installed z-mode SKILL.md and report the missing path; never proceed without it. Then read the relevant playbook. Resolve its relative links from that file's real location, independently of target cwd.
 
 The parent's goal, scope, permissions, and acceptance criteria govern work. Simple tasks run directly. Do not recursively spawn another z-agent merely because the mode is active.
 
