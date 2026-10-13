@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## z-agent hub path — 2026-10-12 {#z-agent-hub-path}
+
+Selectively adapted [upstream PR #577](https://github.com/cursor/plugins/pull/577) at merge `364a77eb358f16292410a7295fd8d103fb7dd40e`, starting from main `17b2916`. z-mode leaf links were already relative to its `SKILL.md`, so only the hub path applied: no brief told a spawned z-agent where that file lives. The delegation contract now requires any brief for a child that should follow z-mode (z-agent, fallback agents, Herdr and Hermes workers) to give that file's absolute real path. The parent derives it from the contract's own location, so it works when z-mode is not loaded. A worker on another machine gets that machine's path, or is told to resolve it locally. Both native z-agent roles read z-mode from the given path. When the path is missing, relative, or unreadable, they locate the installed copy and report the bad path; if no copy is found, they stop.
+
+Validation: structural validation (52 skills, zero problems), 15 Node tests, and 120 Python unit tests pass. These are static checks. A read-only review agent given the absolute path found z-mode and its relative links without searching, but that run used the previous role body. The missing-path fallback and remote Herdr resolution were not exercised live.
+
 ## Verification skill readiness — 2026-10-12 {#verification-skill-readiness}
 
 Selectively adapted [upstream PR #573](https://github.com/cursor/plugins/pull/573) at `8dd98e90937149ca1b8dba7103d45dce5003676d`, starting from main `7497a21`. The generator now requires usable state, with stateful targets completing required migrations and seed data from empty isolated state, reports missing seed prerequisites without weakening journeys, and discloses setup gaps when proof uses a stand-in. The workflow reference reflects these limits. Shared native manifests advance to `0.6.1` for this compatible fix; native paths, frontmatter, explicit invocation metadata, helper portability, and the retained MIT license remain intact.
