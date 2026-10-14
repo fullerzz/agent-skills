@@ -17,6 +17,7 @@ When debugging, do not fix symptoms. Trace every problem to its root cause and f
 - If a workaround needs a paragraph-long comment to justify it, the code is wrong (fix the code, not the comment)
 - Check for the pattern, not just the instance (grep for the same pattern, fix all affected instances within scope, and report out-of-scope siblings)
 - When stuck, instrument. Don't guess (add logging, read the actual error)
+- If the deciding fact took a deep dig to find, propose the cheap, always-on signal that would have shown it at first look. Proposing it does not authorize adding it outside task scope.
 
 **Restart bugs: suspect state before code**
 

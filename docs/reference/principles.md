@@ -64,7 +64,7 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 **Decision affected:** Choose the repair location from reproduction and mechanism rather than a symptom-suppressing guard.
 
-**Example:** A restart failure disappears after deleting serialized state: inspect stale-state validation and repair reconciliation instead of adding nil checks to each consumer. Report out-of-scope siblings.
+**Example:** A restart failure disappears after deleting serialized state: inspect stale-state validation and repair reconciliation instead of adding nil checks to each consumer. Report out-of-scope siblings. Because finding the stale file took a deep dig, propose a cheap, always-on signal, such as a startup log line naming the loaded state version.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-fix-root-causes/SKILL.md).
 

@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## pstack 0.15.23: deep-dig signal — 2026-10-13 {#pstack-0-15-23-signal}
+
+Adapted [upstream PR #604](https://github.com/cursor/plugins/pull/604) at merge `36cecbf2b5089b275254d59cb4612d6f96f00fbd`, starting from main `caf7a1f`, as the bottom layer of the [pstack 0.15.23 stack](provenance.md#pstack-0-15-23). fix-root-causes now proposes a cheap, always-on signal when the deciding fact took a deep dig; the principles reference example matches. Manifests declare `0.6.3`.
+
+Checks ran on this macOS host in a clean detached worktree of the layer commit, with the main checkout's `node_modules` linked: structural validation reported 52 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. These are static checks. No native host session exercised the new rule during a live debugging task.
+
 ## z-agent hub path — 2026-10-12 {#z-agent-hub-path}
 
 Selectively adapted [upstream PR #577](https://github.com/cursor/plugins/pull/577) at merge `364a77eb358f16292410a7295fd8d103fb7dd40e`, starting from main `17b2916`. z-mode leaf links were already relative to its `SKILL.md`, so only the hub path applied: no brief told a spawned z-agent where that file lives. The delegation contract now requires any brief for a child that should follow z-mode (z-agent, fallback agents, Herdr and Hermes workers) to give that file's absolute real path. The parent derives it from the contract's own location, so it works when z-mode is not loaded. A worker on another machine gets that machine's path, or is told to resolve it locally. Both native z-agent roles read z-mode from the given path. When the path is missing, relative, or unreadable, they locate the installed copy and report the bad path; if no copy is found, they stop.
