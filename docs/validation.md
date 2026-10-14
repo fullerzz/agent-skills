@@ -8,9 +8,15 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## pstack 0.15.23: shorter ketchup — 2026-10-13 {#pstack-0-15-23-ketchup}
 
-Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merge `c86f349b102feb91f1966f8a6a60882a4e601b50` as the top layer of the stack. A Herdr Claude Code worker rewrote the skill and its doc passages in an isolated worktree from main `caf7a1f`. The coordinator reviewed the diff and cherry-picked it onto the in-your-own-words layer. It repaired one instruction that limited before/after visuals to "other" action items, then added manifests `0.7.1`, provenance, and this record. The skill grew from 796 to 840 words; the new voice, box, and decision-line rules account for the growth.
+Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merge `c86f349b102feb91f1966f8a6a60882a4e601b50` as the top layer of the stack. A Herdr Claude Code worker rewrote the skill and its doc passages in an isolated worktree from main `caf7a1f`. The coordinator reviewed the diff and cherry-picked it onto the in-your-own-words layer. It repaired one instruction that limited before/after visuals to "other" action items, then added provenance and this record. The skill grew from 796 to 840 words; the new voice, box, and decision-line rules account for the growth.
 
 In a clean detached worktree of the layer commit, structural validation reported 53 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. These are static checks. No fresh host session invoked ketchup, so the 150-word budget, box limits, and terminal rendering of the visuals remain behaviorally unverified.
+
+### PR #38 review repairs
+
+Review found contradictory and ambiguous instructions. The visual rule required a comparison that the evidence fallback could skip, and the options lived only in that visual. "No … proposed actions" could forbid recommendations. The cut-order sentence had two readings. The "tests pass" example blurred local tests and CI. "Chat renders in terminals" contradicted the Mermaid and capture options in the same sentence. Table boxes had no definition. The repair adds a one-line option list when no visual is grounded, restores upstream's cut order, and states that the word budget wins over box and line caps. Table boxes are now non-header cells, and Mermaid and captures apply only where the host renders them. The install and skills-directory guards and the "where available" status qualifier return. The guide and reference now include the one-line irreversible step, the visual exceptions, the nothing-changed stop, and the screen-change line. The skill is now 908 words.
+
+Review also classified the new output contract as new behavior under the README policy. Manifests now declare `0.8.0` rather than `0.7.1`, consistent with ketchup's `0.6.0` visual release. PR #35 stays a patch because it extends an existing principle; provenance records that rationale.
 
 ## pstack 0.15.23: in-your-own-words — 2026-10-13 {#pstack-0-15-23-in-your-own-words}
 
