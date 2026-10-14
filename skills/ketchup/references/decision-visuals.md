@@ -2,7 +2,7 @@
 
 Adapted from HumanLayer's [show-me](https://github.com/humanlayer/skills/blob/653b6411c1f70c275a18e37673b042ff99f67ceb/plugins/show-me/skills/show-me/SKILL.md) under the [MIT license](HUMANLAYER-LICENSE.txt). This bundled reference requires no installed show-me skill. Apply it within ketchup's read-only, chat-only boundary.
 
-Use a visual only when it makes the user's decision clearer than prose. Choose the smallest useful view and put it next to the summary it supports; retain only the calls, files, states, and boundaries needed to compare the options. Keep it concise without dropping decision context, material risks, or evidence gaps; link supporting sources.
+Use a visual only when it clarifies status or a decision better than prose. Choose the smallest useful view and put it next to the summary it supports; retain only the calls, files, states, and boundaries needed to compare the options. Keep it concise without dropping decision context, material risks, or evidence gaps; link supporting sources.
 
 | Decision concerns | Useful view |
 | --- | --- |

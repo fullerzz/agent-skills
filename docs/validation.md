@@ -24,6 +24,10 @@ Replaced the hard word budget with an approximately 150-word target that yields 
 
 On this macOS host, the revised working tree passed structural validation (53 skills, zero problems), all 15 Node tests including the docs build, and all 120 Python tests. Installer tests used isolated fixtures. This is static validation; no fresh host session exercised a multi-decision catch-up or visual rendering.
 
+### PR #38 documentation consistency repairs — 2026-10-13
+
+Aligned the workflow reference and long-work guide with the skill's unknown no-answer consequence and unasked irreversible-step exceptions. Aligned the README and bundled visual guidance with the status-or-decision visual policy. Structural validation passed with 53 skills and zero problems; all four documentation tests, including the docs build, and `git diff --check` passed. These wording-only repairs did not repeat the full runtime suites or live catch-up checks.
+
 ## pstack 0.15.23: in-your-own-words — 2026-10-13 {#pstack-0-15-23-in-your-own-words}
 
 Adapted [upstream PRs #602 and #606](provenance.md#pstack-0-15-23) at final merge `dbf49813a39c1a5389c5e28cb8e4c1c2379e2454` as the third layer of the stack. A Herdr Claude Code worker wrote the skill, docs, and tests in an isolated worktree from main `caf7a1f`; the coordinator reviewed the diff, cherry-picked it onto the z-agent layer, and added manifests `0.7.0`, provenance, and this record.
