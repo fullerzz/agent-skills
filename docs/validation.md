@@ -6,6 +6,28 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## pstack 0.15.23: shorter ketchup — 2026-10-13 {#pstack-0-15-23-ketchup}
+
+Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merge `c86f349b102feb91f1966f8a6a60882a4e601b50` as the top layer of the stack. A Herdr Claude Code worker rewrote the skill and its doc passages in an isolated worktree from main `caf7a1f`. The coordinator reviewed the diff and cherry-picked it onto the in-your-own-words layer. It repaired one instruction that limited before/after visuals to "other" action items, then added provenance and this record. The skill grew from 796 to 840 words; the new voice, box, and decision-line rules account for the growth.
+
+In a clean detached worktree of the layer commit, structural validation reported 53 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. These are static checks. No fresh host session invoked ketchup, so the 150-word budget, box limits, and terminal rendering of the visuals remain behaviorally unverified.
+
+### PR #38 initial review repairs (superseded below)
+
+Review found contradictory and ambiguous instructions. The visual rule required a comparison that the evidence fallback could skip, and the options lived only in that visual. "No … proposed actions" could forbid recommendations. The cut-order sentence had two readings. The "tests pass" example blurred local tests and CI. "Chat renders in terminals" contradicted the Mermaid and capture options in the same sentence. Table boxes had no definition. The repair adds a one-line option list when no visual is grounded, restores upstream's cut order, and states that the word budget wins over box and line caps. Table boxes are now non-header cells, and Mermaid and captures apply only where the host renders them. The install and skills-directory guards and the "where available" status qualifier return. The guide and reference now include the one-line irreversible step, the visual exceptions, the nothing-changed stop, and the screen-change line. The skill is now 908 words.
+
+Review also classified the new output contract as new behavior under the README policy. Manifests now declare `0.8.0` rather than `0.7.1`, consistent with ketchup's `0.6.0` visual release. PR #35 stays a patch because it extends an existing principle; provenance records that rationale.
+
+### PR #38 project-fit revision — 2026-10-13
+
+Replaced the hard word budget with an approximately 150-word target that yields to every unresolved decision, material risk, and evidence gap. Removed mandatory status and decision visuals and all box, cell, label-word, and line-count limits. Visuals now apply only when clearer than prose; decisions retain options, tradeoffs, recommendations, prerequisites, irreversible effects, and known no-answer consequences. Updated the bundled visual reference, README, guide, workflow reference, and provenance. The read-only, scoped-history, current-head, invocation-policy, and evidence boundaries remain intact. The unreleased layer retains version `0.8.0`.
+
+On this macOS host, the revised working tree passed structural validation (53 skills, zero problems), all 15 Node tests including the docs build, and all 120 Python tests. Installer tests used isolated fixtures. This is static validation; no fresh host session exercised a multi-decision catch-up or visual rendering.
+
+### PR #38 documentation consistency repairs — 2026-10-13
+
+Aligned the workflow reference and long-work guide with the skill's unknown no-answer consequence and unasked irreversible-step exceptions. Aligned the README and bundled visual guidance with the status-or-decision visual policy. Structural validation passed with 53 skills and zero problems; all four documentation tests, including the docs build, and `git diff --check` passed. These wording-only repairs did not repeat the full runtime suites or live catch-up checks.
+
 ## pstack 0.15.23: in-your-own-words — 2026-10-13 {#pstack-0-15-23-in-your-own-words}
 
 Adapted [upstream PRs #602 and #606](provenance.md#pstack-0-15-23) at final merge `dbf49813a39c1a5389c5e28cb8e4c1c2379e2454` as the third layer of the stack. A Herdr Claude Code worker wrote the skill, docs, and tests in an isolated worktree from main `caf7a1f`; the coordinator reviewed the diff, cherry-picked it onto the z-agent layer, and added manifests `0.7.0`, provenance, and this record.
