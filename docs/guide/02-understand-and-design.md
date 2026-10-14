@@ -4,6 +4,7 @@
 
 | Skill | Use it to |
 | --- | --- |
+| [in-your-own-words](../../skills/in-your-own-words/SKILL.md) | Check that the agent understood your goals and the problem before it continues. |
 | [how](../../skills/how/SKILL.md) | Trace behavior. |
 | [why](../../skills/why/SKILL.md) | Investigate motivation from source records, retaining uncertainty. |
 | [teach](../../skills/teach/SKILL.md) | Combine findings into an explanation. |

@@ -65,6 +65,7 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(realpathSync(join(home, '.claude/skills/how')), join(root, 'skills/how'));
     for (const native of ['.agents', '.claude']) {
       assert.equal(realpathSync(join(home, native, 'skills/ketchup')), join(root, 'skills/ketchup'));
+      assert.equal(realpathSync(join(home, native, 'skills/in-your-own-words')), join(root, 'skills/in-your-own-words'));
       for (const resource of ['references/decision-visuals.md', 'references/HUMANLAYER-LICENSE.txt', 'agents/openai.yaml']) {
         assert.equal(
           readFileSync(join(home, native, 'skills/ketchup', resource), 'utf8'),
@@ -93,6 +94,8 @@ test('install preview, rerun, collision, and owned removal for both hosts', () =
     assert.equal(existsSync(join(home, '.claude/skills/how')), false);
     assert.equal(existsSync(join(home, '.agents/skills/ketchup')), false);
     assert.equal(existsSync(join(home, '.claude/skills/ketchup')), false);
+    assert.equal(existsSync(join(home, '.agents/skills/in-your-own-words')), false);
+    assert.equal(existsSync(join(home, '.claude/skills/in-your-own-words')), false);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 test('preflight collisions do not partially install; project scope is explicit', () => {

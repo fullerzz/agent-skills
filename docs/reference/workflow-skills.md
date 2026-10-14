@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 28 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 29 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -174,7 +174,7 @@ A clearer version of the previous reply.
 
 ### Dependencies and limits
 
-This is a rewrite of the last reply, not a new investigation or implementation.
+This is a rewrite of the last reply, not a new investigation or implementation. To restate your goals and problem instead, use [in-your-own-words](#in-your-own-words).
 
 [Full bro instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/bro/SKILL.md)
 
@@ -269,6 +269,29 @@ A cited overview, key concepts, runtime flow, relevant files, and gotchas at the
 Read-only. Missing delegated slices remain gaps. Uses why for historical motivation because code alone does not prove intent.
 
 [Full how instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/how/SKILL.md)
+
+## In your own words {#in-your-own-words}
+
+Your request is long or messy, and you want to check that the agent understood your goals and the problem before work goes further.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$in-your-own-words <long or messy ask>` |
+| Claude Code | `/in-your-own-words <long or messy ask>` |
+
+### How it works
+
+The agent restates, in its own words, what it thinks your goals are and what problem you are trying to solve.
+
+### Expected result
+
+A short restatement you can confirm or correct.
+
+### Dependencies and limits
+
+Explicit-only on all hosts. The restatement covers your goals and problem, not the agent's own reply; use [bro](#bro) to simplify the agent's last message. The skill does not pause for confirmation, investigate, or implement on its own.
+
+[Full in-your-own-words instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/in-your-own-words/SKILL.md)
 
 ## Interrogate {#interrogate}
 

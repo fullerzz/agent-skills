@@ -70,6 +70,7 @@ class HermesPluginTests(unittest.TestCase):
             self.assertEqual(list(registry.skills), expected)
             self.assertIn("xray-session", registry.skills)
             self.assertIn("ketchup", registry.skills)
+            self.assertIn("in-your-own-words", registry.skills)
             self.assertIn("pre_llm_call", registry.hooks)
             self.assertIn("on_session_reset", registry.hooks)
             mode = registry.skills["z-mode"].parent
