@@ -26,6 +26,7 @@ Save z-mode for work that needs rigor. Use verified native model and effort sett
 
 ```text [Claude Code]
 /how trace argument parsing; read-only
+/in-your-own-words <long or messy ask>
 /z-mode read this report; restate the underlying issue and investigate the evidence; don't change any code yet
 /interrogate this diff; findings only
 /swarm check these three packages; one owned report per package
@@ -35,6 +36,7 @@ Save z-mode for work that needs rigor. Use verified native model and effort sett
 
 ```text [Codex]
 $how trace argument parsing; read-only
+$in-your-own-words <long or messy ask>
 $z-mode read this report; restate the underlying issue and investigate the evidence; don't change any code yet
 $interrogate this diff; findings only
 $swarm check these three packages; one owned report per package

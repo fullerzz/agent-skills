@@ -21,7 +21,7 @@ To run authorized workers and useful long-running processes in Herdr, follow [Us
 | Step | Page | Key skills |
 | --- | --- | --- |
 | 1 | [Install and route work](01-setup.md) | setup-zstack, z-mode |
-| 2 | [Understand and design](02-understand-and-design.md) | how, why, teach, recall, architect, arena, swarm, interrogate |
+| 2 | [Understand and design](02-understand-and-design.md) | in-your-own-words, how, why, teach, recall, architect, arena, swarm, interrogate |
 | 3 | [Build and verify](03-build-and-verify.md) | tdd, no-comments, unslop, create-verification-skill |
 | 4 | [Long work and conventions](04-long-work.md) | autonomous-run, pause-safely, orchestrate, automate-me, reflect |
 | 5 | [Principles and recipes](05-principles-and-recipes.md) | The 24 principles, example prompts |

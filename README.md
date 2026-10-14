@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 52 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 53 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -93,6 +93,7 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 "Disable Herdr execution" restores native execution while retaining z-mode. "Stop z-mode" clears both preferences. The shared native hooks remember them for the same session ID; new sessions and children require their own selection. With linked skills or older hooks, selection remains conversational. See [Herdr workflow](docs/reference/workflow-skills.md#herdr-workflow) for mechanics, limits, and resume behavior.
 
 - Understand with how, why, teach, recall, and blast-radius.
+- Check that the agent understood a long or messy ask with explicitly invoked [in-your-own-words](docs/reference/workflow-skills.md#in-your-own-words), a restatement of your goals and the problem you are solving.
 - Design and review with architect, arena, swarm, interrogate, and no-comments.
 - Build with z-mode's bug, feature, refactoring, performance, and prototype playbooks.
 - Verify with project harnesses and create-verification-skill.
