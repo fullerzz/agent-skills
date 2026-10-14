@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## pstack 0.15.23: shorter ketchup — 2026-10-13 {#pstack-0-15-23-ketchup}
+
+Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merge `c86f349b102feb91f1966f8a6a60882a4e601b50` as the top layer of the stack. A Herdr Claude Code worker rewrote the skill and its doc passages in an isolated worktree from main `caf7a1f`. The coordinator reviewed the diff and cherry-picked it onto the in-your-own-words layer. It repaired one instruction that limited before/after visuals to "other" action items, then added manifests `0.7.1`, provenance, and this record. The skill grew from 796 to 840 words; the new voice, box, and decision-line rules account for the growth.
+
+In a clean detached worktree of the layer commit, structural validation reported 53 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. These are static checks. No fresh host session invoked ketchup, so the 150-word budget, box limits, and terminal rendering of the visuals remain behaviorally unverified.
+
 ## pstack 0.15.23: in-your-own-words — 2026-10-13 {#pstack-0-15-23-in-your-own-words}
 
 Adapted [upstream PRs #602 and #606](provenance.md#pstack-0-15-23) at final merge `dbf49813a39c1a5389c5e28cb8e4c1c2379e2454` as the third layer of the stack. A Herdr Claude Code worker wrote the skill, docs, and tests in an isolated worktree from main `caf7a1f`; the coordinator reviewed the diff, cherry-picked it onto the z-agent layer, and added manifests `0.7.0`, provenance, and this record.

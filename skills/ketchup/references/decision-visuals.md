@@ -2,7 +2,7 @@
 
 Adapted from HumanLayer's [show-me](https://github.com/humanlayer/skills/blob/653b6411c1f70c275a18e37673b042ff99f67ceb/plugins/show-me/skills/show-me/SKILL.md) under the [MIT license](HUMANLAYER-LICENSE.txt). This bundled reference requires no installed show-me skill. Apply it within ketchup's read-only, chat-only boundary.
 
-Choose the smallest view that makes the user's decision clear. Put it next to the short summary it supports; retain only the calls, files, states, and boundaries needed to compare the options. One useful comparison is better than an inventory of diagrams.
+Choose the smallest view that makes the user's decision clear. Put it next to the short summary it supports; retain only the calls, files, states, and boundaries needed to compare the options. One useful comparison is better than an inventory of diagrams. Ketchup's box, word, and voice limits apply to every view; link sources rather than spelling them out.
 
 | Decision concerns | Useful view |
 | --- | --- |
