@@ -272,12 +272,15 @@ Read-only. Missing delegated slices remain gaps. Uses why for historical motivat
 
 ## In your own words {#in-your-own-words}
 
-Your request is long or messy, and you want to check that the agent understood your goals and the problem before work goes further.
+Your request is long or messy, and you want to see whether the agent understood your goals and the problem.
 
 | Host | Example invocation |
 | --- | --- |
 | Codex | `$in-your-own-words <long or messy ask>` |
 | Claude Code | `/in-your-own-words <long or messy ask>` |
+| Hermes | `Load zstack:in-your-own-words with skill_view and restate my goals: <long or messy ask>` |
+
+For native plugins, select `zstack:in-your-own-words` through the Codex skill picker or invoke `/zstack:in-your-own-words` in Claude Code.
 
 ### How it works
 
@@ -285,11 +288,11 @@ The agent restates, in its own words, what it thinks your goals are and what pro
 
 ### Expected result
 
-A short restatement you can confirm or correct.
+Your goals and the problem, restated in the agent's words. If it got something wrong, correct it in your next message.
 
 ### Dependencies and limits
 
-Explicit-only on all hosts. The restatement covers your goals and problem, not the agent's own reply; use [bro](#bro) to simplify the agent's last message. The skill does not pause for confirmation, investigate, or implement on its own.
+Explicit-only on all hosts. The restatement covers your goals and problem, not the agent's own reply; use [bro](#bro) to simplify the agent's last message. The skill asks only for the restatement; it does not wait for confirmation.
 
 [Full in-your-own-words instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/in-your-own-words/SKILL.md)
 

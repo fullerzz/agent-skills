@@ -12,6 +12,10 @@ Adapted [upstream PRs #602 and #606](provenance.md#pstack-0-15-23) at final merg
 
 In a clean detached worktree of the layer commit, structural validation reported 53 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. `uv run scripts/package_plugin.py` staged the new skill with its Codex policy, and the packaged manifest declared `0.7.0`. The worker's own run on its base matched these totals. These are static checks; no fresh host session invoked the skill.
 
+### PR #37 review repairs
+
+Review found that the docs both implied and denied a confirmation pause, while the skill body says neither. The guide and reference now describe only the restatement and say the skill does not wait for confirmation. The reference adds Hermes and native-plugin invocations. Provenance now names which tests assert the new skill and which existing check covers its Codex policy.
+
 ## pstack 0.15.23: z-agent discovery — 2026-10-13 {#pstack-0-15-23-z-agent}
 
 Adapted [upstream PR #597](https://github.com/cursor/plugins/pull/597) at merge `b93e8117880f695bc49ef7b1ef72c09bfcc7c1de` as the second layer of the [pstack 0.15.23 stack](provenance.md#pstack-0-15-23). Both z-agent roles now name per-host search roots for a missing or unusable z-mode path and pick the highest declared version. Manifests declare `0.6.4`.
