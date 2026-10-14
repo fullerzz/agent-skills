@@ -6,6 +6,16 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## pstack 0.15.23: z-agent discovery — 2026-10-13 {#pstack-0-15-23-z-agent}
+
+Adapted [upstream PR #597](https://github.com/cursor/plugins/pull/597) at merge `b93e8117880f695bc49ef7b1ef72c09bfcc7c1de` as the second layer of the [pstack 0.15.23 stack](provenance.md#pstack-0-15-23). Both z-agent roles now name per-host search roots for a missing or unusable z-mode path and pick the highest declared version. Manifests declare `0.6.4`.
+
+A script following the Claude Code search rule on this macOS host found four copies: a stale `0.1.0` plugin cache, two packaged `dist` copies without a sibling Claude manifest, and the in-place checkout. It selected the checkout. That run simulated the procedure; no z-agent was launched without a path, and the Codex roots were not exercised. In a clean detached worktree of the layer commit, structural validation reported 52 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed.
+
+### PR #36 review repairs
+
+Review found that the fallback missed symlinked installs, configured host roots, and project-scoped installs. Its version rule also gave no way to rank a copy found through a link. The roles now search `$CLAUDE_CONFIG_DIR` or `$CODEX_HOME` and the target project's skill directory, follow symlinks, read manifests from real paths, compare versions numerically, and rank unversioned copies last. A script following the revised Claude rule picked a linked `0.10.0` checkout over a cached `0.1.0` copy in two fixtures, one with a custom `CLAUDE_CONFIG_DIR` and one with a project-scoped link. On this host it again picked the in-place checkout. Plain `find` returned nothing for a symlinked skill directory; `find -L` found it. The Codex rule and a live z-agent launch without a path remain unexercised.
+
 ## pstack 0.15.23: deep-dig signal — 2026-10-13 {#pstack-0-15-23-signal}
 
 Adapted [upstream PR #604](https://github.com/cursor/plugins/pull/604) at merge `36cecbf2b5089b275254d59cb4612d6f96f00fbd`, starting from main `caf7a1f`, as the bottom layer of the [pstack 0.15.23 stack](provenance.md#pstack-0-15-23). fix-root-causes now proposes a cheap, always-on signal when the deciding fact took a deep dig; the principles reference example matches. Manifests declare `0.6.3`.
