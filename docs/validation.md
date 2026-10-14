@@ -12,11 +12,17 @@ Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merg
 
 In a clean detached worktree of the layer commit, structural validation reported 53 skills and zero problems; all 15 Node tests and 120 Python tests passed; `git diff --check` passed. These are static checks. No fresh host session invoked ketchup, so the 150-word budget, box limits, and terminal rendering of the visuals remain behaviorally unverified.
 
-### PR #38 review repairs
+### PR #38 initial review repairs (superseded below)
 
 Review found contradictory and ambiguous instructions. The visual rule required a comparison that the evidence fallback could skip, and the options lived only in that visual. "No … proposed actions" could forbid recommendations. The cut-order sentence had two readings. The "tests pass" example blurred local tests and CI. "Chat renders in terminals" contradicted the Mermaid and capture options in the same sentence. Table boxes had no definition. The repair adds a one-line option list when no visual is grounded, restores upstream's cut order, and states that the word budget wins over box and line caps. Table boxes are now non-header cells, and Mermaid and captures apply only where the host renders them. The install and skills-directory guards and the "where available" status qualifier return. The guide and reference now include the one-line irreversible step, the visual exceptions, the nothing-changed stop, and the screen-change line. The skill is now 908 words.
 
 Review also classified the new output contract as new behavior under the README policy. Manifests now declare `0.8.0` rather than `0.7.1`, consistent with ketchup's `0.6.0` visual release. PR #35 stays a patch because it extends an existing principle; provenance records that rationale.
+
+### PR #38 project-fit revision — 2026-10-13
+
+Replaced the hard word budget with an approximately 150-word target that yields to every unresolved decision, material risk, and evidence gap. Removed mandatory status and decision visuals and all box, cell, label-word, and line-count limits. Visuals now apply only when clearer than prose; decisions retain options, tradeoffs, recommendations, prerequisites, irreversible effects, and known no-answer consequences. Updated the bundled visual reference, README, guide, workflow reference, and provenance. The read-only, scoped-history, current-head, invocation-policy, and evidence boundaries remain intact. The unreleased layer retains version `0.8.0`.
+
+On this macOS host, the revised working tree passed structural validation (53 skills, zero problems), all 15 Node tests including the docs build, and all 120 Python tests. Installer tests used isolated fixtures. This is static validation; no fresh host session exercised a multi-decision catch-up or visual rendering.
 
 ## pstack 0.15.23: in-your-own-words — 2026-10-13 {#pstack-0-15-23-in-your-own-words}
 

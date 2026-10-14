@@ -1,6 +1,6 @@
 ---
 name: ketchup
-description: "Catch up on this chat since your last message in a few plain sentences and small visuals, with current PR, CI, and agent status where available and just enough context to decide what awaits you. Use for ketchup or a catch-up on this chat; use recall for context across sessions."
+description: "Catch up on this chat since your last message in plain language, with current PR, CI, and agent status where available and enough context to decide what awaits you. Use for ketchup or a catch-up on this chat; use recall for context across sessions."
 disable-model-invocation: true
 ---
 
@@ -22,20 +22,20 @@ Find decisions or steps only the user can take, including ones raised before the
 
 ## Write the catch-up
 
-Keep the whole reply well under 150 words, counting words in visuals and tables. Never state a fact in both text and a visual. Omit work that changed nothing unless it explains a gap. When words run short, cut from what happened before you cut from action items. Box and line limits are ceilings; the word budget wins.
+Aim for about 150 words, including text in visuals and tables, but use more when needed to cover every unresolved decision, material risk, and evidence gap. Cut repetition and low-value chronology, not actionable context. Omit work that changed nothing unless it explains a gap.
 
 Open with one sentence: how many things need the user, or that nothing does. If nothing changed and nothing waits, say so and stop, keeping any coverage gap.
 
-Then show one status visual of at most four boxes: each thing the user asked for, what came of it, and done, running, failed, or not checked. Name bugs found and fixed. Never mark done what still waits on the user. Then give at most three short lines that change what the user knows or must do, including material gaps, and one line of remaining work you can do.
+Summarize the consequential results and current status of the requested work, including bugs found or fixed and material gaps. Never mark done what still waits on the user. Briefly name remaining work you can do without starting it.
 
-Give each action item two lines: the call the user owns, such as merge, approve, or pick, with your recommendation and why; then what happens with no answer. Prerequisites, steps you would take first, and irreversibility go in the recommendation. An unasked irreversible step gets one line, no visual, no no-answer consequence. Write "unknown" for unknown parts; silence is not approval. Link detail.
+Give each action item enough context to decide: the call the user owns, feasible options and their tradeoffs, your recommendation and why, prerequisites or irreversible effects, and what happens with no answer. Briefly note an unasked irreversible step already waiting on the user without inventing a no-answer consequence. Write "unknown" for unknown parts; silence is not approval. Links support the summary rather than replace it.
 
-Show each action item as a before/after visual: current state beside each option, or the options alone without one. Put every weighed option in the visual with what it gets and costs; keep options out of the text. Skip the visual for access requests, unasked irreversible steps, and comparisons that evidence or rendering cannot support. When a weighed choice has no visual, add one line naming the options and their costs.
+Use a visual only when it clarifies status or a decision better than prose. A comparison should show the relevant options and their gains and costs. Avoid repeating the same facts in prose and a visual; a prose-only catch-up is fine.
 
 ## Visuals
 
-Chat may render as plain terminal text, so prefer the smallest table, diff, or tree; use a Mermaid diagram or existing screenshot or video only where the host renders it. Follow the bundled [decision visual guidance](references/decision-visuals.md), adapted from HumanLayer's show-me. Use at most six boxes (non-header table cells, diagram nodes, tree entries, or diff lines), at most eight words each, excluding "No screenshot yet." Write each box as spoken words, true alone: "Search was slow from a missing index", not "Search review: done" or "Tests: pass". Group small items; a fact needing a sentence goes in text or nowhere.
+Chat may render as plain terminal text, so prefer the smallest useful table, diff, or tree; use a Mermaid diagram or existing screenshot or video only where the host renders it. Follow the bundled [decision visual guidance](references/decision-visuals.md), adapted from HumanLayer's show-me. Use plain labels and enough context to make each comparison understandable.
 
-For a visible change without an existing capture, mark its box "No screenshot yet." and say in one line under the visual what changed on screen. Compose visuals only from gathered evidence, without files, new or generated captures, apps, jobs, or posts. If evidence or rendering prevents a comparison, say what is missing. Never fabricate numbers, captures, or links; label proposals and unknowns.
+For a visible change without an existing capture, say that no capture is available and describe only what the evidence establishes. Compose visuals only from gathered evidence, without files, new or generated captures, apps, jobs, or posts. If evidence or rendering prevents a useful comparison, state the gap and explain the options in prose. Never fabricate numbers, captures, or links; label proposals and unknowns.
 
 Use [recall](../recall/SKILL.md) for context across sessions, and [xray-session](../xray-session/SKILL.md) for a zstack activity ledger only on its own explicit request.
