@@ -155,6 +155,16 @@ class WatcherTests(unittest.TestCase):
         self.options["allowDraft"] = True
         self.assertEqual(self.run_simple()["kind"], "READY")
 
+    def test_owner_gate_failing_rollup_is_not_refusal(self) -> None:
+        self.reader.rollups = [{"oid": "head", "state": "FAILURE"}]
+        self.reader.facts["mergeStateStatus"] = "BLOCKED"
+        gate = check("code-review-gate", "Code Review Gate") | {"reportedState": "ACTION_REQUIRED"}
+        self.reader.checks = [check(), gate]
+        self.assertEqual(self.run_simple()["kind"], "READY")
+        self.assertEqual(self.policy.assess_github_merge("BLOCKED", "FAILURE", True)["basis"], "owner-gate")
+        self.reader.checks = [check(), check("code-review-gate", "Code Review Gate")]
+        self.assertEqual(self.run_simple()["exitCode"], 4)
+
     def test_priority_across_stack(self) -> None:
         first = self.snapshot()
         first["threads"] = [{"id": "thread"}]
@@ -255,6 +265,25 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(
             self.github.parse_fast_check({"name": "CI", "state": "ERROR", "bucket": "pass"})["kind"], "failed"
         )
+
+    def test_owner_approval_gate_is_neither_pending_nor_failed(self) -> None:
+        gate = self.github.map_rollup_node(
+            {
+                "__typename": "CheckRun",
+                "name": "Code Review Gate",
+                "status": "COMPLETED",
+                "conclusion": "ACTION_REQUIRED",
+            }
+        )
+        self.assertEqual((gate["kind"], gate["reportedState"]), ("code-review-gate", "ACTION_REQUIRED"))
+        self.assertEqual(
+            self.github.parse_fast_check({"name": "Code Review Gate", "state": "ACTION_REQUIRED", "bucket": "fail"})[
+                "kind"
+            ],
+            "code-review-gate",
+        )
+        other = self.github.parse_fast_check({"name": "CI", "state": "ACTION_REQUIRED", "bucket": "fail"})
+        self.assertEqual((other["kind"], other["reportedState"]), ("failed", "ACTION_REQUIRED"))
 
     def test_closed_enums_and_empty_review_decision(self) -> None:
         self.assertIsNone(self.github.parse_pull_request(facts(reviewDecision=""), CONTEXT)["reviewDecision"])

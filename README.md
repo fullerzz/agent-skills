@@ -43,7 +43,7 @@ These commands use the merged default branch. See [Hermes setup](docs/hosts/herm
 
 ### Linked installation
 
-Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the repository integration tests. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Install missing tools with mise or brew.
+Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output and PyYAML for validation). Node.js 20+ runs the repository integration tests. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
 

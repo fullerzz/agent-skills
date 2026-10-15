@@ -2,7 +2,7 @@
 
 ## First-time setup
 
-Install Git, [uv](https://docs.astral.sh/uv/), and the host you intend to use: Codex, Claude Code, or Hermes Agent. Use mise or brew for missing tools. The installer requires Python 3.14+; `uv run` resolves that version and its inline Rich dependency. Node.js 20+ is needed for repository integration tests and the documentation site. The bundled plan validator, worktree audit, orchestration CLI, and PR watcher use uv-managed Python 3.12+ and the standard library.
+Install Git, [uv](https://docs.astral.sh/uv/), and the host you intend to use: Codex, Claude Code, or Hermes Agent. Use mise or brew for missing tools. The installer requires Python 3.14+; `uv run` resolves that version and its inline Rich dependency. Node.js 20+ is needed for repository integration tests and the documentation site. The bundled plan validator, worktree audit, orchestration CLI, and PR watcher use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter.
 
 Clone the library to a stable location, then run all installer commands from that checkout:
 

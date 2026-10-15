@@ -114,7 +114,7 @@ def base(host: str, session_id: str, kind: str, status: str) -> dict[str, object
     return {
         "schema_version": SCHEMA_VERSION,
         "event_id": str(uuid.uuid4()),
-        "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "captured_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "host": host,
         "session_id": session_id,
         "kind": kind,
