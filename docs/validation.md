@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Claude plugin icon and Hermes support — 2026-10-15
+
+The Claude manifest's `icon` points directly to `./docs/public/logo.svg`. [Anthropic's manifest reference](https://code.claude.com/docs/en/plugins-reference#directory-listing-fields) defines this as directory-listing metadata; Claude Code ignores it at load time. Claude Code 2.1.300 passed `claude plugin validate .claude-plugin/plugin.json --strict`. Structural validation reported 52 skills and zero problems; all 15 Node tests (including the docs build) and all 93 Python tests passed.
+
+Hermes receives no icon metadata: the current upstream [manifest model and parser](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins_manifest.py) expose no icon field. No directory submission, installed-plugin refresh, or live icon rendering was tested for either host.
+
+**PR #47 review repair.** `uv run scripts/bump_version.py patch` advances the Codex, Claude, and Hermes manifests together from `0.11.1` to `0.11.2`, giving versioned marketplace installs a new release for the icons. After the bump, structural validation reported 52 skills and zero problems, all 15 Node tests and all 93 Python tests passed, and Claude strict manifest validation passed. Live marketplace upgrades were not tested.
+
+## Codex plugin icon — 2026-10-15 {#codex-plugin-icon}
+
+The Codex manifest's `interface.logo` and `interface.composerIcon` point to `.codex-plugin/logo.svg`, a byte-identical copy of the website's `docs/public/logo.svg`. Keeping the copy under `.codex-plugin` includes it in the existing package resource selection.
+
+On this macOS host, structural validation reported 52 skills and zero problems, all 15 Node tests passed (including the docs build), and all 93 Python tests passed. An isolated temporary Git checkout packaged the current resources plus the new icon and confirmed that both manifest paths resolve to the website SVG byte for byte. The initial sandboxed checks could not start mise; the checks passed with sandbox escalation.
+
+**Limits.** No installed plugin cache was refreshed or live Codex icon rendering tested. The new SVG must be tracked when committing so the tracked-resource packager includes it.
+
 ## Codex hook label — 2026-10-15 {#codex-hook-label}
 
 The remaining Codex `SessionStart` handler now supplies `statusMessage`: "zstack session setup: load guidance and restore saved z-mode and Herdr preferences". This adds a readable name and purpose to the hook's running status.

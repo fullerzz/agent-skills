@@ -1,6 +1,6 @@
 {
   "name": "zstack",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Evidence-driven engineering workflows, scoped agents, and task-sized verification for Claude Code.",
   "author": {
     "name": "Zach Fuller",
@@ -8,5 +8,6 @@
   },
   "repository": "https://github.com/fullerzz/agent-skills",
   "license": "MIT",
+  "icon": "./docs/public/logo.svg",
   "agents": ["./agents/claude/comment-sicko.md", "./agents/claude/z-agent.md"]
 }
