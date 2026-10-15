@@ -6,6 +6,26 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Orchestration cleanup: shipping safety — 2026-10-14 {#orchestration-shipping}
+
+Top layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). Shipping gains pinned force-push leases, a pre-merge trunk-drift check with a third-rebase hold, and the post-merge child retarget; Autopilot-full scales re-verification to the change; Autopilot-stack names the coordinator as the only link rebaser. Manifests declare `0.10.0`.
+
+This is a wording change checked statically: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, and a clean `git diff --check`. No playbook run landed a stack under the new rules, so they are not live-verified.
+
+Review fixes: step 6 applies only when the merged PR has a child, and opening-a-pr requires landing authority before invoking it. Autopilot-stack restates the one-verifier rule, including conflict resolution, and links Autopilot-full. A later round made the coordinator's topology writes follow an owner handoff and gated pushes on publication authority. A third round made Shipping step 6 depend on landing authority that covers the child and on a base SHA recorded when the link was created or rebased, which Autopilot-stack and Opening a PR now record. A later round requires a merge-free child range, since rebase drops merge commits and their resolutions. A scratch repository checked the child move: after a parent fix round amended the parent commit and the parent was squash-merged, `git rebase --onto main <parent-final-head> child` stopped on an add/add conflict, while `git rebase --onto main <child-base> child` replayed only the child commit and kept the fixed parent content.
+
+### PR #42 merge-result destination — 2026-10-14
+
+Shipping now pins the confirmed merge-result SHA, verifies it is in the fetched remote-tracking trunk's history, and uses it as the child rebase destination. A fresh scratch Git repository reproduced the old command's stale-local-trunk problem: after fetching the parent's squash merge, rebasing the child onto local `main` succeeded but removed the parent's module from the child checkout. Rebasing the original child onto the fetched merge-result SHA retained both modules. This is a local Git experiment, not a live forge landing or an agent following the full playbook.
+
+The updated stack top passed structural validation (53 skills, zero problems), all 15 Node tests, all 122 Python tests, mypy across 27 files, and `git diff --check`. A live read-only call of the updated frontier resolver from the top checkout returned `#40, #41, #42` in order with their local branch heads. The repaired branching and closed-PR cases remain fixture-only checks; no GitHub topology was mutated for testing.
+
+### PR #42 managed-stack recovery — 2026-10-14
+
+The next review identified stale stack-manager metadata after the manual child rebase. In a fresh temporary repository, the installed gh-stack extension created a parent/child stack; a raw rebase of the child onto the parent's squash-merge commit changed the Git head but left the stack file unchanged and its recorded child base pointing at the original parent. Shipping now routes managed branches through documented manager recovery, checks scope, publication effects, replay boundaries, and merge handling, and verifies the resulting tracking state. The raw SHA-based recipe is restricted to unmanaged branches. The installed gh-stack help confirms that `sync` also pushes the stack, so it is subject to the existing authority and pinned-lease requirements. No real stack was merged or retargeted for this check; the recovery path itself was not exercised against GitHub.
+
+This wording revision passed structural validation (53 skills, zero problems), all 15 Node tests including the documentation build, all 122 Python tests, and `git diff --check` on this macOS host.
+
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 
 Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.9.1`.

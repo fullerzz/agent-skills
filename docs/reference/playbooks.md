@@ -210,7 +210,7 @@ Codex: $z-mode Merge PR 42 when its current-head checks pass, using squash.
 Claude Code: /z-mode Merge PR 42 when its current-head checks pass, using squash.
 ```
 
-Pin dependencies and receipts, re-check current-head CI and reviews, land only the contiguous verified frontier, wait for confirmed merge, then refresh trunk and the next head. Return actual merges and remaining ceiling.
+Pin dependencies and receipts, re-check current-head CI and reviews, land only the contiguous verified frontier, check trunk drift right before each merge, wait for confirmed merge, then refresh the next head. A child is retargeted only when the landing authority covers it; otherwise the needed retarget is reported. Return actual merges and remaining ceiling.
 
 **Prerequisites and limits:** Requires explicit landing authority and forge access. Substantial behavior changes need independent verification where supported; no bypassing approvals or unsolicited verdict posts.
 
