@@ -102,7 +102,8 @@ def command(argv: list[str], repo: Path) -> str:
         return subprocess.run(  # noqa: S603 - Fixed Git/gh argument vectors from local callers; no shell.
             argv,
             cwd=repo,
-            env={**os.environ, "NO_COLOR": "1"},
+            # GH_REPO would point gh at another repository than the checkout at `repo`.
+            env={**{k: v for k, v in os.environ.items() if k != "GH_REPO"}, "NO_COLOR": "1"},
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
@@ -113,7 +114,8 @@ def command(argv: list[str], repo: Path) -> str:
 
 
 def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, Any]]:
-    argv = ["gh", "pr", "list", flag, branch, "--state", state, "--json", "number,state,headRefName,baseRefName"]
+    fields = "number,state,headRefName,baseRefName,isCrossRepository"
+    argv = ["gh", "pr", "list", flag, branch, "--state", state, "--limit", "1000", "--json", fields]
     label = " ".join(argv[:5])
     try:
         rows = json.loads(command(argv, repo))
@@ -128,9 +130,11 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
             and 0 < row["number"] <= MAX_SAFE_INTEGER
             and row.get("state") in PR_STATES
             and all(isinstance(row.get(k), str) and row[k] for k in ("headRefName", "baseRefName"))
+            and type(row.get("isCrossRepository")) is bool
         ):
             raise UserError(f"{label} output has an invalid PR row")
-    return rows
+    # A fork can reuse a stack branch name; stack links live in this repository.
+    return [row for row in rows if not row["isCrossRepository"]]
 
 
 def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
@@ -145,15 +149,24 @@ def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
 
 
 def trunk_branch(repo: Path) -> str:
-    try:
-        ref = command(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], repo)
-        return ref.strip().removeprefix("origin/")
-    except UserError:
-        return "main"  # Fixtures and init-plus-fetch checkouts lack origin/HEAD.
+    argv = ["gh", "repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"]
+    trunk = command(argv, repo).strip()
+    if not trunk:
+        raise UserError("gh repo view returned no default branch")
+    return trunk
+
+
+def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
+    rows = [row for row in list_prs(repo, "--base", branch, "all") if row["state"] != "CLOSED"]
+    # A child merged into this branch still links the PRs above it; an open child is current.
+    rows = [row for row in rows if row["state"] == "OPEN"] or rows
+    if len(rows) > 1:
+        raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in rows)} all target {branch}")
+    return rows[0] if rows else None
 
 
 def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
-    """Walk the PR base chain from the current branch down to trunk, then up through open children."""
+    """Walk the PR base chain from the current branch down to trunk, then up through its children."""
     trunk = trunk_branch(repo)
     current = command(["git", "symbolic-ref", "--short", "HEAD"], repo).strip()
     if current == trunk:
@@ -167,20 +180,18 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
         bottom = branch_pr(repo, bottom["baseRefName"])
         chain.insert(0, bottom)
     tip = current
-    while children := list_prs(repo, "--base", tip, "open"):
-        if len(children) > 1:
-            raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in children)} all target {tip}")
-        tip = children[0]["headRefName"]
+    while child := child_pr(repo, tip):
+        tip = child["headRefName"]
         if tip in seen:
             raise UserError(f"pull request base chain loops at branch {tip}")
         seen.add(tip)
-        chain.append(children[0])
+        chain.append(child)
     if len({row["number"] for row in chain}) != len(chain):
         raise UserError("pull request base chain contains duplicate pull requests")
     result = []
     for row in chain:
         branch = row["headRefName"]
-        sha = command(["git", "rev-parse", "--verify", branch], repo).strip()
+        sha = command(["git", "rev-parse", "--verify", f"refs/heads/{branch}"], repo).strip()
         if not re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
             raise UserError(f"git rev-parse {branch} returned an invalid SHA")
         result.append({"pr": row["number"], "branches": branch, "sha": sha, "state": row["state"]})

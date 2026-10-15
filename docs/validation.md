@@ -8,11 +8,11 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 
-Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.8.2`.
+Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.9.1`.
 
-The rewritten fixture test drives a real Git repository through a fake `gh`: a merged parent its child still targets, a branch whose earlier PR closed, an open draft-style child, pin mismatches that leave `frontier.json` unchanged, a second open child (`not linear`), a parent without a PR, invalid JSON, and trunk (empty chain).
+The rewritten fixture test drives a real Git repository with trunk `trunk` through a fake `gh` that rejects an inherited `GH_REPO` and a missing `--limit`: a merged parent its child still targets, a branch whose earlier PR closed, a fork PR reusing a stack branch name, an open child, a child merged into its parent's branch (resolved from the bottom branch), pin mismatches that leave `frontier.json` unchanged, a second open child (`not linear`), a parent without a PR, a tag standing in for a deleted local branch, invalid JSON, and trunk (empty chain). Against the previous resolver it fails at the first `gh` call, which asserted `GH_REPO` was cleared.
 
-Live check against this repository's own three-PR stack (#40 to #42), running the layer's code from a copy so checkouts did not swap it: from the middle and bottom branches it resolved `#40, #41, #42`, all `OPEN`, with local head SHAs and lowest unmerged `#40`; on `main` it returned no PRs; the pin `40,42,41` failed with `order differs`. Merged-parent and retarget states were exercised only in the fixture.
+Live check against this repository's own three-PR stack (#40 to #42), running the layer's code from a copy so checkouts did not swap it: from the middle and bottom branches it resolved `#40, #41, #42`, all `OPEN`, with local head SHAs and lowest unmerged `#40`; on `main` it returned no PRs; the pin `40,42,41` failed with `order differs`. After review fixes, a rerun with `GH_REPO=cli/cli` exported resolved the same chain from the bottom and top branches and an empty chain on `main`, so the override no longer leaks into `gh`. Merged-parent, merged-child, and retarget states were exercised only in the fixture.
 
 Validation on the stack top: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, mypy clean across 27 files, and a clean `git diff --check`.
 

@@ -222,7 +222,7 @@ class FrontierTests(unittest.TestCase):
                     [executable("git"), "-C", str(repo), *args], capture_output=True, text=True, check=True
                 ).stdout.strip()
 
-            git("init", "-b", "main")
+            git("init", "-b", "trunk")
             git("config", "user.name", "Fixture")
             git("config", "user.email", "fixture@example.invalid")
             (repo / "note").write_text("baseline")
@@ -232,22 +232,32 @@ class FrontierTests(unittest.TestCase):
                 git("branch", branch)
             git("switch", "-q", "stack/b")
             prs = root / "prs.json"
-            # stack/a merged before stack/b was retargeted; stack/b reuses a branch whose first PR closed.
+            # stack/a merged before stack/b was retargeted; stack/b reuses a branch whose first PR closed,
+            # and a fork's PR reuses its name.
             rows = [
-                {"number": 10, "state": "MERGED", "headRefName": "stack/a", "baseRefName": "main"},
-                {"number": 9, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "main"},
+                {"number": 10, "state": "MERGED", "headRefName": "stack/a", "baseRefName": "trunk"},
+                {"number": 9, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "trunk"},
                 {"number": 11, "state": "OPEN", "headRefName": "stack/b", "baseRefName": "stack/a"},
                 {"number": 12, "state": "OPEN", "headRefName": "stack/c", "baseRefName": "stack/b"},
+                {"number": 13, "state": "OPEN", "headRefName": "stack/b", "baseRefName": "trunk", "fork": True},
             ]
-            prs.write_text(json.dumps(rows))
+
+            def publish(values: list[dict[str, object]]) -> None:
+                prs.write_text(json.dumps([{**r, "isCrossRepository": r.get("fork", False)} for r in values]))
+
+            publish(rows)
             script = bin_dir / "gh"
             script.write_text(
                 f"#!{sys.executable}\n"
                 """import json, os, sys
 from pathlib import Path
 assert Path.cwd() == Path(os.environ['EXPECTED_REPO']).resolve()
+assert 'GH_REPO' not in os.environ
 args = sys.argv[1:]
-assert args[:2] == ['pr', 'list'] and args[4] == '--state', args
+if args[:2] == ['repo', 'view']:
+    print('trunk')
+    raise SystemExit
+assert args[:2] == ['pr', 'list'] and args[4:7] == ['--state', args[5], '--limit'], args
 key = {'--head': 'headRefName', '--base': 'baseRefName'}[args[2]]
 rows = json.loads(Path(os.environ['PRS']).read_text())
 print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r['state'].lower())]))
@@ -256,7 +266,12 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
             script.chmod(0o755)
             s = module.Store(store_dir)
             self.addCleanup(s.close)
-            env = {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_REPO": str(repo), "PRS": str(prs)}
+            env = {
+                "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+                "EXPECTED_REPO": str(repo),
+                "PRS": str(prs),
+                "GH_REPO": "someone/else",
+            }
             with patch.dict(os.environ, env):
                 s.init()
                 frontier = s.frontier_set(repo, [10, 11, 12])
@@ -269,20 +284,33 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                         s.frontier_set(repo, pin)
                     self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
                 git("branch", "stack/d")
-                prs.write_text(
-                    json.dumps(
-                        [*rows, {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/b"}]
-                    )
+                publish(
+                    [
+                        *rows,
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/b"},
+                    ]
                 )
                 with self.assertRaisesRegex(module.UserError, "not linear"):
                     s.frontier_set(repo)
-                prs.write_text(json.dumps(rows[2:3]))
+                # A child merged into its parent's branch still links the open PR above it.
+                publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
+                git("switch", "-q", "stack/a")
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                git("switch", "-q", "stack/b")
+                publish(rows[2:3])
                 with self.assertRaisesRegex(module.UserError, "stack/a"):
                     s.frontier_set(repo)
-                script.write_text(f'#!{sys.executable}\nprint("bad output")\n')
+                publish(rows)
+                git("branch", "-D", "stack/c")
+                git("tag", "stack/c")
+                with self.assertRaisesRegex(module.UserError, "refs/heads/stack/c"):
+                    s.frontier_set(repo)
+                script.write_text(
+                    f"#!{sys.executable}\nimport sys\nprint('trunk' if sys.argv[1] == 'repo' else 'bad output')\n"
+                )
                 with self.assertRaisesRegex(module.UserError, "not valid JSON"):
                     s.frontier_set(repo)
-                git("switch", "-q", "main")
+                git("switch", "-q", "trunk")
                 self.assertEqual(s.frontier_set(repo)["prs"], [])
             s.close()
 
