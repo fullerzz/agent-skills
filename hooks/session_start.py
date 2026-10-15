@@ -122,58 +122,8 @@ def control_command(arguments: list[str], shell: str) -> str:
     return shlex.join(arguments)
 
 
-def record_xray(
-    host: str | None, session_id: str, data_dir: str, action: str, outcome: str, *, source: str | None = None
-) -> None:
-    if host is None or os.environ.get("ZSTACK_XRAY") != "1":
-        return
-    try:
-        import runpy
-
-        recorder = runpy.run_path(os.path.join(os.path.dirname(os.path.realpath(__file__)), "xray.py"))
-        if source is None:
-            recorder["record_internal"](host, session_id, data_dir, action, outcome)
-        else:
-            recorder["record_internal"](host, session_id, data_dir, action, outcome, source=source)
-    except Exception:  # noqa: BLE001 - Optional recorder failures must never alter host execution.
-        print("zstack xray: metadata capture unavailable; continuing", file=sys.stderr)
-
-
-def xray_context(host: str, session_id: str, data_dir: str, helper: str, budget: int) -> str:
-    read_arguments = [
-        "uv",
-        "run",
-        "--no-project",
-        "--no-config",
-        "python",
-        "-I",
-        "-S",
-        os.path.join(os.path.dirname(helper), "xray.py"),
-        "--read",
-        f"--host={host}",
-        f"--session-id={session_id}",
-        "--data-dir",
-        data_dir,
-    ]
-    recording_context = (
-        f"\nOptional xray recording is enabled for host {host}, session {session_id}, "
-        f"plugin data {data_dir}. It does not activate z-mode. Read this session's metadata only "
-        "when requested, using the command matching your shell:\n"
-        f"POSIX sh Read xray: {control_command(read_arguments, 'posix')}\n"
-        f"PowerShell Read xray: {control_command(read_arguments, 'powershell')}"
-    )
-    if len(recording_context) > budget:
-        recording_context = (
-            f"\nOptional xray recording is enabled for host {host}, session {session_id}; "
-            "it does not activate z-mode. On an explicit xray-session request, use the skill's "
-            "recorded-events reference. The data directory and session ID are the same as the "
-            "controls above; the read helper is their sibling xray.py."
-        )
-    return recording_context if len(recording_context) <= budget else ""
-
-
 def build_context(host: str, session_id: str, data_dir: str, source: str) -> tuple[str, str | None]:
-    """Restore scoped state and render controls without emitting output or recording."""
+    """Restore scoped state and render controls without emitting output."""
     if host not in ("codex", "claude", "hermes"):
         raise ValueError("Invalid host")
     if source not in ("startup", "resume", "clear", "compact", "fork"):
@@ -230,8 +180,6 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         )
     else:
         context += "\nHerdr execution is not enabled."
-    if os.environ.get("ZSTACK_XRAY") == "1":
-        context += xray_context(host, session_id, data_dir, helper, 4000 - len(context) - len(clear_error or "") - 1)
     if clear_error:
         context += "\n" + clear_error
     return context, clear_error
@@ -252,14 +200,6 @@ def session_start(host: str) -> None:
     if clear_error:
         output["systemMessage"] = clear_error
     print(json.dumps(output))
-    record_xray(
-        host,
-        session_id,
-        data_dir,
-        "session_start",
-        "clear_state_failed" if clear_error else "context_emitted",
-        source=event["source"],
-    )
 
 
 def main() -> None:
@@ -281,15 +221,7 @@ def main() -> None:
         else:
             set_execution(path, args.action)
     except (ValueError, OSError) as error:
-        record_xray(args.host, args.session_id, args.data_dir, args.action, "state_change_failed")
         parser.exit(1, f"z-mode state not changed: {error}\n")
-    record_xray(
-        args.host,
-        args.session_id,
-        args.data_dir,
-        args.action,
-        "enabled" if args.action in ("enable", "herdr") else "disabled",
-    )
 
 
 if __name__ == "__main__":

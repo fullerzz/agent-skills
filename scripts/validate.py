@@ -130,8 +130,6 @@ def validate_skill(file: Path, relative: str, names: set[str], fail: Fail) -> No
             fail(relative, f"Unsupported shared metadata: {key}")
     if "disable-model-invocation" in meta and not isinstance(meta["disable-model-invocation"], bool):
         fail(relative, "Invocation flag must be boolean")
-    if meta["name"] == "xray-session" and meta.get("disable-model-invocation") is not True:
-        fail(relative, "Xray session requires explicit-only shared invocation")
     validate_policy(file, meta, relative, fail)
 
 
@@ -257,7 +255,7 @@ def validate_hermes_plugin(root: Path, fail: Fail) -> None:
             fail(relative, "Invalid native plugin identity or shared version")
         if not isinstance(manifest, dict) or manifest.get("license") != "MIT":
             fail(relative, "Missing MIT license declaration")
-        for resource in ("__init__.py", "LICENSE", "hooks/hermes.py", "hooks/session_start.py", "hooks/xray.py"):
+        for resource in ("__init__.py", "LICENSE", "hooks/hermes.py", "hooks/session_start.py"):
             if not (root / resource).is_file():
                 fail(relative, f"Missing Hermes plugin resource: {resource}")
         if not (root / "skills").is_dir():

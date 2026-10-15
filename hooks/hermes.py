@@ -1,27 +1,13 @@
 """Native Hermes lifecycle adapter; model and tool payloads never become stored state."""
 
 import logging
-import os
 import threading
 from collections.abc import Callable
-from functools import partial
 from typing import Protocol
 
-from . import session_start, xray
+from . import session_start
 
 LOGGER = logging.getLogger(__name__)
-OBSERVER_HOOKS = (
-    "on_session_start",
-    "on_session_end",
-    "on_session_finalize",
-    "post_llm_call",
-    "pre_tool_call",
-    "post_tool_call",
-    "subagent_start",
-    "subagent_stop",
-    "pre_auxiliary_call",
-    "post_auxiliary_call",
-)
 
 
 class HookRegistry(Protocol):
@@ -56,15 +42,6 @@ class HermesHooks:
                 context, warning = session_start.build_context("hermes", session_id, directory, source)
                 if warning is None:
                     self._pending_resets.discard(key)
-            xray.record_internal(
-                "hermes",
-                session_id,
-                directory,
-                "session_start",
-                "clear_state_failed" if warning else "context_emitted",
-                source=source,
-            )
-            self.observe("pre_llm_call", session_id=session_id, **kwargs)
             return {"context": context}
         except Exception:  # noqa: BLE001 - Context failure must not prevent the user's turn.
             LOGGER.warning("zstack: Hermes session controls unavailable")
@@ -90,24 +67,9 @@ class HermesHooks:
                 self._pending_resets.discard(key)
         except Exception:  # noqa: BLE001 - Keep a failed clear inactive and retry at the next turn.
             LOGGER.warning("zstack: Hermes reset state could not be cleared")
-        self.observe("on_session_reset", session_id=session_id, **kwargs)
-
-    def observe(self, hook: str, **kwargs: object) -> None:
-        # In particular pre_tool_call must never raise or return a policy directive:
-        # Hermes treats failing policy callbacks as a reason to block execution.
-        if os.environ.get("ZSTACK_XRAY") != "1":
-            return
-        if hook in {"pre_auxiliary_call", "post_auxiliary_call"} and kwargs.get("aux_task") != "compression":
-            return
-        try:
-            xray.record_hermes(hook, kwargs, self.directory())
-        except Exception:  # noqa: BLE001 - Optional observer cannot affect tool dispatch.
-            LOGGER.warning("zstack: Hermes xray metadata capture unavailable")
 
 
 def register_hooks(ctx: HookRegistry) -> None:
     hooks = HermesHooks()
     ctx.register_hook("pre_llm_call", hooks.pre_llm_call)
     ctx.register_hook("on_session_reset", hooks.on_session_reset)
-    for name in OBSERVER_HOOKS:
-        ctx.register_hook(name, partial(hooks.observe, name))

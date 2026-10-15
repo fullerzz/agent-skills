@@ -8,16 +8,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from test_hermes_plugin import ROOT, Registry, load_plugin
 from validate import load_yaml
 
-from hooks import hermes, session_start, xray
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from hooks import hermes, session_start
 
 
 class HermesHookTests(unittest.TestCase):
@@ -70,7 +66,6 @@ class HermesHookTests(unittest.TestCase):
         parent = self.hooks.pre_llm_call(session_id="parent")["context"]
         self.control(parent, "Enable")
         for child in ("branch", "subagent", "rotated"):
-            self.hooks.observe("subagent_start", parent_session_id="parent", child_session_id=child)
             context = self.hooks.pre_llm_call(session_id=child, parent_session_id="parent")["context"]
             self.assertIn("No stored z-mode activation", context)
             self.assertIn(f"--session-id={child}", context)
@@ -78,7 +73,7 @@ class HermesHookTests(unittest.TestCase):
             self.control(context, "Disable")
         self.assertIn("z-mode was explicitly enabled", self.hooks.pre_llm_call(session_id="parent")["context"])
 
-    def test_reset_clears_only_replacement_and_end_does_not_destroy_resume(self) -> None:
+    def test_reset_clears_only_replacement_and_preserves_outgoing_session(self) -> None:
         for session in ("old", "new"):
             context = self.hooks.pre_llm_call(session_id=session)["context"]
             self.control(context, "Enable")
@@ -86,8 +81,6 @@ class HermesHookTests(unittest.TestCase):
         self.hooks.on_session_reset(session_id="new", old_session_id="old", new_session_id="new")
         self.assertIn("No stored z-mode activation", self.hooks.pre_llm_call(session_id="new")["context"])
         self.assertNotIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="new")["context"])
-        for event in ("on_session_end", "on_session_finalize"):
-            self.hooks.observe(event, session_id="old", completed=True)
         self.assertIn("z-mode was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
         self.assertIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
 
@@ -132,29 +125,19 @@ class HermesHookTests(unittest.TestCase):
         other_profile = hermes.HermesHooks(lambda: str(Path(self.data) / "other-profile"))
         self.assertIn("No stored z-mode activation", other_profile.pre_llm_call(session_id="same_id")["context"])
 
-    def test_observers_are_disabled_by_default_and_never_block_tools_on_failure(self) -> None:
-        observer: Callable[..., object] = self.hooks.observe
-        with patch.object(xray, "record_hermes") as recorder:
-            self.assertIsNone(observer("pre_tool_call", session_id="session", tool_name="terminal"))
-            recorder.assert_not_called()
-        with (
-            patch.dict(os.environ, {"ZSTACK_XRAY": "1"}),
-            patch.object(xray, "record_hermes", side_effect=OSError("private failure")),
-        ):
-            self.assertIsNone(observer("pre_tool_call", session_id="session", tool_name="terminal"))
-
-    def test_xray_records_opt_in_without_activating_and_ignores_non_compression_auxiliary(self) -> None:
+    def test_only_session_controls_are_registered_with_legacy_recording_setting(self) -> None:
+        registry = Registry()
+        baseline = self.hooks.pre_llm_call(session_id="session")["context"]
         with patch.dict(os.environ, {"ZSTACK_XRAY": "1"}):
-            context = self.hooks.pre_llm_call(session_id="session", user_message="PRIVATE PROMPT")["context"]
-            self.assertIn("Optional xray recording is enabled for host hermes", context)
-            self.assertIn("No stored z-mode activation", context)
-            self.hooks.observe("pre_auxiliary_call", session_id="session", aux_task="title_generation")
-        records = xray.read_records("hermes", "session", self.data)
-        events = records["records"]
-        if not isinstance(events, list):
-            self.fail("Xray records must be a list")
-        self.assertEqual({record["kind"] for record in events}, {"session_start", "PreLLMCall"})
-        self.assertNotIn("PRIVATE PROMPT", str(records))
+            load_plugin(ROOT / "__init__.py").register(registry)
+            self.assertEqual(set(registry.hooks), {"pre_llm_call", "on_session_reset"})
+            context = self.hooks.pre_llm_call(session_id="session")["context"]
+            self.assertEqual(context, baseline)
+            self.control(context, "Enable")
+            self.assertIn("was explicitly enabled", self.hooks.pre_llm_call(session_id="session")["context"])
+            self.hooks.on_session_reset(session_id="session")
+        self.assertEqual(list(Path(self.data).iterdir()), [Path(self.data) / "z-mode"])
+        self.assertEqual(list((Path(self.data) / "z-mode").iterdir()), [])
 
 
 if __name__ == "__main__":

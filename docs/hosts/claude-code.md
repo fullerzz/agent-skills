@@ -36,10 +36,6 @@ The hook supplies one labeled POSIX sh and one PowerShell control template; repl
 
 For [Herdr execution](../reference/workflow-skills.md#herdr-workflow), explicitly request "use z-mode with Herdr". The shared hook also supplies Herdr/Native controls in both shells. Herdr changes execution without activating z-mode; Native disables Herdr while retaining the mode. Enable preserves execution; Disable (stopping or switching away from active z-mode) and clear reset both, so a Herdr-only selection survives a style switch. The same-ID preference is a marker beside the mode JSON and does not transfer to children. The hook never launches agents or probes Herdr. Operation requires `HERDR_ENV=1` and remains subject to Claude permissions; older installed hooks retain selection conversationally until refreshed.
 
-### Optional xray recording
-
-Start the host with `ZSTACK_XRAY=1` to retain minimal supported event metadata under `CLAUDE_PLUGIN_DATA/xray/claude/`. Recording is independent of mode activation and disabled by default. The user-only xray-session skill combines those records with transcript evidence. See [collection setup and limits](../reference/workflow-skills.md#optional-event-collection).
-
 ### Plugin update and removal
 
 Because the plugin loads in place, checkout edits take effect at the next session start or after `/reload-plugins`. You do not need a version bump to pick up local edits, but changes to packaged content still bump the shared version under the README versioning policy. Keep the checkout at a stable path, because the marketplace records it.
