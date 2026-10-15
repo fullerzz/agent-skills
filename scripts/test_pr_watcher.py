@@ -161,6 +161,7 @@ class WatcherTests(unittest.TestCase):
         gate = check("code-review-gate", "Code Review Gate") | {"reportedState": "ACTION_REQUIRED"}
         self.reader.checks = [check(), gate]
         self.assertEqual(self.run_simple()["kind"], "READY")
+        self.assertEqual(self.policy.assess_github_merge("BLOCKED", "FAILURE", True)["basis"], "owner-gate")
         self.reader.checks = [check(), check("code-review-gate", "Code Review Gate")]
         self.assertEqual(self.run_simple()["exitCode"], 4)
 

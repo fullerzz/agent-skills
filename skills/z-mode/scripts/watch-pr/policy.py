@@ -33,8 +33,10 @@ class Clock:
 def assess_github_merge(state: str, rollup: str | None, owner_gate: bool = False) -> dict[str, Any]:
     base = {"mergeStateStatus": state, "headRollupState": rollup}
     # GitHub counts an owner-approval gate awaiting action as a failing rollup; that block waits on a human.
-    if state == "BLOCKED" and rollup in ("ERROR", "FAILURE") and not owner_gate:
-        return base | {"kind": "refused"}
+    if state == "BLOCKED" and rollup in ("ERROR", "FAILURE"):
+        # shortcut: a failure missing from the enumerated checks is indistinguishable from the gate here;
+        # GitHub still blocks the merge until the owner approves, and landing re-checks current-head CI.
+        return base | ({"kind": "allowed", "basis": "owner-gate"} if owner_gate else {"kind": "refused"})
     return base | {"kind": "allowed", "basis": "rollup" if state == "BLOCKED" else "merge-state"}
 
 
