@@ -8,6 +8,7 @@
           {
             "type": "command",
             "command": "uv run --no-project --no-config python -I -S \"${PLUGIN_ROOT}/hooks/session_start.py\" --host=codex",
+            "statusMessage": "zstack session setup: load guidance and restore saved z-mode and Herdr preferences",
             "additionalContextLimit": 4000
           }
         ]
