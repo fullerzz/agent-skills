@@ -155,6 +155,15 @@ class WatcherTests(unittest.TestCase):
         self.options["allowDraft"] = True
         self.assertEqual(self.run_simple()["kind"], "READY")
 
+    def test_owner_gate_failing_rollup_is_not_refusal(self) -> None:
+        self.reader.rollups = [{"oid": "head", "state": "FAILURE"}]
+        self.reader.facts["mergeStateStatus"] = "BLOCKED"
+        gate = check("code-review-gate", "Code Review Gate") | {"reportedState": "ACTION_REQUIRED"}
+        self.reader.checks = [check(), gate]
+        self.assertEqual(self.run_simple()["kind"], "READY")
+        self.reader.checks = [check(), check("code-review-gate", "Code Review Gate")]
+        self.assertEqual(self.run_simple()["exitCode"], 4)
+
     def test_priority_across_stack(self) -> None:
         first = self.snapshot()
         first["threads"] = [{"id": "thread"}]

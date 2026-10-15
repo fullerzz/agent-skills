@@ -30,9 +30,10 @@ class Clock:
         time.sleep(seconds)
 
 
-def assess_github_merge(state: str, rollup: str | None) -> dict[str, Any]:
+def assess_github_merge(state: str, rollup: str | None, owner_gate: bool = False) -> dict[str, Any]:
     base = {"mergeStateStatus": state, "headRollupState": rollup}
-    if state == "BLOCKED" and rollup in ("ERROR", "FAILURE"):
+    # GitHub counts an owner-approval gate awaiting action as a failing rollup; that block waits on a human.
+    if state == "BLOCKED" and rollup in ("ERROR", "FAILURE") and not owner_gate:
         return base | {"kind": "refused"}
     return base | {"kind": "allowed", "basis": "rollup" if state == "BLOCKED" else "merge-state"}
 
@@ -58,7 +59,10 @@ def read_snapshot(reader: Reader, context: dict[str, Any], pending_history: str 
     else:
         commits = reader.commit_rollups(context)
         head = next((c["state"] for c in commits if c["oid"] == facts["headRefOid"]), None)
-        github = assess_github_merge(facts["mergeStateStatus"], head)
+        owner_gate = any(
+            c["kind"] == "code-review-gate" and c["reportedState"] == "ACTION_REQUIRED" for c in checks["checks"]
+        )
+        github = assess_github_merge(facts["mergeStateStatus"], head, owner_gate)
         ci["hadPreviousPassingCi"] = any(c["oid"] != facts["headRefOid"] and c["state"] == "SUCCESS" for c in commits)
         ci["kind"] = (
             "ci-failing"
