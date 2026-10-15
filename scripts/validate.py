@@ -10,12 +10,12 @@ import json
 import re
 import stat
 import sys
+import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import cast
 from urllib.parse import unquote
 
-import tomllib
 import yaml
 from rich.console import Console
 
@@ -182,7 +182,7 @@ def validate_helpers(root: Path, fail: Fail) -> None:
         try:
             if not (root / relative).stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
                 fail(relative, "Helper not executable")
-        except OSError as error:  # noqa: PERF203 - Report each missing helper independently.
+        except OSError as error:
             fail(relative, str(error))
     for path in (".cursor-plugin", "automations/benny", "skills/make-bot-ui"):
         if (root / path).exists():

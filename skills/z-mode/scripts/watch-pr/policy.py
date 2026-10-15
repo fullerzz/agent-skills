@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from github import QueryError, Reader, resolve_checks
@@ -24,7 +24,7 @@ class Clock:
         return time.monotonic()
 
     def observed_at(self) -> str:
-        return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
     def sleep(self, seconds: float) -> None:
         time.sleep(seconds)
