@@ -10,7 +10,7 @@ import subprocess
 import sys
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -42,7 +42,7 @@ class NotFoundError(UserError):
 
 
 def timestamp() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def clean_cell(value: object) -> str:
