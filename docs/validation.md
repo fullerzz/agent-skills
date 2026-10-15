@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Orchestration cleanup: owner-approval gate — 2026-10-14 {#orchestration-gate}
+
+Bottom layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup), from main `e47fb8b`. `watch-pr` maps a completed `Code Review Gate` with conclusion `ACTION_REQUIRED` to the `code-review-gate` kind on both read paths; any other check with that conclusion stays `failed` with reported state `ACTION_REQUIRED`. The new regression failed against the unfixed `github.py` and passes with the fix. Manifests declare `0.8.1`.
+
+Validation: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, and a clean `git diff --check`. No live PR was watched; the gate behavior is covered by mapping tests only.
+
 ## pstack 0.15.23: shorter ketchup — 2026-10-13 {#pstack-0-15-23-ketchup}
 
 Adapted [upstream PRs #595 and #609](provenance.md#pstack-0-15-23) at final merge `c86f349b102feb91f1966f8a6a60882a4e601b50` as the top layer of the stack. A Herdr Claude Code worker rewrote the skill and its doc passages in an isolated worktree from main `caf7a1f`. The coordinator reviewed the diff and cherry-picked it onto the in-your-own-words layer. It repaired one instruction that limited before/after visuals to "other" action items, then added provenance and this record. The skill grew from 796 to 840 words; the new voice, box, and decision-line rules account for the growth.

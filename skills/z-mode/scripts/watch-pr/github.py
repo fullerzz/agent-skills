@@ -167,9 +167,10 @@ def details(value: dict[str, Any], name_key: str) -> dict[str, Any]:
     }
 
 
-def pending_or_gate(value: dict[str, Any], state: str) -> dict[str, Any]:
+# The owner-approval gate waits on a human, so it counts as neither pending nor failed.
+def gate_or(kind: str, value: dict[str, Any], state: str) -> dict[str, Any]:
     return value | {
-        "kind": "code-review-gate" if value["name"] == "Code Review Gate" else "pending",
+        "kind": "code-review-gate" if value["name"] == "Code Review Gate" else kind,
         "reportedState": state,
     }
 
@@ -179,10 +180,12 @@ def parse_fast_check(value: object) -> dict[str, Any]:
     base = details(value, "name")
     state = string(value.get("state"), "check.state").upper()
     bucket = string(value.get("bucket"), "check.bucket")
-    if bucket == "fail" or state in ("FAILURE", "ERROR", "ACTION_REQUIRED"):
+    if state == "ACTION_REQUIRED":
+        return gate_or("failed", base, state)
+    if bucket == "fail" or state in ("FAILURE", "ERROR"):
         kind = "failed"
     elif bucket == "pending":
-        return pending_or_gate(base, state)
+        return gate_or("pending", base, state)
     else:
         kind = {"pass": "passed", "skipping": "skipped"}.get(bucket, "failed")
     return base | {"kind": kind, "reportedState": state}
@@ -199,13 +202,15 @@ def map_rollup_node(value: object) -> dict[str, Any] | None:
     if typename == "CheckRun":
         status, conclusion = str(value.get("status") or "").upper(), str(value.get("conclusion") or "").upper()
         if status != "COMPLETED":
-            return pending_or_gate(base, "PENDING")
+            return gate_or("pending", base, "PENDING")
+        if conclusion == "ACTION_REQUIRED":
+            return gate_or("failed", base, conclusion)
         kind = {"SUCCESS": "passed", "NEUTRAL": "skipped", "SKIPPED": "skipped"}.get(conclusion, "failed")
-        state = conclusion if conclusion in ("SUCCESS", "NEUTRAL", "SKIPPED", "ACTION_REQUIRED") else "FAILURE"
+        state = conclusion if conclusion in ("SUCCESS", "NEUTRAL", "SKIPPED") else "FAILURE"
     else:
         state = str(value.get("state") or "").upper()
         if state in ("PENDING", "EXPECTED"):
-            return pending_or_gate(base, "PENDING")
+            return gate_or("pending", base, "PENDING")
         kind = "passed" if state == "SUCCESS" else "failed"
         state = state or "FAILURE"
     return base | {"kind": kind, "reportedState": state}

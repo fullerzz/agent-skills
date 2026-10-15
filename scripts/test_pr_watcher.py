@@ -256,6 +256,25 @@ class WatcherTests(unittest.TestCase):
             self.github.parse_fast_check({"name": "CI", "state": "ERROR", "bucket": "pass"})["kind"], "failed"
         )
 
+    def test_owner_approval_gate_is_neither_pending_nor_failed(self) -> None:
+        gate = self.github.map_rollup_node(
+            {
+                "__typename": "CheckRun",
+                "name": "Code Review Gate",
+                "status": "COMPLETED",
+                "conclusion": "ACTION_REQUIRED",
+            }
+        )
+        self.assertEqual((gate["kind"], gate["reportedState"]), ("code-review-gate", "ACTION_REQUIRED"))
+        self.assertEqual(
+            self.github.parse_fast_check({"name": "Code Review Gate", "state": "ACTION_REQUIRED", "bucket": "fail"})[
+                "kind"
+            ],
+            "code-review-gate",
+        )
+        other = self.github.parse_fast_check({"name": "CI", "state": "ACTION_REQUIRED", "bucket": "fail"})
+        self.assertEqual((other["kind"], other["reportedState"]), ("failed", "ACTION_REQUIRED"))
+
     def test_closed_enums_and_empty_review_decision(self) -> None:
         self.assertIsNone(self.github.parse_pull_request(facts(reviewDecision=""), CONTEXT)["reviewDecision"])
         for changes in [{"reviewDecision": "FUTURE"}, {"mergeStateStatus": "FUTURE"}, {"isDraft": "false"}]:
