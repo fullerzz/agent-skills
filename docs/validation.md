@@ -6,6 +6,14 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Plugin website metadata — 2026-10-15
+
+The Codex manifest now sets `homepage` and `interface.websiteURL` to `https://zstack.zachfuller.sh`. [OpenAI's manifest reference](https://developers.openai.com/plugins/deploy/submission#manifest-fields) defines the listing website separately from the package homepage. Claude uses the same URL in its supported [`homepage` field](https://code.claude.com/docs/en/plugins-reference#fields); Hermes' existing `homepage` field now points to the website instead of GitHub. All three plugin versions advance together from `0.11.2` to `0.11.3` using `uv run scripts/bump_version.py patch`.
+
+On this macOS host, `uv run scripts/validate.py` reported 52 skills and zero structural problems; `node --test scripts/*.test.mjs` passed all 15 tests, including the docs build; and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` passed all 93 tests. `claude plugin validate .claude-plugin/plugin.json --strict` passed. A read-only Python assertion verified all three homepage values, Codex's listing website, and the shared version. The initial sandboxed version helper could not start mise; the helper and uv/Node checks passed with sandbox escalation.
+
+No installed plugin cache was refreshed or live website-link rendering tested in Codex, Claude, or Hermes. No publication was performed.
+
 ## Claude plugin icon and Hermes support — 2026-10-15
 
 The Claude manifest's `icon` points directly to `./docs/public/logo.svg`. [Anthropic's manifest reference](https://code.claude.com/docs/en/plugins-reference#directory-listing-fields) defines this as directory-listing metadata; Claude Code ignores it at load time. Claude Code 2.1.300 passed `claude plugin validate .claude-plugin/plugin.json --strict`. Structural validation reported 52 skills and zero problems; all 15 Node tests (including the docs build) and all 93 Python tests passed.
