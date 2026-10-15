@@ -209,9 +209,9 @@ class EntrypointTests(unittest.TestCase):
 
 
 class FrontierTests(unittest.TestCase):
-    def test_graphite_frontier_uses_target_repo_and_preserves_on_bad_pin(self) -> None:
+    def test_base_chain_frontier_uses_target_repo_and_preserves_on_bad_pin(self) -> None:
         module = load("frontier_store", "orch/store.py")
-        with tempfile.TemporaryDirectory(prefix="graphite fixture ") as temp:
+        with tempfile.TemporaryDirectory(prefix="base chain fixture ") as temp:
             root = Path(temp)
             repo, store_dir, bin_dir = root / "repo", root / "store", root / "bin"
             repo.mkdir()
@@ -222,48 +222,225 @@ class FrontierTests(unittest.TestCase):
                     [executable("git"), "-C", str(repo), *args], capture_output=True, text=True, check=True
                 ).stdout.strip()
 
-            git("init", "-b", "main")
+            git("init", "-b", "trunk")
             git("config", "user.name", "Fixture")
             git("config", "user.email", "fixture@example.invalid")
             (repo / "note").write_text("baseline")
             git("add", ".")
             git("commit", "-m", "fixture")
-            for branch in ("stack/merged", "stack/closed", "stack/open"):
+            for branch in ("stack/a", "stack/b", "stack/c"):
                 git("branch", branch)
-            script = bin_dir / "gt"
+            git("switch", "-q", "stack/b")
+            prs = root / "prs.json"
+            # stack/a merged before stack/b was retargeted; stack/b reuses a branch whose first PR closed,
+            # and a fork's PR reuses its name.
+            rows = [
+                {"number": 10, "state": "MERGED", "headRefName": "stack/a", "baseRefName": "trunk"},
+                {"number": 9, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "trunk"},
+                {"number": 11, "state": "OPEN", "headRefName": "stack/b", "baseRefName": "stack/a"},
+                {"number": 12, "state": "OPEN", "headRefName": "stack/c", "baseRefName": "stack/b"},
+                {"number": 13, "state": "OPEN", "headRefName": "stack/b", "baseRefName": "trunk", "fork": True},
+            ]
+
+            def publish(values: list[dict[str, object]]) -> None:
+                prs.write_text(
+                    json.dumps(
+                        [
+                            {
+                                **r,
+                                "isCrossRepository": r.get("fork", False),
+                                "createdAt": f"2026-01-{r['number']:02}T00:00:00Z",
+                            }
+                            for r in values
+                        ]
+                    )
+                )
+
+            publish(rows)
+            script = bin_dir / "gh"
             script.write_text(
                 f"#!{sys.executable}\n"
-                """import os, sys
+                """import json, os, sys
 from pathlib import Path
 assert Path.cwd() == Path(os.environ['EXPECTED_REPO']).resolve()
-args=sys.argv[1:]
-if args == ['--no-interactive','log','short','--stack','--reverse']:
- print('◯ main\\n◯ stack/merged\\n◯ stack/closed\\n◉ stack/open (current)')
-else:
- assert args[:2] == ['--no-interactive','info']
- number,state={'stack/merged':(10,'Merged'),'stack/closed':(13,'Closed'),'stack/open':(11,'Needs approvals')}[args[2]]
- print(f'PR #{number} ({state}) change')
+assert 'GH_REPO' not in os.environ
+args = sys.argv[1:]
+if args[:2] == ['repo', 'view']:
+    print('trunk')
+    raise SystemExit
+assert args[:2] == ['pr', 'list'] and args[4:7] == ['--state', args[5], '--limit'], args
+key = {'--head': 'headRefName', '--base': 'baseRefName'}[args[2]]
+rows = json.loads(Path(os.environ['PRS']).read_text())
+print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r['state'].lower())]))
 """
             )
             script.chmod(0o755)
             s = module.Store(store_dir)
             self.addCleanup(s.close)
-            with patch.dict(
-                os.environ, {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_REPO": str(repo)}
-            ):
+            env = {
+                "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+                "EXPECTED_REPO": str(repo),
+                "PRS": str(prs),
+                "GH_REPO": "someone/else",
+            }
+            with patch.dict(os.environ, env):
                 s.init()
-                frontier = s.frontier_set(repo, [10, 13, 11])
+                frontier = s.frontier_set(repo, [10, 11, 12])
                 self.assertEqual(frontier["lowestUnmerged"], 11)
-                self.assertEqual([r["state"] for r in frontier["prs"]], ["MERGED", "CLOSED", "OPEN"])
-                self.assertEqual(frontier["prs"][0]["sha"], git("rev-parse", "stack/merged"))
+                self.assertEqual([r["state"] for r in frontier["prs"]], ["MERGED", "OPEN", "OPEN"])
+                self.assertEqual(frontier["prs"][2]["sha"], git("rev-parse", "stack/c"))
                 before = (store_dir / "frontier.json").read_bytes()
-                for pin in ([10, 11, 12], [13, 10, 11], [10, 10]):
+                for pin in ([10, 11, 13], [11, 10, 12], [10, 10]):
                     with self.assertRaises(module.UserError):
                         s.frontier_set(repo, pin)
                     self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
-                script.write_text(f'#!{sys.executable}\nprint("bad output")\n')
-                with self.assertRaisesRegex(module.UserError, "unparseable"):
+                git("branch", "stack/d")
+                publish(
+                    [
+                        *rows,
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/b"},
+                    ]
+                )
+                with self.assertRaisesRegex(module.UserError, "not linear"):
                     s.frontier_set(repo)
+                # A child merged into its parent's branch still links the open PR above it.
+                publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
+                git("switch", "-q", "stack/a")
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # An open sibling must not hide the live path through a merged child.
+                before = (store_dir / "frontier.json").read_bytes()
+                for state in ("OPEN", "MERGED"):
+                    with self.subTest(merged_child_descendant=state):
+                        publish(
+                            [
+                                rows[0],
+                                {**rows[2], "state": "MERGED"},
+                                {**rows[3], "state": state},
+                                {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                            ]
+                        )
+                        for branch in ("stack/a", "stack/b", "stack/c", "stack/d"):
+                            with self.subTest(start=branch):
+                                git("switch", "-q", branch)
+                                with self.assertRaisesRegex(module.UserError, "not linear"):
+                                    s.frontier_set(repo)
+                                self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
+                git("switch", "-q", "stack/a")
+                # A terminal merged sibling does not obscure the sole live path.
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "MERGED"},
+                        rows[3],
+                        {"number": 14, "state": "MERGED", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                    ]
+                )
+                with self.subTest(terminal_merged_sibling=True):
+                    self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # A closed child with a live descendant is reported, not silently dropped.
+                publish([*rows[:2], {**rows[2], "state": "CLOSED"}, *rows[3:]])
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
+                # Consecutive closed PRs above it do not hide an open descendant.
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "CLOSED"},
+                        {**rows[3], "state": "CLOSED"},
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/c"},
+                    ]
+                )
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
+                # A reused branch whose current PR merged resolves past its older closed PR.
+                git("switch", "-q", "stack/c")
+                publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # After an older PR merged, the branch's newer closed PR is its current one, and walking down
+                # through it to reach trunk is an orphaned chain.
+                reused = [rows[0], {**rows[1], "state": "MERGED"}, {**rows[2], "state": "CLOSED"}, *rows[3:]]
+                publish(reused)
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
+                git("switch", "-q", "stack/b")
+                for state, base in (
+                    ("OPEN", "stack/a"),
+                    ("MERGED", "stack/a"),
+                    ("OPEN", "trunk"),
+                    ("MERGED", "trunk"),
+                ):
+                    with self.subTest(closed_start_descendant=state, parent_base=base):
+                        publish([*reused[:2], {**reused[2], "baseRefName": base}, {**rows[3], "state": state}])
+                        before = (store_dir / "frontier.json").read_bytes()
+                        with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                            s.frontier_set(repo)
+                        self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
+                # Closed ancestors with only closed descendants are inactive, not orphaned.
+                publish([{**r, "state": "CLOSED"} for r in (rows[0], rows[2], rows[3])])
+                for branch, expected in (("stack/b", [10, 11]), ("stack/c", [10, 11, 12])):
+                    with self.subTest(inactive_chain_start=branch):
+                        git("switch", "-q", branch)
+                        frontier = s.frontier_set(repo)
+                        self.assertEqual([r["pr"] for r in frontier["prs"]], expected)
+                        self.assertIsNone(frontier["lowestUnmerged"])
+                # A descendant reused against another base no longer counts under the closed child.
+                git("switch", "-q", "stack/a")
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "CLOSED"},
+                        {**rows[3], "state": "MERGED"},
+                        {"number": 17, "state": "CLOSED", "headRefName": "stack/c", "baseRefName": "trunk"},
+                    ]
+                )
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10])
+                # Walking up, a reused child branch is also its newest PR: closed #15 ends the chain, not merged #8.
+                git("switch", "-q", "stack/b")
+                publish(
+                    [
+                        *rows[:4],
+                        {"number": 8, "state": "MERGED", "headRefName": "stack/d", "baseRefName": "stack/c"},
+                        {"number": 15, "state": "CLOSED", "headRefName": "stack/d", "baseRefName": "stack/c"},
+                    ]
+                )
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # A child branch reused against another base is judged by its newest PR, not this base's old one.
+                git("switch", "-q", "stack/a")
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "MERGED"},
+                        {"number": 16, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "trunk"},
+                    ]
+                )
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10])
+                # A closed child with a live descendant is reported even beside an open sibling.
+                publish(
+                    [
+                        {**rows[0], "state": "OPEN"},
+                        {**rows[2], "state": "CLOSED"},
+                        rows[3],
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                    ]
+                )
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
+                git("switch", "-q", "stack/b")
+                publish(rows[2:3])
+                with self.assertRaisesRegex(module.UserError, "stack/a"):
+                    s.frontier_set(repo)
+                publish(rows)
+                git("branch", "-D", "stack/c")
+                git("tag", "stack/c")
+                with self.assertRaisesRegex(module.UserError, "refs/heads/stack/c"):
+                    s.frontier_set(repo)
+                script.write_text(
+                    f"#!{sys.executable}\nimport sys\nprint('trunk' if sys.argv[1] == 'repo' else 'bad output')\n"
+                )
+                with self.assertRaisesRegex(module.UserError, "not valid JSON"):
+                    s.frontier_set(repo)
+                git("switch", "-q", "trunk")
+                self.assertEqual(s.frontier_set(repo)["prs"], [])
             s.close()
 
 
