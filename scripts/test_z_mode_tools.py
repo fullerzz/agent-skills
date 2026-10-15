@@ -243,7 +243,18 @@ class FrontierTests(unittest.TestCase):
             ]
 
             def publish(values: list[dict[str, object]]) -> None:
-                prs.write_text(json.dumps([{**r, "isCrossRepository": r.get("fork", False)} for r in values]))
+                prs.write_text(
+                    json.dumps(
+                        [
+                            {
+                                **r,
+                                "isCrossRepository": r.get("fork", False),
+                                "createdAt": f"2026-01-{r['number']:02}T00:00:00Z",
+                            }
+                            for r in values
+                        ]
+                    )
+                )
 
             publish(rows)
             script = bin_dir / "gh"
@@ -300,9 +311,23 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                 publish([*rows[:2], {**rows[2], "state": "CLOSED"}, *rows[3:]])
                 with self.assertRaisesRegex(module.UserError, "closed PR #11"):
                     s.frontier_set(repo)
+                # Consecutive closed PRs above it do not hide an open descendant.
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "CLOSED"},
+                        {**rows[3], "state": "CLOSED"},
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/c"},
+                    ]
+                )
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
                 # A reused branch whose current PR merged resolves past its older closed PR.
                 git("switch", "-q", "stack/c")
                 publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # After an older PR merged, the branch's newer closed PR is its current one.
+                publish([rows[0], {**rows[1], "state": "MERGED"}, {**rows[2], "state": "CLOSED"}, *rows[3:]])
                 self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
                 git("switch", "-q", "stack/b")
                 publish(rows[2:3])

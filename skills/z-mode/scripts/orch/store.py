@@ -114,7 +114,7 @@ def command(argv: list[str], repo: Path) -> str:
 
 
 def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, Any]]:
-    fields = "number,state,headRefName,baseRefName,isCrossRepository"
+    fields = "number,state,headRefName,baseRefName,isCrossRepository,createdAt"
     argv = ["gh", "pr", "list", flag, branch, "--state", state, "--limit", "1000", "--json", fields]
     label = " ".join(argv[:5])
     try:
@@ -129,7 +129,7 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
             and type(row.get("number")) is int
             and 0 < row["number"] <= MAX_SAFE_INTEGER
             and row.get("state") in PR_STATES
-            and all(isinstance(row.get(k), str) and row[k] for k in ("headRefName", "baseRefName"))
+            and all(isinstance(row.get(k), str) and row[k] for k in ("headRefName", "baseRefName", "createdAt"))
             and type(row.get("isCrossRepository")) is bool
         ):
             raise UserError(f"{label} output has an invalid PR row")
@@ -138,7 +138,7 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
 
 
 def current_rows(rows: list[dict[str, Any]], states: Sequence[str]) -> list[dict[str, Any]]:
-    """A reused branch keeps its old PRs; the first state in `states` that has rows holds the current one."""
+    """The first state in `states` that has rows holds the current child of a branch."""
     for state in states:
         if matches := [row for row in rows if row["state"] == state]:
             return matches
@@ -146,12 +146,26 @@ def current_rows(rows: list[dict[str, Any]], states: Sequence[str]) -> list[dict
 
 
 def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
-    rows = current_rows(list_prs(repo, "--head", branch, "all"), ("OPEN", "MERGED", "CLOSED"))
+    rows = list_prs(repo, "--head", branch, "all")
     if not rows:
         raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
-    if len(rows) != 1:
-        raise UserError(f"branch {branch} has multiple pull requests: {', '.join(f'#{r['number']}' for r in rows)}")
-    return rows[0]
+    if len(opened := [row for row in rows if row["state"] == "OPEN"]) > 1:
+        raise UserError(
+            f"branch {branch} has multiple open pull requests: {', '.join(f'#{r['number']}' for r in opened)}"
+        )
+    # A reused branch keeps its old PRs; the open one, else the newest, is the branch's current PR.
+    return opened[0] if opened else max(rows, key=lambda row: row["createdAt"])
+
+
+def has_live_descendant(repo: Path, branch: str, seen: set[str]) -> bool:
+    for row in list_prs(repo, "--base", branch, "all"):
+        if row["state"] != "CLOSED":
+            return True
+        if row["headRefName"] not in seen:
+            seen.add(row["headRefName"])
+            if has_live_descendant(repo, row["headRefName"], seen):
+                return True
+    return False
 
 
 def trunk_branch(repo: Path) -> str:
@@ -168,8 +182,8 @@ def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
     rows = current_rows(candidates, ("OPEN", "MERGED"))
     if not rows:
         for closed in candidates:
-            if any(r["state"] != "CLOSED" for r in list_prs(repo, "--base", closed["headRefName"], "all")):
-                raise UserError(f"closed PR #{closed['number']} still has open or merged children; retarget them")
+            if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
+                raise UserError(f"closed PR #{closed['number']} still has open or merged descendants; retarget them")
     if len(rows) > 1:
         raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in rows)} all target {branch}")
     return rows[0] if rows else None
