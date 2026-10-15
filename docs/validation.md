@@ -20,6 +20,12 @@ Shipping now pins the confirmed merge-result SHA, verifies it is in the fetched 
 
 The updated stack top passed structural validation (53 skills, zero problems), all 15 Node tests, all 122 Python tests, mypy across 27 files, and `git diff --check`. A live read-only call of the updated frontier resolver from the top checkout returned `#40, #41, #42` in order with their local branch heads. The repaired branching and closed-PR cases remain fixture-only checks; no GitHub topology was mutated for testing.
 
+### PR #42 managed-stack recovery — 2026-10-14
+
+The next review identified stale stack-manager metadata after the manual child rebase. In a fresh temporary repository, the installed gh-stack extension created a parent/child stack; a raw rebase of the child onto the parent's squash-merge commit changed the Git head but left the stack file unchanged and its recorded child base pointing at the original parent. Shipping now routes managed branches through documented manager recovery, checks scope, publication effects, replay boundaries, and merge handling, and verifies the resulting tracking state. The raw SHA-based recipe is restricted to unmanaged branches. The installed gh-stack help confirms that `sync` also pushes the stack, so it is subject to the existing authority and pinned-lease requirements. No real stack was merged or retargeted for this check; the recovery path itself was not exercised against GitHub.
+
+This wording revision passed structural validation (53 skills, zero problems), all 15 Node tests including the documentation build, all 122 Python tests, and `git diff --check` on this macOS host.
+
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 
 Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.9.1`.
