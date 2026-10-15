@@ -137,10 +137,16 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
     return [row for row in rows if not row["isCrossRepository"]]
 
 
+def current_rows(rows: list[dict[str, Any]], states: Sequence[str]) -> list[dict[str, Any]]:
+    """A reused branch keeps its old PRs; the first state in `states` that has rows holds the current one."""
+    for state in states:
+        if matches := [row for row in rows if row["state"] == state]:
+            return matches
+    return []
+
+
 def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
-    rows = list_prs(repo, "--head", branch, "all")
-    # A branch reused after a closed PR keeps that PR in the list; the open one is current.
-    rows = [row for row in rows if row["state"] == "OPEN"] or rows
+    rows = current_rows(list_prs(repo, "--head", branch, "all"), ("OPEN", "MERGED", "CLOSED"))
     if not rows:
         raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
     if len(rows) != 1:
@@ -157,9 +163,13 @@ def trunk_branch(repo: Path) -> str:
 
 
 def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
-    rows = [row for row in list_prs(repo, "--base", branch, "all") if row["state"] != "CLOSED"]
+    candidates = list_prs(repo, "--base", branch, "all")
     # A child merged into this branch still links the PRs above it; an open child is current.
-    rows = [row for row in rows if row["state"] == "OPEN"] or rows
+    rows = current_rows(candidates, ("OPEN", "MERGED"))
+    if not rows:
+        for closed in candidates:
+            if any(r["state"] != "CLOSED" for r in list_prs(repo, "--base", closed["headRefName"], "all")):
+                raise UserError(f"closed PR #{closed['number']} still has open or merged children; retarget them")
     if len(rows) > 1:
         raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in rows)} all target {branch}")
     return rows[0] if rows else None

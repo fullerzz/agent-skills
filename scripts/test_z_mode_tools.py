@@ -296,6 +296,14 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                 publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
                 git("switch", "-q", "stack/a")
                 self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # A closed child with a live descendant is reported, not silently dropped.
+                publish([*rows[:2], {**rows[2], "state": "CLOSED"}, *rows[3:]])
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
+                # A reused branch whose current PR merged resolves past its older closed PR.
+                git("switch", "-q", "stack/c")
+                publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
                 git("switch", "-q", "stack/b")
                 publish(rows[2:3])
                 with self.assertRaisesRegex(module.UserError, "stack/a"):
