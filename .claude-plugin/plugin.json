@@ -8,5 +8,6 @@
   },
   "repository": "https://github.com/fullerzz/agent-skills",
   "license": "MIT",
+  "icon": "./docs/public/logo.svg",
   "agents": ["./agents/claude/comment-sicko.md", "./agents/claude/z-agent.md"]
 }

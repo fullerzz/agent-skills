@@ -8,6 +8,10 @@
   },
   "repository": "https://github.com/fullerzz/agent-skills",
   "license": "MIT",
+  "interface": {
+    "logo": "./.codex-plugin/logo.svg",
+    "composerIcon": "./.codex-plugin/logo.svg"
+  },
   "skills": "./skills/",
   "hooks": "./hooks/codex.json"
 }
