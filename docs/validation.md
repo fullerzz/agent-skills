@@ -22,6 +22,10 @@ On this macOS host:
 
 **Limits.** These are local fixtures, artifact assertions, and manifest validation, not fresh model-driven Codex, Claude Code, Hermes, or Windows sessions. Hermes was unavailable on this host's PATH. No installed plugin cache or existing capture data was changed for this removal; older hosts require a plugin refresh and restart. Linked installs must uninstall from the old checkout before updating and reinstalling, as described in [setup](guide/01-setup.md#upgrade-0-11-0).
 
+**PR #45 review repair.** The Codex test control helper now passes its isolated environment and `--host=codex`; the legacy-setting regression checks for unexpected files after disable as well as enable. In temporary helper copies, injected recording gated on the host, action, and `ZSTACK_XRAY=1` escaped the prior test on both actions and failed the repaired test on both. README and the docs homepage now report the validated total of 52 skills; historical counts below remain unchanged.
+
+On the same macOS host, all 93 Python tests and all 15 Node tests (including the docs build) passed after the repair. Structural validation reported 52 skills and zero problems; Ruff lint/format for the changed test and `git diff --check` passed. No fresh live host sessions were run for this test/documentation repair.
+
 ## Strict mypy for helper scripts — 2026-10-14 {#strict-mypy}
 
 `mypy.ini` now enables `strict`. The changes:

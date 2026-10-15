@@ -69,6 +69,7 @@ class CodexHooksTests(unittest.TestCase):
         self.assertEqual(list(self.data.iterdir()), [self.data / "z-mode"])
         self.control("disable")
         self.assertIn("No stored", self.hook(source="resume"))
+        self.assertEqual(list(self.data.iterdir()), [self.data / "z-mode"])
         self.assertEqual(list((self.data / "z-mode").iterdir()), [])
 
     def test_shell_serialization_preserves_apostrophes_and_metacharacters(self) -> None:
@@ -115,10 +116,21 @@ class CodexHooksTests(unittest.TestCase):
 
     def control(self, action: str, session: str = "session-a", check: bool = True) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603 - Fixed interpreter and local helper.
-            [sys.executable, "-I", "-S", str(HELPER), action, f"--session-id={session}", "--data-dir", str(self.data)],
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                str(HELPER),
+                action,
+                "--host=codex",
+                f"--session-id={session}",
+                "--data-dir",
+                str(self.data),
+            ],
             text=True,
             capture_output=True,
             check=check,
+            env=self.env,
         )
 
     @staticmethod
