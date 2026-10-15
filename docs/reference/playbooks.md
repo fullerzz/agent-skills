@@ -4,7 +4,7 @@ Invoke the installed mode explicitly: `$z-mode` in Codex or `/z-mode` in Claude 
 
 The mode remains active in conversation until stopped or replaced; it does not provide a scheduler. Simple work runs directly. Delegated workflows use native agents by default, or [Herdr execution](workflow-skills.md#herdr-workflow) when explicitly enabled for the session. Herdr applies alongside every playbook below, including its companions, rather than adding a separate route. Both paths preserve bounded concurrency, exclusive ownership, artifact verification, and action authority. Native settings are inherited; independently launched CLIs have their own configuration. Missing independent coverage must be disclosed. See the [mode source](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md) and [execution contract](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/references/native-hosts.md#execution-selection).
 
-Bundled tools are optional capabilities, not a runtime supplied by the mode. Resolve the real installed skill directory, use quoted absolute script paths, and retain the target repository as cwd. Run the plan validator (`check_plan.py`), worktree audit (`worktree_audit.py`), GitHub watcher (`watch-pr/watch_pr.py`), and orchestration CLI (`orch/orch.py`) with `uv run`. They require Python 3.12+ and use the standard library without installing dependencies beside the skill scripts. The existing shell launchers forward to uv. Consult each tool’s usage guidance; forge access, Graphite metadata, native delegation and durable background execution are separate prerequisites.
+Bundled tools are optional capabilities, not a runtime supplied by the mode. Resolve the real installed skill directory, use quoted absolute script paths, and retain the target repository as cwd. Run the plan validator (`check_plan.py`), worktree audit (`worktree_audit.py`), GitHub watcher (`watch-pr/watch_pr.py`), and orchestration CLI (`orch/orch.py`) with `uv run`. They require Python 3.12+ and use the standard library without installing dependencies beside the skill scripts. The existing shell launchers forward to uv. Consult each tool’s usage guidance; forge access, native delegation and durable background execution are separate prerequisites.
 
 ## Investigation {#playbook-investigation}
 
@@ -242,7 +242,7 @@ Claude Code: /z-mode Coordinate the parser and UI migration with exclusive owner
 
 Pin units and dependencies, pilot the brief, store user-owned state and receipts, run bounded native owners, wait for terminal reports, inspect artifacts, relay verified dependencies, and reconcile every child. Return counts, frontier, blockers, and state directory.
 
-**Prerequisites and limits:** Needs native delegation; absent independent coverage must be disclosed. The optional Python orch CLI runs with uv and provides bookkeeping only; frontier needs Graphite metadata. One coordinator owns topology, and no durable runtime means handoff.
+**Prerequisites and limits:** Needs native delegation; absent independent coverage must be disclosed. The optional Python orch CLI runs with uv and provides bookkeeping only; frontier reads the PR base chain with `gh` from the stacker's checkout. One coordinator owns topology, and no durable runtime means handoff.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/orchestrate.md).
 

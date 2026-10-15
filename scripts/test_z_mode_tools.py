@@ -209,9 +209,9 @@ class EntrypointTests(unittest.TestCase):
 
 
 class FrontierTests(unittest.TestCase):
-    def test_graphite_frontier_uses_target_repo_and_preserves_on_bad_pin(self) -> None:
+    def test_base_chain_frontier_uses_target_repo_and_preserves_on_bad_pin(self) -> None:
         module = load("frontier_store", "orch/store.py")
-        with tempfile.TemporaryDirectory(prefix="graphite fixture ") as temp:
+        with tempfile.TemporaryDirectory(prefix="base chain fixture ") as temp:
             root = Path(temp)
             repo, store_dir, bin_dir = root / "repo", root / "store", root / "bin"
             repo.mkdir()
@@ -228,42 +228,62 @@ class FrontierTests(unittest.TestCase):
             (repo / "note").write_text("baseline")
             git("add", ".")
             git("commit", "-m", "fixture")
-            for branch in ("stack/merged", "stack/closed", "stack/open"):
+            for branch in ("stack/a", "stack/b", "stack/c"):
                 git("branch", branch)
-            script = bin_dir / "gt"
+            git("switch", "-q", "stack/b")
+            prs = root / "prs.json"
+            # stack/a merged before stack/b was retargeted; stack/b reuses a branch whose first PR closed.
+            rows = [
+                {"number": 10, "state": "MERGED", "headRefName": "stack/a", "baseRefName": "main"},
+                {"number": 9, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "main"},
+                {"number": 11, "state": "OPEN", "headRefName": "stack/b", "baseRefName": "stack/a"},
+                {"number": 12, "state": "OPEN", "headRefName": "stack/c", "baseRefName": "stack/b"},
+            ]
+            prs.write_text(json.dumps(rows))
+            script = bin_dir / "gh"
             script.write_text(
                 f"#!{sys.executable}\n"
-                """import os, sys
+                """import json, os, sys
 from pathlib import Path
 assert Path.cwd() == Path(os.environ['EXPECTED_REPO']).resolve()
-args=sys.argv[1:]
-if args == ['--no-interactive','log','short','--stack','--reverse']:
- print('◯ main\\n◯ stack/merged\\n◯ stack/closed\\n◉ stack/open (current)')
-else:
- assert args[:2] == ['--no-interactive','info']
- number,state={'stack/merged':(10,'Merged'),'stack/closed':(13,'Closed'),'stack/open':(11,'Needs approvals')}[args[2]]
- print(f'PR #{number} ({state}) change')
+args = sys.argv[1:]
+assert args[:2] == ['pr', 'list'] and args[4] == '--state', args
+key = {'--head': 'headRefName', '--base': 'baseRefName'}[args[2]]
+rows = json.loads(Path(os.environ['PRS']).read_text())
+print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r['state'].lower())]))
 """
             )
             script.chmod(0o755)
             s = module.Store(store_dir)
             self.addCleanup(s.close)
-            with patch.dict(
-                os.environ, {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_REPO": str(repo)}
-            ):
+            env = {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_REPO": str(repo), "PRS": str(prs)}
+            with patch.dict(os.environ, env):
                 s.init()
-                frontier = s.frontier_set(repo, [10, 13, 11])
+                frontier = s.frontier_set(repo, [10, 11, 12])
                 self.assertEqual(frontier["lowestUnmerged"], 11)
-                self.assertEqual([r["state"] for r in frontier["prs"]], ["MERGED", "CLOSED", "OPEN"])
-                self.assertEqual(frontier["prs"][0]["sha"], git("rev-parse", "stack/merged"))
+                self.assertEqual([r["state"] for r in frontier["prs"]], ["MERGED", "OPEN", "OPEN"])
+                self.assertEqual(frontier["prs"][2]["sha"], git("rev-parse", "stack/c"))
                 before = (store_dir / "frontier.json").read_bytes()
-                for pin in ([10, 11, 12], [13, 10, 11], [10, 10]):
+                for pin in ([10, 11, 13], [11, 10, 12], [10, 10]):
                     with self.assertRaises(module.UserError):
                         s.frontier_set(repo, pin)
                     self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
-                script.write_text(f'#!{sys.executable}\nprint("bad output")\n')
-                with self.assertRaisesRegex(module.UserError, "unparseable"):
+                git("branch", "stack/d")
+                prs.write_text(
+                    json.dumps(
+                        [*rows, {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/b"}]
+                    )
+                )
+                with self.assertRaisesRegex(module.UserError, "not linear"):
                     s.frontier_set(repo)
+                prs.write_text(json.dumps(rows[2:3]))
+                with self.assertRaisesRegex(module.UserError, "stack/a"):
+                    s.frontier_set(repo)
+                script.write_text(f'#!{sys.executable}\nprint("bad output")\n')
+                with self.assertRaisesRegex(module.UserError, "not valid JSON"):
+                    s.frontier_set(repo)
+                git("switch", "-q", "main")
+                self.assertEqual(s.frontier_set(repo)["prs"], [])
             s.close()
 
 

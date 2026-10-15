@@ -94,36 +94,12 @@ def table(headers: Sequence[str], rows: list[list[object]]) -> str:
     )
 
 
-OPEN_GT_STATUSES = {
-    "Trunk branch locked",
-    "Changes requested",
-    "Waiting on PRs in this stack to merge",
-    "Waiting on downstack merge state",
-    "Draft",
-    "Required checks failed",
-    "Undergoing failure detection",
-    "Merge queue failed on current head commit",
-    "Handed off to merge queue...",
-    "Waiting on downstack",
-    "Merge conflicts",
-    "Needs reviewers",
-    "Needs approvals",
-    "Needs restack",
-    "Queued to merge...",
-    "Ready to merge",
-    "Ready to merge as stack",
-    "Rebasing...",
-    "Waiting on CI...",
-    "Stale, needs rebase onto trunk",
-    "Unresolved comments",
-    "Waiting on required CI",
-    "Waiting to merge...",
-}
+PR_STATES = {"OPEN", "MERGED", "CLOSED"}
 
 
 def command(argv: list[str], repo: Path) -> str:
     try:
-        return subprocess.run(  # noqa: S603 - Fixed Git/gh/gt argument vectors from local callers; no shell.
+        return subprocess.run(  # noqa: S603 - Fixed Git/gh argument vectors from local callers; no shell.
             argv,
             cwd=repo,
             env={**os.environ, "NO_COLOR": "1"},
@@ -136,56 +112,78 @@ def command(argv: list[str], repo: Path) -> str:
         raise UserError(f"{' '.join(argv)} failed: {error}") from error
 
 
-def parse_gt_branches(raw: str) -> list[str]:
-    branches = []
-    for index, line in enumerate(raw.replace("\r", "").split("\n"), 1):
-        if not line:
-            continue
-        match = re.fullmatch(r"(?:│ )*[◯◉] +([^\s]+)((?: \([^()\r\n]*\))*)", line)
-        if not match:
-            raise UserError(f"gt log short output has an unparseable line {index}: {json.dumps(line)}")
-        branch = match[1]
-        if branch in branches:
-            raise UserError(f"gt log short output contains duplicate branch {branch}")
-        branches.append(branch)
-    if not branches:
-        raise UserError("gt log short output did not contain a stack")
-    return branches
+def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, Any]]:
+    argv = ["gh", "pr", "list", flag, branch, "--state", state, "--json", "number,state,headRefName,baseRefName"]
+    label = " ".join(argv[:5])
+    try:
+        rows = json.loads(command(argv, repo))
+    except json.JSONDecodeError:
+        raise UserError(f"{label} output is not valid JSON") from None
+    if not isinstance(rows, list):
+        raise UserError(f"{label} output is not a JSON array")
+    for row in rows:
+        if not (
+            isinstance(row, dict)
+            and type(row.get("number")) is int
+            and 0 < row["number"] <= MAX_SAFE_INTEGER
+            and row.get("state") in PR_STATES
+            and all(isinstance(row.get(k), str) and row[k] for k in ("headRefName", "baseRefName"))
+        ):
+            raise UserError(f"{label} output has an invalid PR row")
+    return rows
+
+
+def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
+    rows = list_prs(repo, "--head", branch, "all")
+    # A branch reused after a closed PR keeps that PR in the list; the open one is current.
+    rows = [row for row in rows if row["state"] == "OPEN"] or rows
+    if not rows:
+        raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
+    if len(rows) != 1:
+        raise UserError(f"branch {branch} has multiple pull requests: {', '.join(f'#{r['number']}' for r in rows)}")
+    return rows[0]
+
+
+def trunk_branch(repo: Path) -> str:
+    try:
+        ref = command(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], repo)
+        return ref.strip().removeprefix("origin/")
+    except UserError:
+        return "main"  # Fixtures and init-plus-fetch checkouts lack origin/HEAD.
 
 
 def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
-    raw = command(["gt", "--no-interactive", "log", "short", "--stack", "--reverse"], repo)
-    branches = parse_gt_branches(raw)
+    """Walk the PR base chain from the current branch down to trunk, then up through open children."""
+    trunk = trunk_branch(repo)
+    current = command(["git", "symbolic-ref", "--short", "HEAD"], repo).strip()
+    if current == trunk:
+        return []
+    seen, bottom = {current}, branch_pr(repo, current)
+    chain = [bottom]
+    while bottom["baseRefName"] != trunk:
+        if bottom["baseRefName"] in seen:
+            raise UserError(f"pull request base chain loops at branch {bottom['baseRefName']}")
+        seen.add(bottom["baseRefName"])
+        bottom = branch_pr(repo, bottom["baseRefName"])
+        chain.insert(0, bottom)
+    tip = current
+    while children := list_prs(repo, "--base", tip, "open"):
+        if len(children) > 1:
+            raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in children)} all target {tip}")
+        tip = children[0]["headRefName"]
+        if tip in seen:
+            raise UserError(f"pull request base chain loops at branch {tip}")
+        seen.add(tip)
+        chain.append(children[0])
+    if len({row["number"] for row in chain}) != len(chain):
+        raise UserError("pull request base chain contains duplicate pull requests")
     result = []
-    for branch in branches[1:]:
-        info = command(["gt", "--no-interactive", "info", branch], repo)
-        rows = [line for line in info.splitlines() if line.startswith(("PR #", "[origin] PR #"))]
-        if not rows:
-            raise UserError(
-                f"gt info output branch {branch} has no pull request; "
-                "resolve the frontier from the stacker clone or after gt sync"
-            )
-        if len(rows) != 1:
-            raise UserError(f"gt info output contains multiple PRs for branch {branch}")
-        match = re.fullmatch(r"(?:\[origin\] )?PR #([1-9]\d*)(?: \(([^)\r\n]+)\))?(?: .+)?", rows[0])
-        if not match:
-            raise UserError(f"gt info output has an invalid PR row for branch {branch}: {rows[0]}")
-        status = match[2]
-        if status not in {None, "Merged", "Closed"} | OPEN_GT_STATUSES:
-            raise UserError(f"gt info output has an unknown PR state for branch {branch}: {status}")
+    for row in chain:
+        branch = row["headRefName"]
         sha = command(["git", "rev-parse", "--verify", branch], repo).strip()
         if not re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
             raise UserError(f"git rev-parse {branch} returned an invalid SHA")
-        result.append(
-            {
-                "pr": positive(int(match[1])),
-                "branches": branch,
-                "sha": sha,
-                "state": {"Merged": "MERGED", "Closed": "CLOSED"}.get(status, "OPEN"),
-            }
-        )
-    if len({row["pr"] for row in result}) != len(result):
-        raise UserError("gt info output contains duplicate pull requests")
+        result.append({"pr": row["number"], "branches": branch, "sha": sha, "state": row["state"]})
     return result
 
 
@@ -583,12 +581,12 @@ class Store:
             def join(values: list[int]) -> str:
                 return ",".join(map(str, values))
 
-            drift = ([f"missing from gt: {join(missing)}"] if missing else []) + (
-                [f"extra in gt: {join(extra)}"] if extra else []
+            drift = ([f"missing from resolved chain: {join(missing)}"] if missing else []) + (
+                [f"extra in resolved chain: {join(extra)}"] if extra else []
             )
             raise UserError(
                 "frontier pin mismatch: "
-                + ("; ".join(drift) or f"order differs: expected {join(prs)}; gt {join(actual)}")
+                + ("; ".join(drift) or f"order differs: expected {join(prs)}; resolved {join(actual)}")
             )
         result = {
             "generation": old["generation"] + 1,
