@@ -18,7 +18,7 @@ Group independent occurrences by cause, citing each commit, review, or turn. A r
 
 1. **Eliminate it with architecture.** Give state one owner and tasks one supported path. Hide internals, derive hand-synced lists from one source, and migrate callers before deleting obsolete examples or APIs.
 2. **Enforce it with types.** Make invalid states unrepresentable. Where bad code still compiles, use lint or CI with an error naming the supported file, type, or function. For existing violations, prevent additions with a baseline that cannot grow.
-3. **Test observable behavior.** Exercise the failed outcome, not just calls or implementation shape. Strengthen relevant tests that would pass with no-op implementations; keep unrelated cleanup out of scope.
+3. **Test observable behavior.** Exercise the failed outcome. Fix or delete relevant tests that pass when their promised behavior breaks or fail when only internals change; keep unrelated cleanup out of scope. Use the contract criteria in [Test Behavior, Not Implementation](../principle-test-behavior-not-implementation/SKILL.md), including valid absence and external-effect assertions.
 4. **Write docs or agent rules last.** Reserve them for judgment that cannot be enforced mechanically, and label that limit.
 
 Fix the most frequent classes within the requested scope, keeping each change independently reviewable. A review-only request stops at findings and proposed enforcement. Invocation does not authorize commits, publication, messages, tracker writes, or personal memory changes.

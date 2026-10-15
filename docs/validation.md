@@ -4,6 +4,23 @@ outline: [2, 3]
 
 # Validation
 
+## Selective pstack principle durability port — 2026-10-15
+
+Ported the four guidance updates from [pstack PR #633](https://github.com/cursor/plugins/pull/633), aligned Correct and the principles reference, and recorded upstream attribution. The shared plugin version advances from `0.11.3` to `0.11.4` for compatible packaged wording changes. Explicit-only invocation metadata, scoped fixes, required validation, safe failure handling, and separate action authority remain intact; no executable behavior changed.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress build, reference anchors, license notices, and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 93 tests passed, including bundled helpers.
+- `git diff --check`: passed.
+
+The generic installed skill-creator `quick_validate.py` rejected the first edited skill's existing `disable-model-invocation` frontmatter key and stopped before checking the remaining four. Its accepted schema does not support this repository's explicit-only metadata; the field was preserved, and the repository validator above passed.
+
+The first sandboxed attempts stopped at the mise shims with `Operation not permitted`, before any checks ran; the approved reruns above passed. Installer tests used their isolated fixtures, not real personal configuration.
+
+Manual scenario review checked that the text retains empty-result and no-charge contracts, distinguishes external mocks from private helpers, accepts guards for legitimate first-start state while tracing malformed-state producers, permits time-based premise tests, and refuses to infer stale ownership from a PID alone across hosts. This is a prose review, not an independent model evaluation or a live host behavior result. No fresh Codex, Claude Code, or Hermes session exercised the revised guidance; upstream evaluation results are not claimed for this port.
+
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
 ## Plugin website metadata — 2026-10-15

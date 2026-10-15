@@ -2,6 +2,8 @@
 
 zstack, Zach's updated skillset, adapts Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack), copied from the Cursor plugins repository. The copied manifest declared version `0.15.5`. The exact copied commit was not recorded and has not been established. The MIT license and original copyright are retained in [LICENSE](../LICENSE).
 
+Adapted [pstack PR #633](https://github.com/cursor/plugins/pull/633), merged as [e5136d8](https://github.com/cursor/plugins/commit/e5136d8), on 2026-10-15. The four principles now use observable contracts, legitimate-state handling, direct premise tests, and state reconciliation with reliable staleness evidence. Correct and the principles reference use the same criteria. The port retains zstack's explicit invocation policies, scope limits, required validation, safe failure handling, and separate publication authority. It changes guidance only; upstream's evaluation is not a local behavior result. The existing MIT license and Lauren Tan attribution remain intact.
+
 The port keeps the portable engineering principles, reference prompts, decision logger, orchestration bookkeeping, and GitHub PR watcher. Workflow instructions now target Codex and Claude Code with native agents and local skill discovery.
 
 The Cursor plugin manifest, branding assets, `make-bot-ui`, and dormant `automations/benny` pack are retired. The latter two require Cursor routines, secret cards, webhooks, or an automation runtime unavailable in this library. Recover their original sources from upstream if a replacement runtime becomes a concrete project. They are not installed or advertised as working here.

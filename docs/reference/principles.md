@@ -14,9 +14,9 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Attack the premise {#principle-attack-the-premise}
 
-**Decision affected:** After two fixes sharing an assumption fail the same gate, decide whether the assumption itself is wrong. Write it down and take a rerunnable per-actor census before another fix.
+**Decision affected:** After two fixes sharing an assumption fail the same gate, write down and directly test that assumption before another fix. Choose a rerunnable observation that distinguishes it from alternatives.
 
-**Example:** Two rebalancing fixes leave the same workers overloaded: measure each worker, find who assigns the fixed coordinator role, and remove the role asymmetry. An even census points elsewhere.
+**Example:** Two rebalancing fixes fail because overload is assumed to follow worker identity. Compare failures by worker and time of day; a shared time pattern may redirect the investigation toward scheduled load. A per-actor census is useful evidence, not a required test for every premise.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-attack-the-premise/SKILL.md).
 
@@ -62,9 +62,9 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Fix root causes {#principle-fix-root-causes}
 
-**Decision affected:** Choose the repair location from reproduction and mechanism rather than a symptom-suppressing guard.
+**Decision affected:** Trace the first wrong decision or missing handling of a legitimate state. A guard can fix a legitimate state; an invalid state requires tracing its producer. Retain required validation and safe failure handling.
 
-**Example:** A restart failure disappears after deleting serialized state: inspect stale-state validation and repair reconciliation instead of adding nil checks to each consumer. Report out-of-scope siblings. Because finding the stale state took a deep dig, propose a cheap, always-on signal, such as a startup log line naming the loaded state version.
+**Example:** Missing state on first startup is legitimate and may need an initialization guard. Malformed persisted state requires investigating its producer and recovery contract; deleting it alone does not prove a fix. Report out-of-scope siblings and propose useful diagnostic signals without assuming permission to implement them.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-fix-root-causes/SKILL.md).
 
@@ -94,9 +94,9 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Make operations idempotent {#principle-make-operations-idempotent}
 
-**Decision affected:** Choose reconciliation so repeated or interrupted state changes converge to the same correct end state.
+**Decision affected:** Compare current and desired state, then apply only missing changes so repeated or interrupted operations converge. Establish staleness with evidence valid across interruption points and execution environments.
 
-**Example:** On startup, adopt existing live sessions and clear stale PID locks before creating missing sessions; rerun after each possible interruption point to prove no duplicates.
+**Example:** On startup, recognize live sessions and create only missing ones. Clean abandoned artifacts only when ownership evidence establishes staleness within authorized scope; a PID alone may be ambiguous across hosts. Rerun after interruption points to check for duplicate work or deletion of live state.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-make-operations-idempotent/SKILL.md).
 
@@ -182,9 +182,9 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Test behavior, not implementation {#principle-test-behavior-not-implementation}
 
-**Decision affected:** Choose tests that exercise user-facing behavior and assert literal outcomes, rather than call counts, constant pins or self-referential expectations.
+**Decision affected:** Choose tests that fail when an observable contract breaks and keep passing when internals change. Derive expectations from requirements; assertion shape alone does not decide validity.
 
-**Example:** Call slugify("Hello, World!") and expect "hello-world". For a mocked transport assert the sent payload or resulting state; a test that survives undefined implementations needs revision or deletion.
+**Example:** An empty cart must never charge: assert no payment call and pair it with a chargeable case that proves calls are observable. A mocked transport's payload, an empty query result, or externally consumed status codes can be contracts; a private helper's call sequence usually is not.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-test-behavior-not-implementation/SKILL.md).
 

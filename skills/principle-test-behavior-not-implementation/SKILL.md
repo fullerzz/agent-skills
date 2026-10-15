@@ -1,23 +1,20 @@
 ---
 name: principle-test-behavior-not-implementation
-description: "Apply when you write, change, or keep a test. Call the code the way its users do and assert the result they observe against a literal expected value. If the test would still pass when every imported function returns undefined, rewrite the assertion or delete the test."
+description: "Apply when you write, change, or keep a test. Assert observable behavior so the test catches a broken contract and survives internal refactors."
 disable-model-invocation: true
 ---
 
 # Test Behavior, Not Implementation
 
-A test calls the code as its users do and asserts the result against a literal expected value. Rewrite or delete any test that would still pass if every imported function returned `undefined` or a wrong value.
+A test checks a contract observable by a caller, end user, or another service: return values, errors, readable state, or external effects. Private helpers, intermediate data, and internal call order are implementation details unless exposed by that contract.
 
-Review these shapes for weak behavior coverage; the assertion method alone is not a verdict:
+Judge a test against two imagined edits:
 
-- Loose or no assertion: no `expect`, or only `toBeDefined`, `toBeTruthy`, `not.toThrow`, `toBeInstanceOf`, `toBeGreaterThan(0)`.
-- Call or absence only: `toHaveBeenCalled`, `not.toHaveBeenCalled`, `toBeUndefined`, `not.toBe(wrongValue)`.
-- Expected value computed by the code under test: `expect(f(a)).toBe(f(a))`, `expect(parsed.url).toBe(buildUrl(...))`.
-- Restated constant, config default, table row, or prompt string: `expect(LIMITS.maxTools).toBe(8)`, `expect(PROMPT).toContain("You are")`.
-- Assertions on data the test built or computed in `beforeEach`, with no call to the subject.
+- **Break the contract.** Return the wrong result, omit a required effect, or repeat it incorrectly. The test should fail. Loose assertions, expectations computed by the subject, and checks on fixture data alone can miss the defect.
+- **Refactor the internals.** Preserve every observable result while changing helpers or internal structure. The test should still pass.
 
-Fix: call the subject in the test body with one concrete input and assert the literal output or effect, such as `expect(slugify("Hello, World!")).toBe("hello-world")`. For a mock, assert the payload it received or the resulting state. When a negative assertion alone cannot prove the work ran, also assert a concrete result on another input in the same test. For a constant, test the mechanism that reads it with one input instead of restating the value. Delete the test when no such assertion exists.
+Drive the subject through its users' interface with concrete inputs. Derive expectations from the requirement rather than the implementation, and assert exactly what the contract promises. Within task scope, rewrite or delete tests that miss broken behavior or reject behavior-preserving refactors.
 
-Keep `toEqual([])` or `toHaveLength(0)` when an empty result is the expected observable behavior; both reject `undefined`.
+Assertion shape alone is not a verdict. A mocked external service's payload is observable behavior; a private helper's call count usually is not. If an empty cart must never charge, asserting no payment call is appropriate. Pair it with a chargeable case to show the test can observe a call. Empty-result assertions are valid when no matching records is the promised answer. Assert error types or wording only to the extent callers rely on them.
 
-Keep relation checks across table rows (a key in two tables, a parent that exists) and `*.test-d.ts` type checks.
+Invariants can also be contracts: keys shared across tables, externally consumed status codes, and `*.test-d.ts` type checks. Keep tests that enforce these contracts; a constant or prompt-string check that never exercises its consumer or establishes an invariant is not behavioral proof.
