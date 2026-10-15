@@ -6,6 +6,22 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Xray removal — 2026-10-15 {#xray-removal}
+
+Removed `xray-session`, the shared recorder, recording context and control events, and the Codex, Claude Code, and Hermes observers. All three plugin manifests advance to `0.11.0`. The remaining session hooks preserve z-mode and Herdr selection. Earlier xray sections below are historical evidence for the removed feature.
+
+On this macOS host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the VitePress production build, reference anchors, and isolated installer checks.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 93 tests passed. Coverage includes session activation, resume, fork/reset isolation, Herdr selection, and a legacy `ZSTACK_XRAY=1` setting producing no recording context or files. The new Codex removal checks failed against the prior implementation before removal.
+- Ruff lint and format checks passed for all seven changed Python files. `uv run --with mypy --with rich --with types-PyYAML mypy` passed on 26 source files.
+- `uv run scripts/package_plugin.py` rebuilt the tracked Codex package. Direct artifact assertions confirmed no xray skill or recorder, only `SessionStart` in both bundled hook manifests, and version `0.11.0`.
+- `claude plugin validate . --strict` and `claude plugin validate .claude-plugin/plugin.json --strict` passed for the marketplace and plugin manifests respectively (Claude Code 2.1.300).
+- `git diff --check` and the staged equivalent passed.
+
+**Limits.** These are local fixtures, artifact assertions, and manifest validation, not fresh model-driven Codex, Claude Code, Hermes, or Windows sessions. Hermes was unavailable on this host's PATH. No installed plugin cache or existing capture data was changed for this removal; older hosts require a plugin refresh and restart. Linked installs must uninstall from the old checkout before updating and reinstalling, as described in [setup](guide/01-setup.md#upgrade-0-11-0).
+
 ## Strict mypy for helper scripts — 2026-10-14 {#strict-mypy}
 
 `mypy.ini` now enables `strict`. The changes:

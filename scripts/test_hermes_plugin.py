@@ -68,7 +68,7 @@ class HermesPluginTests(unittest.TestCase):
                 os.chdir(previous)
             expected = sorted(path.name for path in (ROOT / "skills").iterdir() if (path / "SKILL.md").is_file())
             self.assertEqual(list(registry.skills), expected)
-            self.assertIn("xray-session", registry.skills)
+            self.assertNotIn("xray-session", registry.skills)
             self.assertIn("ketchup", registry.skills)
             self.assertIn("in-your-own-words", registry.skills)
             self.assertIn("pre_llm_call", registry.hooks)

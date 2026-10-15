@@ -21,7 +21,7 @@ Choose one installation method per host.
 | --- | --- | --- |
 | [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
 | [Native Claude Code plugin](../hosts/claude-code.md#native-plugin) | Namespaced skills, agent roles, and a session hook, loaded in place | You want plugin management and session-scoped mode persistence in Claude Code. |
-| [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills and session hooks | You want Hermes plugin management, session-scoped mode controls, and optional xray recording. |
+| [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills and session hooks | You want Hermes plugin management and session-scoped mode controls. |
 | Linked installer | Skill links and copied native agent roles | You need project-scoped installs or installer-managed Codex roles. |
 
 ### Native Codex plugin
@@ -128,6 +128,10 @@ uv run scripts/install.py --host both --apply
 ```
 
 Repeat the original `--project` or `--home` option when applicable. Linked skills see checkout changes immediately; rerunning creates new links and updates unchanged owned agent copies. Edited agent copies produce a collision, so preserve those edits before resolving the conflict. Start a new host session after updating. For other removals or renames, the installer does not prune installed names that disappear from the checkout; uninstall before those updates.
+
+### Upgrade to 0.11.0 {#upgrade-0-11-0}
+
+Xray session inspection and event recording have been removed from all native plugins. Refresh the installed plugin and restart the host to unload older hooks; `ZSTACK_XRAY` is no longer used. Existing capture files in plugin data directories are left in place. For linked installations, uninstall from the old checkout before updating, then reinstall so the removed skill does not leave a stale link.
 
 ### Migrate to zstack
 

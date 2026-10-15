@@ -38,4 +38,4 @@ Chat may render as plain terminal text, so prefer the smallest useful table, dif
 
 For a visible change without an existing capture, say that no capture is available and describe only what the evidence establishes. Compose visuals only from gathered evidence, without files, new or generated captures, apps, jobs, or posts. If evidence or rendering prevents a useful comparison, state the gap and explain the options in prose. Never fabricate numbers, captures, or links; label proposals and unknowns.
 
-Use [recall](../recall/SKILL.md) for context across sessions, and [xray-session](../xray-session/SKILL.md) for a zstack activity ledger only on its own explicit request.
+Use [recall](../recall/SKILL.md) for context across sessions.

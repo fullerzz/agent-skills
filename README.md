@@ -39,7 +39,7 @@ hermes plugins install fullerzz/agent-skills --no-enable
 hermes plugins enable zstack
 ```
 
-These commands use the merged default branch. See [Hermes setup](docs/hosts/hermes.md) for draft-PR installation at an exact commit, verification, and removal. Decline any Node dependency prompt: `package.json` is for the docs site. Ask Hermes to load `zstack:z-mode` with `skill_view` to select the mode. Native hooks provide session-scoped mode controls and optional xray recording. Hermes uses native delegation fallbacks; the package registers no agent roles. See the setup guide for compaction and session-ID limits.
+These commands use the merged default branch. See [Hermes setup](docs/hosts/hermes.md) for draft-PR installation at an exact commit, verification, and removal. Decline any Node dependency prompt: `package.json` is for the docs site. Ask Hermes to load `zstack:z-mode` with `skill_view` to select the mode. Native hooks provide session-scoped mode controls. Hermes uses native delegation fallbacks; the package registers no agent roles. See the setup guide for compaction and session-ID limits.
 
 ### Linked installation
 
@@ -100,7 +100,6 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.
-- Inspect observable zstack activity in the current session with explicitly invoked [xray-session](docs/reference/workflow-skills.md#xray-session), a chronological ledger and ASCII diagram with history coverage gaps.
 - Publish or merge only when the user's request authorizes those actions.
 
 Herdr can launch a requested supported agent CLI with its own configuration; independent runs do not establish provider diversity or consensus. Public marketplace publication and the old automation runtime remain outside this release.
