@@ -145,16 +145,20 @@ def current_rows(rows: list[dict[str, Any]], states: Sequence[str]) -> list[dict
     return []
 
 
-def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
-    rows = list_prs(repo, "--head", branch, "all")
-    if not rows:
-        raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
+def current_pr(rows: list[dict[str, Any]], branch: str) -> dict[str, Any]:
     if len(opened := [row for row in rows if row["state"] == "OPEN"]) > 1:
         raise UserError(
             f"branch {branch} has multiple open pull requests: {', '.join(f'#{r['number']}' for r in opened)}"
         )
     # A reused branch keeps its old PRs; the open one, else the newest, is the branch's current PR.
     return opened[0] if opened else max(rows, key=lambda row: row["createdAt"])
+
+
+def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
+    rows = list_prs(repo, "--head", branch, "all")
+    if not rows:
+        raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
+    return current_pr(rows, branch)
 
 
 def has_live_descendant(repo: Path, branch: str, seen: set[str]) -> bool:
@@ -177,7 +181,10 @@ def trunk_branch(repo: Path) -> str:
 
 
 def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
-    candidates = list_prs(repo, "--base", branch, "all")
+    heads: dict[str, list[dict[str, Any]]] = {}
+    for row in list_prs(repo, "--base", branch, "all"):
+        heads.setdefault(row["headRefName"], []).append(row)
+    candidates = [current_pr(rows, head) for head, rows in heads.items()]
     # A child merged into this branch still links the PRs above it; an open child is current.
     rows = current_rows(candidates, ("OPEN", "MERGED"))
     if not rows:
