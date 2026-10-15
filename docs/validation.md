@@ -14,6 +14,12 @@ This is a wording change checked statically: 53 skills with 0 structural problem
 
 Review fixes: step 6 applies only when the merged PR has a child, and opening-a-pr requires landing authority before invoking it. Autopilot-stack restates the one-verifier rule, including conflict resolution, and links Autopilot-full. A later round made the coordinator's topology writes follow an owner handoff and gated pushes on publication authority. A third round made Shipping step 6 depend on landing authority that covers the child and on a base SHA recorded when the link was created or rebased, which Autopilot-stack and Opening a PR now record. A later round requires a merge-free child range, since rebase drops merge commits and their resolutions. A scratch repository checked the child move: after a parent fix round amended the parent commit and the parent was squash-merged, `git rebase --onto main <parent-final-head> child` stopped on an add/add conflict, while `git rebase --onto main <child-base> child` replayed only the child commit and kept the fixed parent content.
 
+### PR #42 merge-result destination — 2026-10-14
+
+Shipping now pins the confirmed merge-result SHA, verifies it is in the fetched remote-tracking trunk's history, and uses it as the child rebase destination. A fresh scratch Git repository reproduced the old command's stale-local-trunk problem: after fetching the parent's squash merge, rebasing the child onto local `main` succeeded but removed the parent's module from the child checkout. Rebasing the original child onto the fetched merge-result SHA retained both modules. This is a local Git experiment, not a live forge landing or an agent following the full playbook.
+
+The updated stack top passed structural validation (53 skills, zero problems), all 15 Node tests, all 122 Python tests, mypy across 27 files, and `git diff --check`. A live read-only call of the updated frontier resolver from the top checkout returned `#40, #41, #42` in order with their local branch heads. The repaired branching and closed-PR cases remain fixture-only checks; no GitHub topology was mutated for testing.
+
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 
 Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.9.1`.
