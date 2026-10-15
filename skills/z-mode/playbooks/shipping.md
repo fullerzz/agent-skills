@@ -2,8 +2,9 @@
 Only run merges when the user explicitly authorized landing.
 1. Pin the bottom-to-top dependency list, exact base/head SHAs, and relevant verification receipts. Use an independent verifier for substantial behavior changes under the native contract.
 2. Re-check each patch and current-head CI/reviews/mergeability. A rewritten SHA needs fresh checks; a changed base-to-head patch needs relevant re-verification. Do not reuse a stale self-report.
-3. Land only the contiguous verified run from the bottom. Prepare one frontier PR at a time; preserve shared branches and never weaken forge approvals.
-4. Use the requested merge strategy. Arm merge-when-ready only when requested and only for the current frontier.
-5. Wait for confirmed merged state, fetch/read trunk, and recompute the next base/head. Pending checks with BLOCKED are not proof of failure.
-6. Stop at the first unverified or unauthorized item. If durable watching is unavailable, save the state and exact next check.
+3. Land only the contiguous verified run from the bottom. Prepare one frontier PR at a time; preserve shared branches and never weaken forge approvals. Force-push only with `--force-with-lease=<branch>:<sha>` pinned to the SHA you last pushed or took over; on a push you did not make, stop and report.
+4. Right before merging, fetch trunk and ask whether its changes can affect the patch. Rebase and wait for CI when untested code would land: a conflict, a file both sides changed, or a change to which checks run. When trunk changed a caller or dependency of the patch, run the patch's checks on the merge result first. Otherwise merge without another rebase. If trunk would force a third rebase after merge prep, hold and report.
+5. Use the requested merge strategy. Arm merge-when-ready only when requested and only for the current frontier.
+6. Wait for confirmed merged state, fetch/read trunk, and recompute the next base/head. Pending checks with BLOCKED are not proof of failure. Retarget the merged PR's child to trunk and move only its patch onto the merge result (`git rebase --onto <trunk> <old-parent-tip> <child>`), push with the pinned lease, then apply step 2 before trusting its verdict.
+7. Stop at the first unverified or unauthorized item. If durable watching is unavailable, save the state and exact next check.
 Return actual merges, current SHAs, verifier identities/receipts, remaining ceiling, and handoff. Do not post verdict comments unless posting was authorized.
