@@ -10,7 +10,9 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 The Claude manifest's `icon` points directly to `./docs/public/logo.svg`. [Anthropic's manifest reference](https://code.claude.com/docs/en/plugins-reference#directory-listing-fields) defines this as directory-listing metadata; Claude Code ignores it at load time. Claude Code 2.1.300 passed `claude plugin validate .claude-plugin/plugin.json --strict`. Structural validation reported 52 skills and zero problems; all 15 Node tests (including the docs build) and all 93 Python tests passed.
 
-Hermes `plugin.yaml` is unchanged: the current upstream [manifest model and parser](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins_manifest.py) expose no icon field. No directory submission, installed-plugin refresh, or live icon rendering was tested for either host.
+Hermes receives no icon metadata: the current upstream [manifest model and parser](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins_manifest.py) expose no icon field. No directory submission, installed-plugin refresh, or live icon rendering was tested for either host.
+
+**PR #47 review repair.** `uv run scripts/bump_version.py patch` advances the Codex, Claude, and Hermes manifests together from `0.11.1` to `0.11.2`, giving versioned marketplace installs a new release for the icons. After the bump, structural validation reported 52 skills and zero problems, all 15 Node tests and all 93 Python tests passed, and Claude strict manifest validation passed. Live marketplace upgrades were not tested.
 
 ## Codex plugin icon — 2026-10-15 {#codex-plugin-icon}
 
