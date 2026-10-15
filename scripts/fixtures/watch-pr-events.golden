@@ -1,0 +1,206 @@
+== ready exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}}}}
+== ready --pretty exit=0
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+mergeStateStatus=CLEAN
+reviewDecision=null
+isDraft=false
+== ready-allow-draft exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"draft-allowed"}}}}}
+== ready-allow-draft --pretty exit=0
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+mergeStateStatus=CLEAN
+reviewDecision=null
+isDraft=true
+note=draft allowed (--allow-draft); leave draft — do not mark ready
+== merged exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"merged-pr","context":{"owner":"owner","repo":"repo","number":1},"mergedAt":"now"}}}
+== merged --pretty exit=0
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+== merge-conflicts exit=2
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":2,"blocker":{"kind":"merge-conflicts","pr":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"CONFLICTING","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"}}}
+== merge-conflicts --pretty exit=2
+BLOCKER: merge-conflicts
+pr=1
+mergeable=CONFLICTING
+mergeStateStatus=CLEAN
+action=resolve merge conflicts before waiting for CI
+== review-threads exit=3
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":3,"blocker":{"kind":"review-threads","pr":{"owner":"owner","repo":"repo","number":1},"threads":[{"id":"t1","firstComment":{"authorLogin":"cursor","body":"Bugbot RUN_ID: one\nsecond line","path":"app.py","line":3,"createdAt":"now"},"isBugbot":true,"bugbotReviewPasses":1},{"id":"t2","firstComment":null,"isBugbot":false,"bugbotReviewPasses":1}]}}
+== review-threads --pretty exit=3
+BLOCKER: review-threads
+pr=1
+unresolved=2
+t1 app.py 3 cursor isBugBot=true bugbotReviewPasses=1 Bugbot RUN_ID: one
+t2 None None None isBugBot=false bugbotReviewPasses=1
+== failing-checks exit=4
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":4,"blocker":{"kind":"failing-checks","pr":{"owner":"owner","repo":"repo","number":1},"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""},{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""},{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""}],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-failing","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}}}}
+== failing-checks --pretty exit=4
+BLOCKER: failing-checks
+pr=1
+failed=1
+CI FAILURE
+== github-rejected exit=4
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":4,"blocker":{"kind":"failing-checks","pr":{"owner":"owner","repo":"repo","number":1},"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":true,"kind":"ci-github-rejected","github":{"mergeStateStatus":"BLOCKED","headRollupState":"FAILURE","kind":"refused"}}}}
+== github-rejected --pretty exit=4
+BLOCKER: failing-checks
+pr=1
+failed=0
+mergeStateStatus=BLOCKED
+headRollupState=FAILURE
+== owner-gate exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""},{"name":"Code Review Gate","kind":"code-review-gate","reportedState":"ACTION_REQUIRED","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"BLOCKED","headRollupState":"FAILURE","kind":"allowed","basis":"owner-gate"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}}}}
+== owner-gate --pretty exit=0
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+mergeStateStatus=BLOCKED
+reviewDecision=null
+isDraft=false
+== draft-gate exit=6
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":6,"blocker":{"kind":"merge-gate","pr":{"owner":"owner","repo":"repo","number":1},"reason":"draft-pr"}}
+== draft-gate --pretty exit=6
+BLOCKER: draft-pr
+pr=1
+action=mark the PR ready for review before waiting for the merge queue
+== changes-requested exit=6
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":6,"blocker":{"kind":"merge-gate","pr":{"owner":"owner","repo":"repo","number":1},"reason":"changes-requested"}}
+== changes-requested --pretty exit=6
+BLOCKER: changes-requested
+pr=1
+action=resolve the changes-requested review before waiting for the merge queue
+== closed exit=6
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":6,"blocker":{"kind":"merge-gate","pr":{"owner":"owner","repo":"repo","number":1},"reason":"closed-without-merge"}}
+== closed --pretty exit=6
+BLOCKER: closed-without-merge
+pr=1
+action=restore or remove the closed PR from the queued stack
+== pending-timeout exit=5
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"STATUS","terminal":false,"reason":"poll","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-pending"},"reviewAutomationRunning":true}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"pending-checks","pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}]}}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"STATUS","terminal":false,"reason":"poll","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-pending"},"reviewAutomationRunning":true}]}
+{"schemaVersion":1,"sequence":4,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"pending-checks","pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}]}}
+{"schemaVersion":1,"sequence":5,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"TIMEOUT","terminal":true,"exitCode":5,"reason":{"kind":"pending-checks","pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""},{"name":"Bugbot","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}]}}
+== pending-timeout --pretty exit=5
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ⏳ 2 pending | 🤖 running | ✅ |
+WAITING: frontier=#1; 2 checks pending
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ⏳ 2 pending | 🤖 running | ✅ |
+WAITING: frontier=#1; 2 checks pending
+TIMEOUT: checks still pending
+== retry-then-ready exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"RETRY","terminal":false,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"},"consecutiveFailures":1,"retryInSeconds":60}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"RETRY","terminal":false,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"},"consecutiveFailures":2,"retryInSeconds":120}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}}}}
+== retry-then-ready --pretty exit=0
+RETRY: GitHub status query failed; retrying in 60s
+detail=bad response
+RETRY: GitHub status query failed; retrying in 120s
+detail=bad response
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+mergeStateStatus=CLEAN
+reviewDecision=null
+isDraft=false
+== status-query exit=7
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"RETRY","terminal":false,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"},"consecutiveFailures":1,"retryInSeconds":60}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":7,"blocker":{"kind":"status-query","failures":2,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"}}}
+== status-query --pretty exit=7
+RETRY: GitHub status query failed; retrying in 60s
+detail=bad response
+BLOCKER: status-query
+failures=2
+detail=bad response
+action=verify current PR context, GitHub authentication, and API availability, then rearm
+== status-unavailable-timeout exit=5
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"RETRY","terminal":false,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"},"consecutiveFailures":1,"retryInSeconds":60}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"RETRY","terminal":false,"failure":{"kind":"json-parse","retryable":true,"detail":"bad response"},"consecutiveFailures":2,"retryInSeconds":30.0}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"TIMEOUT","terminal":true,"exitCode":5,"reason":{"kind":"status-unavailable","failure":{"kind":"json-parse","retryable":true,"detail":"bad response"}}}
+== status-unavailable-timeout --pretty exit=5
+RETRY: GitHub status query failed; retrying in 60s
+detail=bad response
+RETRY: GitHub status query failed; retrying in 30s
+detail=bad response
+TIMEOUT: GitHub status remained unavailable
+== stack-ready exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"STATUS","terminal":false,"reason":"poll","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"stack","prs":[{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}},{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":2},"proof":{"mergeability":"clear","threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}}]}}
+== stack-ready --pretty exit=0
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+READY: no merge conflicts, no unresolved review threads, no failing or pending checks
+== stack-status-only exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"stack","kind":"STATUS","terminal":true,"exitCode":0,"reason":"status-only","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+== stack-status-only --pretty exit=0
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+== queued-complete exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"QUEUE","terminal":false,"queue":[{"owner":"owner","repo":"repo","number":1},{"owner":"owner","repo":"repo","number":2}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":false,"reason":"whole-stack-sweep","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"merge-queue","unmergedCount":2}}
+{"schemaVersion":1,"sequence":4,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"ADVANCE","terminal":false,"merged":{"owner":"owner","repo":"repo","number":1},"frontier":{"owner":"owner","repo":"repo","number":2},"remaining":1}
+{"schemaVersion":1,"sequence":5,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"COMPLETE","terminal":true,"exitCode":0,"queue":[{"owner":"owner","repo":"repo","number":1},{"owner":"owner","repo":"repo","number":2}],"merged":[{"kind":"merged-pr","context":{"owner":"owner","repo":"repo","number":1},"mergedAt":"now"},{"kind":"merged-pr","context":{"owner":"owner","repo":"repo","number":2},"mergedAt":"now"}]}
+== queued-complete --pretty exit=0
+QUEUE: captured 2 PRs bottom-to-top: #1,#2
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+WAITING: frontier=#1 is blocker-free; waiting for merge queue (2 PRs unmerged)
+ADVANCE: merged #1; next=#2; remaining=1
+COMPLETE: queued stack merged (2 PRs)
+== queued-pending-timeout exit=5
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"QUEUE","terminal":false,"queue":[{"owner":"owner","repo":"repo","number":1},{"owner":"owner","repo":"repo","number":2}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":false,"reason":"whole-stack-sweep","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-pending"},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"pending-checks","pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}]}}
+{"schemaVersion":1,"sequence":4,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":false,"reason":"whole-stack-sweep","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-pending"},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+{"schemaVersion":1,"sequence":5,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"TIMEOUT","terminal":true,"exitCode":5,"reason":{"kind":"queued-stack","frontier":{"owner":"owner","repo":"repo","number":1},"unmergedCount":2}}
+== queued-pending-timeout --pretty exit=5
+QUEUE: captured 2 PRs bottom-to-top: #1,#2
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ⏳ 1 pending | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+WAITING: frontier=#1; 1 check pending
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ⏳ 1 pending | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+TIMEOUT: queued stack still has 2 PRs unmerged; frontier=#1
+== queued-merge-queue-timeout exit=5
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"QUEUE","terminal":false,"queue":[{"owner":"owner","repo":"repo","number":1},{"owner":"owner","repo":"repo","number":2}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":false,"reason":"whole-stack-sweep","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"merge-queue","unmergedCount":2}}
+{"schemaVersion":1,"sequence":4,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"TIMEOUT","terminal":true,"exitCode":5,"reason":{"kind":"queued-stack","frontier":{"owner":"owner","repo":"repo","number":1},"unmergedCount":2}}
+== queued-merge-queue-timeout --pretty exit=5
+QUEUE: captured 2 PRs bottom-to-top: #1,#2
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |
+WAITING: frontier=#1 is blocker-free; waiting for merge queue (2 PRs unmerged)
+TIMEOUT: queued stack still has 2 PRs unmerged; frontier=#1
+== queued-closed exit=6
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"QUEUE","terminal":false,"queue":[{"owner":"owner","repo":"repo","number":1},{"owner":"owner","repo":"repo","number":2}]}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":false,"reason":"whole-stack-sweep","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"closed","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"CLOSED","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"}}]}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"BLOCKER","terminal":true,"exitCode":6,"blocker":{"kind":"merge-gate","pr":{"owner":"owner","repo":"repo","number":2},"reason":"closed-without-merge"}}
+== queued-closed --pretty exit=6
+QUEUE: captured 2 PRs bottom-to-top: #1,#2
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | — | — | ❌ closed |
+BLOCKER: closed-without-merge
+pr=2
+action=restore or remove the closed PR from the queued stack
+== queued-status-only exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"queued-stack","kind":"STATUS","terminal":true,"exitCode":0,"reason":"status-only","rows":[{"kind":"open","context":{"owner":"owner","repo":"repo","number":1},"facts":{"context":{"owner":"owner","repo":"repo","number":1},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false},{"kind":"open","context":{"owner":"owner","repo":"repo","number":2},"facts":{"context":{"owner":"owner","repo":"repo","number":2},"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","state":"OPEN","reviewDecision":null,"headRefOid":"head","mergedAt":null,"headRefName":"topic","baseRefName":"main"},"threads":[],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"reviewAutomationRunning":false}]}
+== queued-status-only --pretty exit=0
+| PR | CI | Review | Merge |
+| --- | --- | --- | --- |
+| [#1](https://github.com/owner/repo/pull/1) | ✅ | ✅ | ✅ |
+| [#2](https://github.com/owner/repo/pull/2) | ✅ | ✅ | ✅ |

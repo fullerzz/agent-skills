@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import copy
+import dataclasses
 import importlib.util
 import io
 import json
@@ -10,14 +10,37 @@ import shutil
 import sys
 import unittest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+DIRECTORY = Path(__file__).resolve().parents[1] / "skills/z-mode/scripts/watch-pr"
+
+
+def load(name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, DIRECTORY / (name + ".py"))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load {name}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import ModuleType
 
-DIRECTORY = Path(__file__).resolve().parents[1] / "skills/z-mode/scripts/watch-pr"
-CONTEXT = {"owner": "owner", "repo": "repo", "number": 1}
+    import cli
+    import github
+    import policy
+    import render
+    import schema
+else:
+    # The helpers import each other by bare name, so load dependencies first.
+    schema, github, policy, render, cli = (load(name) for name in ("schema", "github", "policy", "render", "cli"))
+
+CONTEXT: schema.Context = {"owner": "owner", "repo": "repo", "number": 1}
+GOLDEN = Path(__file__).resolve().parent / "fixtures/watch-pr-events.golden"
 
 
 def executable(name: str) -> str:
@@ -27,9 +50,8 @@ def executable(name: str) -> str:
     return path
 
 
-def facts(**changes: object) -> dict[str, Any]:
+def facts(**changes: object) -> dict[str, object]:
     return {
-        "context": CONTEXT,
         "mergeable": "MERGEABLE",
         "mergeStateStatus": "CLEAN",
         "reviewDecision": None,
@@ -42,7 +64,7 @@ def facts(**changes: object) -> dict[str, Any]:
     } | changes
 
 
-def check(kind: str = "passed", name: str = "CI") -> dict[str, Any]:
+def check(kind: schema.CheckKind = "passed", name: str = "CI") -> schema.Check:
     return {
         "name": name,
         "kind": kind,
@@ -70,76 +92,181 @@ class Clock:
 
 
 class Reader:
-    def __init__(self) -> None:
-        self.facts = facts()
-        self.checks = [check()]
-        self.threads: list[dict[str, Any]] = []
-        self.rollups = [{"oid": "head", "state": "SUCCESS"}]
+    """Fake gh adapter; the per-PR fields script multi-PR and retry scenarios."""
+
+    def __init__(
+        self,
+        *,
+        overrides: dict[str, object] | None = None,
+        checks: list[schema.Check] | None = None,
+        threads: list[schema.Thread] | None = None,
+        rollups: list[github.CommitRollup] | None = None,
+        overrides_by_pr: dict[int, dict[str, object]] | None = None,
+        merged_from_read: dict[int, int] | None = None,
+        checks_by_pr: dict[int, list[schema.Check]] | None = None,
+        open_prs: list[github.OpenPullRequest] | None = None,
+        query_failures: int = 0,
+    ) -> None:
+        self.facts = facts(**(overrides or {}))
+        self.checks = [check()] if checks is None else checks
+        self.threads = threads or []
+        self.rollups: list[github.CommitRollup] = (
+            rollups if rollups is not None else [{"oid": "head", "state": "SUCCESS"}]
+        )
+        self.overrides_by_pr = overrides_by_pr or {}
+        self.merged_from_read = merged_from_read or {}
+        self.checks_by_pr = checks_by_pr or {}
+        self.open_prs = open_prs or []
+        self.query_failures = query_failures
         self.rollup_reads = 0
-        self.pages: list[dict[str, Any]] = []
+        self.pages: list[github.RollupPage] = []
         self.reads: list[int] = []
 
-    def pull_request(self, context: dict[str, Any]) -> dict[str, Any]:
-        self.reads.append(context["number"])
-        return copy.deepcopy(self.facts) | {"context": context}
+    def pull_request(self, context: schema.Context) -> schema.PullRequestFacts:
+        if self.query_failures:
+            self.query_failures -= 1
+            raise github.QueryError("json-parse", "bad response")
+        n = context["number"]
+        self.reads.append(n)
+        merged = 0 < self.merged_from_read.get(n, 0) <= self.reads.count(n)
+        changes: dict[str, object] = {"state": "MERGED", "mergedAt": "now"} if merged else {}
+        return github.parse_pull_request(self.facts | self.overrides_by_pr.get(n, {}) | changes, context)
 
-    def checks_fast_path(self, context: dict[str, Any]) -> dict[str, Any]:
-        return {"kind": "checks", "checks": self.checks}
+    def checks_fast_path(self, context: schema.Context) -> github.FastChecks | github.UnusableChecks:
+        return {"kind": "checks", "checks": self.checks_by_pr.get(context["number"], self.checks)}
 
-    def check_rollup_page(self, context: dict[str, Any], after: str | None) -> dict[str, Any]:
+    def check_rollup_page(self, context: schema.Context, after: str | None) -> github.RollupPage:
         return self.pages.pop(0) if self.pages else {"checks": [], "endCursor": None}
 
-    def review_threads(self, context: dict[str, Any]) -> list[dict[str, Any]]:
+    def review_threads(self, context: schema.Context) -> list[schema.Thread]:
         return self.threads
 
-    def commit_rollups(self, context: dict[str, Any]) -> list[dict[str, Any]]:
+    def commit_rollups(self, context: schema.Context) -> list[github.CommitRollup]:
         self.rollup_reads += 1
         return self.rollups
 
-    def origin_repo(self) -> dict[str, str]:
+    def origin_repo(self) -> schema.Repo:
         return {"owner": "origin", "repo": "repo"}
 
-    def current_pr(self, pr: int | None) -> dict[str, Any]:
-        return CONTEXT | {"number": pr or 1}
+    def current_pr(self, pr: int | None) -> schema.Context:
+        return {**CONTEXT, "number": pr or 1}
 
-    def open_pull_requests(self, context: dict[str, Any]) -> list[dict[str, Any]]:
-        return []
+    def open_pull_requests(self, context: schema.Context) -> list[github.OpenPullRequest]:
+        return self.open_prs
+
+
+STACK: list[github.OpenPullRequest] = [
+    {"number": 1, "headRefName": "a", "baseRefName": "main"},
+    {"number": 2, "headRefName": "b", "baseRefName": "a"},
+]
+COMMENT: schema.Comment = {
+    "authorLogin": "cursor",
+    "body": "Bugbot RUN_ID: one\nsecond line",
+    "path": "app.py",
+    "line": 3,
+    "createdAt": "now",
+}
+# One run per verdict, blocker, wait, and timeout shape; --pr 1 is added unless --stack-prs selects PRs.
+GOLDEN_SCENARIOS: list[tuple[str, list[str], Callable[[], Reader]]] = [
+    ("ready", [], Reader),
+    ("ready-allow-draft", ["--allow-draft"], lambda: Reader(overrides={"isDraft": True})),
+    ("merged", [], lambda: Reader(overrides={"state": "MERGED", "mergedAt": "now"})),
+    ("merge-conflicts", [], lambda: Reader(overrides={"mergeable": "CONFLICTING"})),
+    (
+        "review-threads",
+        [],
+        lambda: Reader(
+            threads=[
+                {"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1},
+                {"id": "t2", "firstComment": None, "isBugbot": False, "bugbotReviewPasses": 1},
+            ]
+        ),
+    ),
+    ("failing-checks", [], lambda: Reader(checks=[check(), check("failed"), check("pending")])),
+    (
+        "github-rejected",
+        [],
+        lambda: Reader(
+            overrides={"mergeStateStatus": "BLOCKED"},
+            rollups=[{"oid": "older", "state": "SUCCESS"}, {"oid": "head", "state": "FAILURE"}],
+        ),
+    ),
+    (
+        "owner-gate",
+        [],
+        lambda: Reader(
+            overrides={"mergeStateStatus": "BLOCKED"},
+            checks=[check(), {**check("code-review-gate", "Code Review Gate"), "reportedState": "ACTION_REQUIRED"}],
+            rollups=[{"oid": "head", "state": "FAILURE"}],
+        ),
+    ),
+    ("draft-gate", [], lambda: Reader(overrides={"isDraft": True})),
+    ("changes-requested", [], lambda: Reader(overrides={"reviewDecision": "CHANGES_REQUESTED"})),
+    ("closed", [], lambda: Reader(overrides={"state": "CLOSED"})),
+    (
+        "pending-timeout",
+        ["--stack", "--timeout", "100"],
+        lambda: Reader(checks=[check("pending"), check("pending", "Bugbot")]),
+    ),
+    ("retry-then-ready", [], lambda: Reader(query_failures=2)),
+    ("status-query", ["--max-query-errors", "2"], lambda: Reader(query_failures=9)),
+    ("status-unavailable-timeout", ["--timeout", "90"], lambda: Reader(query_failures=9)),
+    ("stack-ready", ["--stack"], lambda: Reader(open_prs=STACK)),
+    ("stack-status-only", ["--stack", "--status-only"], lambda: Reader(open_prs=STACK)),
+    ("queued-complete", ["--queued-stack", "--stack-prs", "1,2"], lambda: Reader(merged_from_read={1: 2, 2: 2})),
+    (
+        "queued-pending-timeout",
+        ["--queued-stack", "--stack-prs", "1,2", "--timeout", "200", "--sweep-interval", "90"],
+        lambda: Reader(checks_by_pr={1: [check("pending")]}),
+    ),
+    ("queued-merge-queue-timeout", ["--queued-stack", "--stack-prs", "1,2", "--timeout", "100"], Reader),
+    (
+        "queued-closed",
+        ["--queued-stack", "--stack-prs", "1,2"],
+        lambda: Reader(overrides_by_pr={2: {"state": "CLOSED"}}),
+    ),
+    ("queued-status-only", ["--queued-stack", "--stack-prs", "1,2", "--status-only"], Reader),
+]
+
+
+def golden_stream() -> str:
+    chunks = []
+    for name, args, reader in GOLDEN_SCENARIOS:
+        argv = ["--owner", "owner", "--repo", "repo", *args, *([] if "--stack-prs" in args else ["--pr", "1"])]
+        for pretty in ([], ["--pretty"]):
+            out = io.StringIO()
+            code = cli.main([*argv, *pretty], reader=reader(), clock=Clock(), stdout=out, stderr=io.StringIO())
+            chunks.append(f"== {' '.join([name, *pretty])} exit={code}\n{out.getvalue()}")
+    return "".join(chunks)
+
+
+class GoldenStreamTests(unittest.TestCase):
+    def test_ndjson_and_pretty_output_match_golden_bytes(self) -> None:
+        # Key order and rendering are the wire contract; the golden file pins both byte for byte.
+        self.maxDiff = None
+        self.assertEqual(golden_stream(), GOLDEN.read_text(encoding="utf-8"))
 
 
 class WatcherTests(unittest.TestCase):
-    github: ModuleType
-    policy: ModuleType
-    render: ModuleType
-    cli: ModuleType
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        for name in ("github", "policy", "render", "cli"):
-            spec = importlib.util.spec_from_file_location(name, DIRECTORY / (name + ".py"))
-            if spec is None or spec.loader is None:
-                raise RuntimeError(f"Cannot load {name}")
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[name] = module
-            spec.loader.exec_module(module)
-            setattr(cls, name, module)
-
     def setUp(self) -> None:
         self.reader, self.clock = Reader(), Clock()
-        self.events: list[dict[str, Any]] = []
-        self.options = {"interval": 60, "sweepInterval": 300, "timeout": 0, "maxQueryErrors": 5, "allowDraft": False}
+        self.events: list[schema.Event] = []
+        self.options = policy.Options(interval=60, sweep_interval=300, timeout=0, max_query_errors=5, allow_draft=False)
 
-    def snapshot(self, **changes: object) -> dict[str, Any]:
+    def snapshot(self, **changes: object) -> schema.Snapshot:
         self.reader.facts.update(changes)
-        return self.policy.read_snapshot(self.reader, CONTEXT)
+        return policy.read_snapshot(self.reader, CONTEXT)
 
-    def run_simple(self, **kwargs: object) -> dict[str, Any]:
-        return self.policy.run_simple(self.reader, self.clock, self.events.append, [CONTEXT], self.options, **kwargs)
+    def run_simple(self) -> schema.Verdict:
+        return policy.run_simple(self.reader, self.clock, self.events.append, [CONTEXT], self.options)
 
     def test_merge_assessment_truth_table(self) -> None:
-        for state in ("BLOCKED", "CLEAN", "UNKNOWN", "UNSTABLE", "DIRTY"):
-            for rollup in (None, "SUCCESS", "EXPECTED", "PENDING", "ERROR", "FAILURE"):
+        states: tuple[schema.MergeState, ...] = ("BLOCKED", "CLEAN", "UNKNOWN", "UNSTABLE", "DIRTY")
+        rollups: tuple[schema.RollupState | None, ...] = (None, "SUCCESS", "EXPECTED", "PENDING", "ERROR", "FAILURE")
+        for state in states:
+            for rollup in rollups:
                 with self.subTest(state=state, rollup=rollup):
-                    result = self.policy.assess_github_merge(state, rollup)
+                    result = policy.assess_github_merge(state, rollup)
                     self.assertEqual(
                         result["kind"],
                         "refused" if state == "BLOCKED" and rollup in ("ERROR", "FAILURE") else "allowed",
@@ -152,25 +279,31 @@ class WatcherTests(unittest.TestCase):
         self.reader.rollups = []
         self.reader.facts.update(mergeStateStatus="CLEAN", isDraft=True)
         self.assertEqual(self.run_simple()["exitCode"], 6)
-        self.options["allowDraft"] = True
+        self.options = dataclasses.replace(self.options, allow_draft=True)
         self.assertEqual(self.run_simple()["kind"], "READY")
 
     def test_owner_gate_failing_rollup_is_not_refusal(self) -> None:
         self.reader.rollups = [{"oid": "head", "state": "FAILURE"}]
         self.reader.facts["mergeStateStatus"] = "BLOCKED"
-        gate = check("code-review-gate", "Code Review Gate") | {"reportedState": "ACTION_REQUIRED"}
+        gate: schema.Check = {**check("code-review-gate", "Code Review Gate"), "reportedState": "ACTION_REQUIRED"}
         self.reader.checks = [check(), gate]
         self.assertEqual(self.run_simple()["kind"], "READY")
-        self.assertEqual(self.policy.assess_github_merge("BLOCKED", "FAILURE", True)["basis"], "owner-gate")
+        self.assertEqual(
+            policy.assess_github_merge("BLOCKED", "FAILURE", True),
+            {"mergeStateStatus": "BLOCKED", "headRollupState": "FAILURE", "kind": "allowed", "basis": "owner-gate"},
+        )
         self.reader.checks = [check(), check("code-review-gate", "Code Review Gate")]
         self.assertEqual(self.run_simple()["exitCode"], 4)
 
     def test_priority_across_stack(self) -> None:
+        self.reader.threads = [{"id": "thread", "firstComment": None, "isBugbot": False, "bugbotReviewPasses": 0}]
         first = self.snapshot()
-        first["threads"] = [{"id": "thread"}]
+        self.reader.threads = []
         second = self.snapshot(mergeable="CONFLICTING")
-        second["context"] = CONTEXT | {"number": 2}
-        decision = self.policy.select_stack_decision([first, second])
+        second["context"] = {**CONTEXT, "number": 2}
+        decision = policy.select_stack_decision([first, second])
+        if decision["kind"] != "blocker" or decision["blocker"]["kind"] == "status-query":
+            self.fail(f"unexpected decision {decision}")
         self.assertEqual(decision["blocker"]["kind"], "merge-conflicts")
         self.assertEqual(decision["blocker"]["pr"]["number"], 2)
 
@@ -178,38 +311,44 @@ class WatcherTests(unittest.TestCase):
         first = self.snapshot()
         self.reader.checks = [check("pending")]
         second = self.snapshot()
-        second["context"] = CONTEXT | {"number": 2}
-        decision = self.policy.select_stack_decision([first, second])
+        second["context"] = {**CONTEXT, "number": 2}
+        decision = policy.select_stack_decision([first, second])
+        if decision["kind"] != "waiting":
+            self.fail(f"unexpected decision {decision}")
         self.assertEqual(decision["frontier"]["number"], 2)
         self.assertEqual(len(decision["pending"]), 1)
 
     def test_snapshot_skips_history_only_for_pending_queue(self) -> None:
         self.reader.checks = [check("pending")]
-        self.policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
+        policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
         self.assertEqual(self.reader.rollup_reads, 0)
         self.reader.checks = [check("failed")]
-        self.policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
+        policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
         self.assertEqual(self.reader.rollup_reads, 1)
         self.reader.facts["state"] = "MERGED"
         with patch.object(self.reader, "review_threads", side_effect=AssertionError("merged PR must short circuit")):
             self.assertEqual(self.snapshot()["kind"], "merged")
 
     def test_poll_and_retry_delays_are_bounded(self) -> None:
-        self.options["timeout"] = 10
+        self.options = dataclasses.replace(self.options, timeout=10)
         self.reader.checks = [check("pending")]
         self.assertEqual(self.run_simple()["exitCode"], 5)
         self.assertEqual(self.clock.sleeps, [10])
         self.clock = Clock()
-        failure = self.github.QueryError("checks-unavailable", "unavailable")
+        failure = github.QueryError("checks-unavailable", "unavailable")
         with patch.object(self.reader, "pull_request", side_effect=failure):
             result = self.run_simple()
+        if result["kind"] != "TIMEOUT":
+            self.fail(f"unexpected verdict {result}")
         self.assertEqual(result["reason"]["kind"], "status-unavailable")
         self.assertEqual(self.clock.sleeps, [10])
 
     def test_retry_budget_and_nonretryable_failure(self) -> None:
-        self.options["maxQueryErrors"] = 3
-        with patch.object(self.reader, "pull_request", side_effect=self.github.QueryError("json-parse", "bad")):
+        self.options = dataclasses.replace(self.options, max_query_errors=3)
+        with patch.object(self.reader, "pull_request", side_effect=github.QueryError("json-parse", "bad")):
             result = self.run_simple()
+        if result["kind"] != "BLOCKER" or result["blocker"]["kind"] != "status-query":
+            self.fail(f"unexpected verdict {result}")
         self.assertEqual(result["exitCode"], 7)
         self.assertEqual(self.clock.sleeps, [60, 120])
         self.assertEqual(result["blocker"]["failures"], 3)
@@ -220,11 +359,17 @@ class WatcherTests(unittest.TestCase):
             {"checks": [check("pending")], "endCursor": "next"},
             {"checks": [check()], "endCursor": None},
         ]
-        result = self.github.resolve_checks(self.reader, CONTEXT)
+        result = github.resolve_checks(self.reader, CONTEXT)
         self.assertEqual(result["source"], "graphql-rollup")
         self.assertEqual(len(result["checks"]), 2)
-        with self.assertRaises(self.github.QueryError):
-            self.github.resolve_checks(self.reader, CONTEXT)
+        with self.assertRaises(github.QueryError):
+            github.resolve_checks(self.reader, CONTEXT)
+
+    def mapped_kind(self, node: object) -> str:
+        check = github.map_rollup_node(node)
+        if check is None:
+            self.fail(f"unmapped rollup node {node}")
+        return check["kind"]
 
     def test_check_mapping(self) -> None:
         for state, kind in [
@@ -236,15 +381,11 @@ class WatcherTests(unittest.TestCase):
             ("UNKNOWN", "failed"),
         ]:
             self.assertEqual(
-                self.github.map_rollup_node(
-                    {"__typename": "CheckRun", "name": "CI", "status": "COMPLETED", "conclusion": state}
-                )["kind"],
+                self.mapped_kind({"__typename": "CheckRun", "name": "CI", "status": "COMPLETED", "conclusion": state}),
                 kind,
             )
         self.assertEqual(
-            self.github.map_rollup_node(
-                {"__typename": "CheckRun", "name": "Code Review Gate", "status": "IN_PROGRESS"}
-            )["kind"],
+            self.mapped_kind({"__typename": "CheckRun", "name": "Code Review Gate", "status": "IN_PROGRESS"}),
             "code-review-gate",
         )
         for state, kind in [
@@ -254,20 +395,18 @@ class WatcherTests(unittest.TestCase):
             ("ERROR", "failed"),
         ]:
             self.assertEqual(
-                self.github.map_rollup_node({"__typename": "StatusContext", "context": "CI", "state": state})["kind"],
+                self.mapped_kind({"__typename": "StatusContext", "context": "CI", "state": state}),
                 kind,
             )
-        self.assertIsNone(self.github.map_rollup_node({"__typename": "FutureType"}))
+        self.assertIsNone(github.map_rollup_node({"__typename": "FutureType"}))
         self.assertEqual(
-            self.github.parse_fast_check({"name": "Code Review Gate", "state": "PENDING", "bucket": "pending"})["kind"],
+            github.parse_fast_check({"name": "Code Review Gate", "state": "PENDING", "bucket": "pending"})["kind"],
             "code-review-gate",
         )
-        self.assertEqual(
-            self.github.parse_fast_check({"name": "CI", "state": "ERROR", "bucket": "pass"})["kind"], "failed"
-        )
+        self.assertEqual(github.parse_fast_check({"name": "CI", "state": "ERROR", "bucket": "pass"})["kind"], "failed")
 
     def test_owner_approval_gate_is_neither_pending_nor_failed(self) -> None:
-        gate = self.github.map_rollup_node(
+        gate = github.map_rollup_node(
             {
                 "__typename": "CheckRun",
                 "name": "Code Review Gate",
@@ -275,65 +414,71 @@ class WatcherTests(unittest.TestCase):
                 "conclusion": "ACTION_REQUIRED",
             }
         )
+        if gate is None:
+            self.fail("gate check was not mapped")
         self.assertEqual((gate["kind"], gate["reportedState"]), ("code-review-gate", "ACTION_REQUIRED"))
         self.assertEqual(
-            self.github.parse_fast_check({"name": "Code Review Gate", "state": "ACTION_REQUIRED", "bucket": "fail"})[
-                "kind"
-            ],
+            github.parse_fast_check({"name": "Code Review Gate", "state": "ACTION_REQUIRED", "bucket": "fail"})["kind"],
             "code-review-gate",
         )
-        other = self.github.parse_fast_check({"name": "CI", "state": "ACTION_REQUIRED", "bucket": "fail"})
+        other = github.parse_fast_check({"name": "CI", "state": "ACTION_REQUIRED", "bucket": "fail"})
         self.assertEqual((other["kind"], other["reportedState"]), ("failed", "ACTION_REQUIRED"))
 
     def test_closed_enums_and_empty_review_decision(self) -> None:
-        self.assertIsNone(self.github.parse_pull_request(facts(reviewDecision=""), CONTEXT)["reviewDecision"])
+        self.assertIsNone(github.parse_pull_request(facts(reviewDecision=""), CONTEXT)["reviewDecision"])
         for changes in [{"reviewDecision": "FUTURE"}, {"mergeStateStatus": "FUTURE"}, {"isDraft": "false"}]:
-            with self.assertRaises(self.github.QueryError):
-                self.github.parse_pull_request(facts(**changes), CONTEXT)
+            with self.assertRaises(github.QueryError):
+                github.parse_pull_request(facts(**changes), CONTEXT)
+
+    def test_first_invalid_field_is_reported_in_field_order(self) -> None:
+        payload = {k: v for k, v in facts(mergeable="FUTURE").items() if k != "reviewDecision"}
+        with self.assertRaises(github.QueryError) as caught:
+            github.parse_pull_request(payload, CONTEXT)
+        self.assertEqual(caught.exception.failure["detail"], 'invalid pull request.mergeable: "FUTURE"')
 
     def test_context_and_stack_order(self) -> None:
-        self.assertEqual(
-            self.github.resolve_context(self.reader, "x", "y", 3), {"owner": "x", "repo": "y", "number": 3}
-        )
-        self.assertEqual(self.github.resolve_context(self.reader, None, None, 3)["owner"], "origin")
-        rows = [
+        self.assertEqual(github.resolve_context(self.reader, "x", "y", 3), {"owner": "x", "repo": "y", "number": 3})
+        self.assertEqual(github.resolve_context(self.reader, None, None, 3)["owner"], "origin")
+        rows: list[github.OpenPullRequest] = [
             {"number": 3, "headRefName": "c", "baseRefName": "b"},
             {"number": 1, "headRefName": "a", "baseRefName": "main"},
             {"number": 2, "headRefName": "b", "baseRefName": "a"},
         ]
-        self.assertEqual([r["number"] for r in self.github.order_stack(CONTEXT | {"number": 2}, rows)], [1, 2, 3])
+        self.assertEqual([r["number"] for r in github.order_stack({**CONTEXT, "number": 2}, rows)], [1, 2, 3])
 
     def test_queue_advances_without_sleep_and_keeps_queue(self) -> None:
-        contexts = [CONTEXT, CONTEXT | {"number": 2}]
+        contexts: list[schema.Context] = [CONTEXT, {**CONTEXT, "number": 2}]
         seen = {1: 0, 2: 0}
 
-        def read(context: dict[str, Any]) -> dict[str, Any]:
+        def read(context: schema.Context) -> schema.PullRequestFacts:
             n = context["number"]
             seen[n] += 1
-            return facts(
-                context=context, state="MERGED" if seen[n] > 1 else "OPEN", mergedAt="now" if seen[n] > 1 else None
+            merged = seen[n] > 1
+            return github.parse_pull_request(
+                facts(state="MERGED" if merged else "OPEN", mergedAt="now" if merged else None), context
             )
 
         with patch.object(self.reader, "pull_request", side_effect=read):
-            result = self.policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
-        self.assertEqual(result["kind"], "COMPLETE")
+            result = policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
+        if result["kind"] != "COMPLETE":
+            self.fail(f"unexpected verdict {result}")
         self.assertEqual(result["queue"], contexts)
         self.assertEqual(self.clock.sleeps, [60])
         self.assertEqual([e["kind"] for e in self.events], ["QUEUE", "STATUS", "WAITING", "ADVANCE"])
 
     def test_queue_resumes_failed_sweep_and_bounds_timeout(self) -> None:
-        contexts = [CONTEXT, CONTEXT | {"number": 2}]
+        contexts: list[schema.Context] = [CONTEXT, {**CONTEXT, "number": 2}]
         reads = []
 
-        def read(context: dict[str, Any]) -> dict[str, Any]:
+        def read(context: schema.Context) -> schema.PullRequestFacts:
             reads.append(context["number"])
             if reads == [1, 2]:
-                raise self.github.QueryError("json-parse", "retry second")
-            return facts(context=context)
+                raise github.QueryError("json-parse", "retry second")
+            return github.parse_pull_request(facts(), context)
 
-        self.options["timeout"] = 70
+        self.options = dataclasses.replace(self.options, timeout=70)
         with patch.object(self.reader, "pull_request", side_effect=read):
-            result = self.policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
+            result = policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
         self.assertEqual(reads, [1, 2, 2])
         self.assertEqual(self.clock.sleeps, [60, 10])
         self.assertEqual(result["exitCode"], 5)
@@ -351,11 +496,11 @@ class WatcherTests(unittest.TestCase):
         ]:
             with self.subTest(args=args):
                 out, err = io.StringIO(), io.StringIO()
-                code = self.cli.main(args, reader=self.reader, clock=self.clock, stdout=out, stderr=err)
+                code = cli.main(args, reader=self.reader, clock=self.clock, stdout=out, stderr=err)
                 self.assertEqual(code, 64)
                 self.assertEqual(out.getvalue(), "")
         out = io.StringIO()
-        code = self.cli.main(
+        code = cli.main(
             ["--owner", "x", "--repo", "y", "--queued-stack", "--stack-prs", "1,2", "--status-only"],
             reader=self.reader,
             clock=self.clock,
@@ -365,12 +510,12 @@ class WatcherTests(unittest.TestCase):
         event = json.loads(out.getvalue())
         self.assertEqual(event["reason"], "status-only")
         self.assertEqual(len(event["rows"]), 2)
-        self.assertIn("| PR | CI | Review | Merge |", self.render.render_pretty(event))
+        self.assertIn("| PR | CI | Review | Merge |", render.render_pretty(event))
 
     def test_frozen_stack_accepts_whitespace_and_hash_prefixes(self) -> None:
         for value in ("#10, 11,#12", " #10, #11,\t#12 "):
             with self.subTest(value=value):
-                args = self.cli.parse_args(["--queued-stack", "--stack-prs", value])
+                args = cli.parse_args(["--queued-stack", "--stack-prs", value])
                 self.assertEqual(args.stack_prs, [10, 11, 12])
 
     def test_command_streams_use_utf8_with_non_utf8_default(self) -> None:
@@ -378,16 +523,14 @@ class WatcherTests(unittest.TestCase):
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         error = "échec: 作業".encode()
         with patch("subprocess._text_encoding", return_value="cp1252"):
-            result = self.github.run_json([sys.executable, "-c", f"import sys; sys.stdout.buffer.write({encoded!r})"])
+            result = github.run_json([sys.executable, "-c", f"import sys; sys.stdout.buffer.write({encoded!r})"])
             self.assertEqual(result, payload)
-            with self.assertRaises(self.github.QueryError) as caught:
-                self.github.run_json(
-                    [sys.executable, "-c", f"import sys; sys.stderr.buffer.write({error!r}); sys.exit(1)"]
-                )
+            with self.assertRaises(github.QueryError) as caught:
+                github.run_json([sys.executable, "-c", f"import sys; sys.stderr.buffer.write({error!r}); sys.exit(1)"])
             self.assertEqual(caught.exception.failure["detail"], error.decode("utf-8"))
 
     def test_threads_pagination_and_bugbot_passes(self) -> None:
-        def thread(id: str, resolved: bool, run: str) -> dict[str, Any]:
+        def thread(id: str, resolved: bool, run: str) -> dict[str, object]:
             return {
                 "id": id,
                 "isResolved": resolved,
@@ -410,11 +553,11 @@ class WatcherTests(unittest.TestCase):
         ]
         calls = []
 
-        def query(argv: list[str]) -> dict[str, Any]:
+        def query(argv: list[str]) -> object:
             calls.append(argv)
             return {"data": {"repository": {"pullRequest": {"reviewThreads": pages.pop(0)}}}}
 
-        rows = self.github.GitHubReader(query).review_threads(CONTEXT)
+        rows = github.GitHubReader(query).review_threads(CONTEXT)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["id"], "unresolved")
         self.assertEqual(rows[0]["bugbotReviewPasses"], 2)
@@ -423,7 +566,7 @@ class WatcherTests(unittest.TestCase):
     def test_invalid_or_cyclic_pagination_is_rejected(self) -> None:
         for cursor in (None, ""):
 
-            def query(argv: list[str], cursor: str | None = cursor) -> dict[str, Any]:
+            def query(argv: list[str], cursor: str | None = cursor) -> object:
                 return {
                     "data": {
                         "repository": {
@@ -434,28 +577,31 @@ class WatcherTests(unittest.TestCase):
                     }
                 }
 
-            with self.assertRaises(self.github.QueryError):
-                self.github.GitHubReader(query).review_threads(CONTEXT)
+            with self.assertRaises(github.QueryError):
+                github.GitHubReader(query).review_threads(CONTEXT)
         self.reader.checks = []
         self.reader.pages = [{"checks": [check()], "endCursor": "same"}, {"checks": [], "endCursor": "same"}]
-        with self.assertRaises(self.github.QueryError):
-            self.github.resolve_checks(self.reader, CONTEXT)
+        with self.assertRaises(github.QueryError):
+            github.resolve_checks(self.reader, CONTEXT)
 
     def test_fast_checks_accept_pending_exit_and_fallback_on_malformed(self) -> None:
         import subprocess
 
         for code in (0, 1, 8):
             with patch.object(
-                self.github,
+                github,
                 "run",
                 return_value=subprocess.CompletedProcess(
                     [], code, json.dumps([{"name": "CI", "state": "PENDING", "bucket": "pending"}]), ""
                 ),
             ):
-                self.assertEqual(self.github.GitHubReader().checks_fast_path(CONTEXT)["checks"][0]["kind"], "pending")
+                fast = github.GitHubReader().checks_fast_path(CONTEXT)
+                if fast["kind"] != "checks":
+                    self.fail(f"unexpected fast path {fast}")
+                self.assertEqual(fast["checks"][0]["kind"], "pending")
         for text in ("bad json", "[{}]", "{}"):
-            with patch.object(self.github, "run", return_value=subprocess.CompletedProcess([], 0, text, "")):
-                self.assertEqual(self.github.GitHubReader().checks_fast_path(CONTEXT)["kind"], "unusable")
+            with patch.object(github, "run", return_value=subprocess.CompletedProcess([], 0, text, "")):
+                self.assertEqual(github.GitHubReader().checks_fast_path(CONTEXT)["kind"], "unusable")
 
     def test_context_urls_fail_closed(self) -> None:
         for url in (
@@ -464,30 +610,32 @@ class WatcherTests(unittest.TestCase):
             "https://user@github.com/o/r/pull/1",
             "https://github.com/o/r/pull/0",
         ):
-            with self.assertRaises(self.github.QueryError):
-                self.github.parse_pr_url(url)
-        self.assertEqual(self.github.parse_remote("git@github.com:o/r.git"), {"owner": "o", "repo": "r"})
-        self.assertIsNone(self.github.parse_remote("https://evil.test/o/r"))
+            with self.assertRaises(github.QueryError):
+                github.parse_pr_url(url)
+        self.assertEqual(github.parse_remote("git@github.com:o/r.git"), {"owner": "o", "repo": "r"})
+        self.assertIsNone(github.parse_remote("https://evil.test/o/r"))
 
     def test_queue_deduplicates_waits_and_sweeps_upstack(self) -> None:
-        self.options.update(timeout=180, sweepInterval=120)
-        contexts = [CONTEXT, CONTEXT | {"number": 2}]
-        result = self.policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
+        self.options = dataclasses.replace(self.options, timeout=180, sweep_interval=120)
+        contexts: list[schema.Context] = [CONTEXT, {**CONTEXT, "number": 2}]
+        result = policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
         self.assertEqual(result["exitCode"], 5)
         self.assertEqual(self.reader.reads, [1, 2, 1, 1, 2])
         self.assertEqual(len([e for e in self.events if e["kind"] == "WAITING"]), 1)
         self.assertEqual(len([e for e in self.events if e["kind"] == "STATUS"]), 2)
 
     def test_queue_ignores_upstack_pending_for_merge_frontier_wait(self) -> None:
-        contexts = [CONTEXT, CONTEXT | {"number": 2}]
+        contexts: list[schema.Context] = [CONTEXT, {**CONTEXT, "number": 2}]
 
-        def checks(context: dict[str, Any]) -> dict[str, Any]:
+        def checks(context: schema.Context) -> github.FastChecks:
             return {"kind": "checks", "checks": [check("pending" if context["number"] == 2 else "passed")]}
 
-        self.options["timeout"] = 10
+        self.options = dataclasses.replace(self.options, timeout=10)
         with patch.object(self.reader, "checks_fast_path", side_effect=checks):
-            self.policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
+            policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
         waiting = next(e for e in self.events if e["kind"] == "WAITING")
+        if waiting["kind"] != "WAITING":
+            self.fail(f"unexpected event {waiting}")
         self.assertEqual(waiting["frontier"]["number"], 1)
         self.assertEqual(waiting["reason"]["kind"], "merge-queue")
 

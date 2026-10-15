@@ -13,7 +13,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
+
+
+class PullRequestRef(TypedDict):
+    number: int
+    state: str
+    headRefName: str
 
 
 def run(argv: list[str], cwd: str | Path) -> str:
@@ -28,7 +34,7 @@ def run(argv: list[str], cwd: str | Path) -> str:
     ).stdout
 
 
-def read_prs(repo: str) -> tuple[list[dict[str, Any]], str]:
+def read_prs(repo: str) -> tuple[list[PullRequestRef], str]:
     try:
         value = json.loads(
             run(["gh", "pr", "list", "--state", "all", "--limit", "1000", "--json", "number,state,headRefName"], repo)

@@ -6,11 +6,14 @@ import argparse
 import math
 import sys
 from contextlib import redirect_stderr, redirect_stdout
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, TextIO
 
 from github import GitHubReader, QueryError, Reader, order_stack, pr_number, resolve_context
-from policy import Clock, WatchClock, run_queued, run_simple, status_query_verdict, verdict_factory
+from policy import Clock, Options, WatchClock, run_queued, run_simple, status_query_verdict, verdict_factory
 from render import render_json, render_pretty
+
+if TYPE_CHECKING:
+    from schema import Context, Event, Mode, Verdict
 
 
 def number(value: str, allow_zero: bool = False) -> float:
@@ -78,17 +81,17 @@ def main(
     except SystemExit as error:
         return 0 if error.code == 0 else 64
     reader, clock = reader or GitHubReader(), clock or Clock()
-    mode = "queued-stack" if args.queued_stack else "stack" if args.stack else "single"
-    options = {
-        "interval": args.interval,
-        "sweepInterval": args.sweep_interval,
-        "timeout": args.timeout,
-        "maxQueryErrors": args.max_query_errors,
-        "allowDraft": args.allow_draft,
-    }
+    mode: Mode = "queued-stack" if args.queued_stack else "stack" if args.stack else "single"
+    options = Options(
+        interval=args.interval,
+        sweep_interval=args.sweep_interval,
+        timeout=args.timeout,
+        max_query_errors=args.max_query_errors,
+        allow_draft=args.allow_draft,
+    )
     render = render_pretty if args.pretty else render_json
 
-    def emit(event: dict[str, Any]) -> None:
+    def emit(event: Event) -> None:
         stdout.write(render(event))
         stdout.flush()
 
@@ -96,15 +99,15 @@ def main(
         seed = resolve_context(
             reader, args.owner, args.repo, args.pr or (args.stack_prs[0] if args.stack_prs else None)
         )
-        contexts = (
-            [seed | {"number": n} for n in args.stack_prs]
+        contexts: list[Context] = (
+            [{**seed, "number": n} for n in args.stack_prs]
             if args.stack_prs
             else [seed]
             if mode == "single"
             else order_stack(seed, reader.open_pull_requests(seed))
         )
     except QueryError as error:
-        verdict = status_query_verdict(verdict_factory(clock, mode), 1, error.failure)
+        verdict: Verdict = status_query_verdict(verdict_factory(clock, mode), 1, error.failure)
     else:
         verdict = (
             run_queued(reader, clock, emit, contexts, options)
