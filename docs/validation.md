@@ -8,7 +8,7 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Orchestration cleanup: owner-approval gate — 2026-10-14 {#orchestration-gate}
 
-Bottom layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup), from main `e47fb8b`. `watch-pr` maps a completed `Code Review Gate` with conclusion `ACTION_REQUIRED` to the `code-review-gate` kind on both read paths; any other check with that conclusion stays `failed` with reported state `ACTION_REQUIRED`. The new regression failed against the unfixed `github.py` and passes with the fix. Manifests declare `0.8.1`.
+Adapted part of [upstream PR #613](https://github.com/cursor/plugins/pull/613) at merge `ce649c03ac3b75b6ae80cbd15b7e2c536caedb5a`, starting from main `e47fb8b`, as the bottom layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `watch-pr` maps a completed `Code Review Gate` with conclusion `ACTION_REQUIRED` to the `code-review-gate` kind on both read paths; any other check with that conclusion stays `failed` with reported state `ACTION_REQUIRED`. The new regression failed against the unfixed `github.py` and passes with the fix. Manifests declare `0.8.1`.
 
 Validation: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, and a clean `git diff --check`. No live PR was watched; the gate behavior is covered by mapping tests only.
 
