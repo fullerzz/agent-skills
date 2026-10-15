@@ -10,6 +10,8 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 The remaining Codex `SessionStart` handler now supplies `statusMessage`: "zstack session setup: load guidance and restore saved z-mode and Herdr preferences". This gives the hook a readable name and description in Codex's hook settings and running status.
 
+All three native plugin manifests advance together to `0.11.1` for this compatible packaged wording change, using `uv run scripts/bump_version.py patch`.
+
 On this macOS host, `uv run scripts/validate.py` reported 52 skills and zero structural problems; `node --test scripts/*.test.mjs` passed all 15 tests, including the docs build; and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` passed all 93 tests. A direct JSON comparison against HEAD confirmed that only `statusMessage` changed in the hook configuration.
 
 **Limits.** The installed app's hook settings renderer was inspected and uses `statusMessage` for the numbered row label. No installed plugin cache was refreshed and no live display of this new label was tested. Refreshing the plugin requires reviewing the changed hook through Codex's trust flow.
