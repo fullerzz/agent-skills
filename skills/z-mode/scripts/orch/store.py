@@ -161,13 +161,19 @@ def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
     return current_pr(rows, branch)
 
 
+def children_of(repo: Path, branch: str) -> list[dict[str, Any]]:
+    # A head that once targeted this branch is a child only if its current PR, from its full history, still does.
+    heads = {row["headRefName"] for row in list_prs(repo, "--base", branch, "all")}
+    return [pr for pr in (branch_pr(repo, head) for head in sorted(heads)) if pr["baseRefName"] == branch]
+
+
 def has_live_descendant(repo: Path, branch: str, seen: set[str]) -> bool:
-    for row in list_prs(repo, "--base", branch, "all"):
-        if row["state"] != "CLOSED":
+    for child in children_of(repo, branch):
+        if child["state"] != "CLOSED":
             return True
-        if row["headRefName"] not in seen:
-            seen.add(row["headRefName"])
-            if has_live_descendant(repo, row["headRefName"], seen):
+        if child["headRefName"] not in seen:
+            seen.add(child["headRefName"])
+            if has_live_descendant(repo, child["headRefName"], seen):
                 return True
     return False
 
@@ -181,9 +187,7 @@ def trunk_branch(repo: Path) -> str:
 
 
 def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
-    # A head that once targeted this branch is a child only if its current PR, from its full history, still does.
-    heads = {row["headRefName"] for row in list_prs(repo, "--base", branch, "all")}
-    children = [pr for pr in (branch_pr(repo, head) for head in sorted(heads)) if pr["baseRefName"] == branch]
+    children = children_of(repo, branch)
     for closed in (pr for pr in children if pr["state"] == "CLOSED"):
         if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
             raise UserError(f"closed PR #{closed['number']} still has open or merged descendants; retarget them")
@@ -207,6 +211,8 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
             raise UserError(f"pull request base chain loops at branch {bottom['baseRefName']}")
         seen.add(bottom["baseRefName"])
         bottom = branch_pr(repo, bottom["baseRefName"])
+        if bottom["state"] == "CLOSED":
+            raise UserError(f"closed PR #{bottom['number']} still has open or merged descendants; retarget them")
         chain.insert(0, bottom)
     tip = current
     while child := child_pr(repo, tip):
