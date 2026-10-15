@@ -32,14 +32,14 @@ BLOCKER: review-threads
 pr=1
 unresolved=2
 t1 app.py 3 cursor isBugBot=true bugbotReviewPasses=1 Bugbot RUN_ID: one
-t2 None None None isBugBot=false bugbotReviewPasses=1 
+t2 None None None isBugBot=false bugbotReviewPasses=1
 == failing-checks exit=4
 {"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":4,"blocker":{"kind":"failing-checks","pr":{"owner":"owner","repo":"repo","number":1},"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""},{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""},{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""}],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-failing","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}}}}
 == failing-checks --pretty exit=4
 BLOCKER: failing-checks
 pr=1
 failed=1
-CI FAILURE  
+CI FAILURE
 == github-rejected exit=4
 {"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":4,"blocker":{"kind":"failing-checks","pr":{"owner":"owner","repo":"repo","number":1},"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":true,"kind":"ci-github-rejected","github":{"mergeStateStatus":"BLOCKED","headRollupState":"FAILURE","kind":"refused"}}}}
 == github-rejected --pretty exit=4

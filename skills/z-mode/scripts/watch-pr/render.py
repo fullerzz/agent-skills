@@ -93,7 +93,8 @@ def blocker_text(blocker: Blocker) -> str:
             "changes-requested": "resolve the changes-requested review before waiting for the merge queue",
         }
         lines.append("action=" + actions[blocker["reason"]])
-    return "\n".join(lines)
+    # Empty trailing fields (a thread without a comment, a check without a link) would leave trailing spaces.
+    return "\n".join(line.rstrip() for line in lines)
 
 
 def plural(n: int) -> str:

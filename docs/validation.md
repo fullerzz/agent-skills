@@ -24,19 +24,21 @@ On this macOS host:
 
 - `just mypy` passed on 28 files, and ruff check and format were clean.
 - Structural validation found 53 skills and zero problems.
-- All 15 Node tests and all 124 Python tests passed, and `git diff --check` was clean.
+- All 15 Node tests and all 124 Python tests passed, and `git diff --check main...HEAD` was clean on the review-fix commit.
 
-**Watcher evidence.** The committed golden file `scripts/fixtures/watch-pr-events.golden` was generated from the HEAD modules. It runs 22 scenarios in JSON and `--pretty`, 44 runs in total. The runs cover:
+**Watcher evidence.** The committed golden file `scripts/fixtures/watch-pr-events.golden` was generated from the pre-refactor modules. It runs 22 scenarios in JSON and `--pretty`, 44 runs in total. The runs cover:
 
 - every verdict, blocker, wait and timeout kind
 - retries
 - stack, queued-stack and status-only modes
 
-The refactored modules reproduce it byte for byte. Reordering one key in a dict literal makes the golden test fail.
+The refactored modules reproduced it byte for byte. Reordering one key in a dict literal makes the golden test fail.
 
 **Parser evidence.** A scratch harness compared `GitHubReader` parsing with HEAD on valid and malformed responses. The only difference was the error detail for a non-object `gh pr list` row: `invalid open PR: 5` instead of `invalid number: 5`.
 
 **Fixed after review.** An intermediate version of this change read `reviewDecision` before `mergeable`, `mergeStateStatus` and `state`. That changed which error a payload with several bad fields reported. The original order is restored and covered by a regression test.
+
+**Correction after PR review.** The first version of this record said `git diff --check` was clean. That check ran while the golden file was still untracked, so git skipped it. On the committed range the check failed on two lines of the fixture, both from `--pretty` blocker lines whose trailing fields were empty: a review thread with no comment, and a failing check with no description or link. The renderer now trims trailing spaces from blocker lines. That is the only output change in this PR. The regenerated golden matches the pre-refactor output with trailing spaces stripped, and NDJSON output is unchanged.
 
 **orch evidence.** A scratch transcript ran 89 orch commands, compact and `--json`, against HEAD and the refactor. It included `frontier set` through a fake `gh`, malformed store files, and a hand-edited `frontier.json` with reordered and extra keys. After normalizing timestamps, paths and SHAs, the two transcripts were identical. An intermediate version rebuilt `frontier.json` and dropped unknown keys; `frontier_show` now returns the validated object unchanged.
 
