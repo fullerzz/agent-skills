@@ -307,6 +307,36 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                 publish([*rows[:2], {**rows[2], "state": "MERGED"}, *rows[3:]])
                 git("switch", "-q", "stack/a")
                 self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # An open sibling must not hide the live path through a merged child.
+                before = (store_dir / "frontier.json").read_bytes()
+                for state in ("OPEN", "MERGED"):
+                    with self.subTest(merged_child_descendant=state):
+                        publish(
+                            [
+                                rows[0],
+                                {**rows[2], "state": "MERGED"},
+                                {**rows[3], "state": state},
+                                {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                            ]
+                        )
+                        for branch in ("stack/a", "stack/b", "stack/c", "stack/d"):
+                            with self.subTest(start=branch):
+                                git("switch", "-q", branch)
+                                with self.assertRaisesRegex(module.UserError, "not linear"):
+                                    s.frontier_set(repo)
+                                self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
+                git("switch", "-q", "stack/a")
+                # A terminal merged sibling does not obscure the sole live path.
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "MERGED"},
+                        rows[3],
+                        {"number": 14, "state": "MERGED", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                    ]
+                )
+                with self.subTest(terminal_merged_sibling=True):
+                    self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
                 # A closed child with a live descendant is reported, not silently dropped.
                 publish([*rows[:2], {**rows[2], "state": "CLOSED"}, *rows[3:]])
                 with self.assertRaisesRegex(module.UserError, "closed PR #11"):
@@ -333,7 +363,26 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                 with self.assertRaisesRegex(module.UserError, "closed PR #11"):
                     s.frontier_set(repo)
                 git("switch", "-q", "stack/b")
-                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                for state, base in (
+                    ("OPEN", "stack/a"),
+                    ("MERGED", "stack/a"),
+                    ("OPEN", "trunk"),
+                    ("MERGED", "trunk"),
+                ):
+                    with self.subTest(closed_start_descendant=state, parent_base=base):
+                        publish([*reused[:2], {**reused[2], "baseRefName": base}, {**rows[3], "state": state}])
+                        before = (store_dir / "frontier.json").read_bytes()
+                        with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                            s.frontier_set(repo)
+                        self.assertEqual((store_dir / "frontier.json").read_bytes(), before)
+                # Closed ancestors with only closed descendants are inactive, not orphaned.
+                publish([{**r, "state": "CLOSED"} for r in (rows[0], rows[2], rows[3])])
+                for branch, expected in (("stack/b", [10, 11]), ("stack/c", [10, 11, 12])):
+                    with self.subTest(inactive_chain_start=branch):
+                        git("switch", "-q", branch)
+                        frontier = s.frontier_set(repo)
+                        self.assertEqual([r["pr"] for r in frontier["prs"]], expected)
+                        self.assertIsNone(frontier["lowestUnmerged"])
                 # A descendant reused against another base no longer counts under the closed child.
                 git("switch", "-q", "stack/a")
                 publish(

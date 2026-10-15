@@ -137,14 +137,6 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
     return [row for row in rows if not row["isCrossRepository"]]
 
 
-def current_rows(rows: list[dict[str, Any]], states: Sequence[str]) -> list[dict[str, Any]]:
-    """The first state in `states` that has rows holds the current child of a branch."""
-    for state in states:
-        if matches := [row for row in rows if row["state"] == state]:
-            return matches
-    return []
-
-
 def current_pr(rows: list[dict[str, Any]], branch: str) -> dict[str, Any]:
     if len(opened := [row for row in rows if row["state"] == "OPEN"]) > 1:
         raise UserError(
@@ -191,8 +183,15 @@ def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
     for closed in (pr for pr in children if pr["state"] == "CLOSED"):
         if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
             raise UserError(f"closed PR #{closed['number']} still has open or merged descendants; retarget them")
-    # A child merged into this branch still links the PRs above it; an open child is current.
-    rows = current_rows(children, ("OPEN", "MERGED"))
+    # Merged children with live descendants are active paths, just like open children.
+    rows = [
+        pr
+        for pr in children
+        if pr["state"] == "OPEN"
+        or (pr["state"] == "MERGED" and has_live_descendant(repo, pr["headRefName"], {branch, pr["headRefName"]}))
+    ]
+    if not rows:
+        rows = [pr for pr in children if pr["state"] == "MERGED"]
     if len(rows) > 1:
         raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in rows)} all target {branch}")
     return rows[0] if rows else None
@@ -211,8 +210,7 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
             raise UserError(f"pull request base chain loops at branch {bottom['baseRefName']}")
         seen.add(bottom["baseRefName"])
         bottom = branch_pr(repo, bottom["baseRefName"])
-        if bottom["state"] == "CLOSED":
-            raise UserError(f"closed PR #{bottom['number']} still has open or merged descendants; retarget them")
+        child_pr(repo, bottom["headRefName"])  # Validate sibling paths even when starting above the fork.
         chain.insert(0, bottom)
     tip = current
     while child := child_pr(repo, tip):
@@ -226,6 +224,8 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
     result = []
     for row in chain:
         branch = row["headRefName"]
+        if row["state"] == "CLOSED" and has_live_descendant(repo, branch, {branch}):
+            raise UserError(f"closed PR #{row['number']} still has open or merged descendants; retarget them")
         sha = command(["git", "rev-parse", "--verify", f"refs/heads/{branch}"], repo).strip()
         if not re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
             raise UserError(f"git rev-parse {branch} returned an invalid SHA")

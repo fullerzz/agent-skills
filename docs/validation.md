@@ -16,6 +16,12 @@ Live check against this repository's own three-PR stack (#40 to #42), running th
 
 Validation on the stack top: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, mypy clean across 27 files, and a clean `git diff --check`.
 
+### PR #41 remaining frontier findings — 2026-10-14
+
+Regression fixtures reproduced the hidden live path through a merged child, acceptance of a closed starting parent with live descendants, and rejection of entirely closed ancestor chains before the fixes. Child selection now considers live descendants of merged PRs alongside open siblings, including when resolution starts above the fork. Closed PRs in the resolved chain are rejected only when they have live descendants. Cases cover open and merged descendants, every starting branch around a fork, an inactive merged sibling, closed roots and intermediate parents, inactive chains, and preservation of the previous frontier on rejection.
+
+On this macOS host, structural validation reported 53 skills and zero problems; all 15 Node tests and 122 Python tests passed, mypy passed across 27 source files, and Ruff lint/format checks passed for the changed Python files. These are local fixture checks, not live GitHub topology mutations or a landing test.
+
 ## Orchestration cleanup: owner-approval gate — 2026-10-14 {#orchestration-gate}
 
 Adapted part of [upstream PR #613](https://github.com/cursor/plugins/pull/613) at merge `ce649c03ac3b75b6ae80cbd15b7e2c536caedb5a`, starting from main `e47fb8b`, as the bottom layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `watch-pr` maps a completed `Code Review Gate` with conclusion `ACTION_REQUIRED` to the `code-review-gate` kind on both read paths; any other check with that conclusion stays `failed` with reported state `ACTION_REQUIRED`. The new regression failed against the unfixed `github.py` and passes with the fix. A review follow-up added a snapshot test: `BLOCKED` with a failing head rollup and an `ACTION_REQUIRED` gate now reads `READY`, while the same rollup with only a pending gate still exits 4; it failed against the previous `policy.py`. The exemption reports `basis: owner-gate`. Limit: a failure that is absent from the enumerated checks but present in the rollup is indistinguishable from the gate on this path; GitHub still blocks the merge until approval, and Shipping re-checks current-head CI. Manifests declare `0.9.0`.
