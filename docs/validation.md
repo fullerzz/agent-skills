@@ -6,6 +6,16 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
+
+Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.8.2`.
+
+The rewritten fixture test drives a real Git repository through a fake `gh`: a merged parent its child still targets, a branch whose earlier PR closed, an open draft-style child, pin mismatches that leave `frontier.json` unchanged, a second open child (`not linear`), a parent without a PR, invalid JSON, and trunk (empty chain).
+
+Live check against this repository's own three-PR stack (#40 to #42), running the layer's code from a copy so checkouts did not swap it: from the middle and bottom branches it resolved `#40, #41, #42`, all `OPEN`, with local head SHAs and lowest unmerged `#40`; on `main` it returned no PRs; the pin `40,42,41` failed with `order differs`. Merged-parent and retarget states were exercised only in the fixture.
+
+Validation on the stack top: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, mypy clean across 27 files, and a clean `git diff --check`.
+
 ## Orchestration cleanup: owner-approval gate — 2026-10-14 {#orchestration-gate}
 
 Adapted part of [upstream PR #613](https://github.com/cursor/plugins/pull/613) at merge `ce649c03ac3b75b6ae80cbd15b7e2c536caedb5a`, starting from main `e47fb8b`, as the bottom layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `watch-pr` maps a completed `Code Review Gate` with conclusion `ACTION_REQUIRED` to the `code-review-gate` kind on both read paths; any other check with that conclusion stays `failed` with reported state `ACTION_REQUIRED`. The new regression failed against the unfixed `github.py` and passes with the fix. A review follow-up added a snapshot test: `BLOCKED` with a failing head rollup and an `ACTION_REQUIRED` gate now reads `READY`, while the same rollup with only a pending gate still exits 4; it failed against the previous `policy.py`. The exemption reports `basis: owner-gate`. Limit: a failure that is absent from the enumerated checks but present in the rollup is indistinguishable from the gate on this path; GitHub still blocks the merge until approval, and Shipping re-checks current-head CI. Manifests declare `0.9.0`.
