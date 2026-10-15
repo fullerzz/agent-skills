@@ -8,13 +8,13 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Codex hook label — 2026-10-15 {#codex-hook-label}
 
-The remaining Codex `SessionStart` handler now supplies `statusMessage`: "zstack session setup: load guidance and restore saved z-mode and Herdr preferences". This gives the hook a readable name and description in Codex's hook settings and running status.
+The remaining Codex `SessionStart` handler now supplies `statusMessage`: "zstack session setup: load guidance and restore saved z-mode and Herdr preferences". This adds a readable name and purpose to the hook's running status.
 
 All three native plugin manifests advance together to `0.11.1` for this compatible packaged wording change, using `uv run scripts/bump_version.py patch`.
 
 On this macOS host, `uv run scripts/validate.py` reported 52 skills and zero structural problems; `node --test scripts/*.test.mjs` passed all 15 tests, including the docs build; and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` passed all 93 tests. A direct JSON comparison against HEAD confirmed that only `statusMessage` changed in the hook configuration.
 
-**Limits.** The installed app's hook settings renderer was inspected and uses `statusMessage` for the numbered row label. No installed plugin cache was refreshed and no live display of this new label was tested. Refreshing the plugin requires reviewing the changed hook through Codex's trust flow.
+**Limits.** Source inspection of Codex App `26.1007.71326` (build `20398`) found that its hook settings renderer uses a non-empty `statusMessage` for the numbered row title. This is not a live UI result or a guarantee for older clients, which may retain generic numbered labels ([older-client report](https://github.com/openai/codex/issues/41611)). No installed plugin cache was refreshed and no live display of this new label was tested. Refreshing the plugin requires reviewing the changed hook through Codex's trust flow.
 
 ## Xray removal — 2026-10-15 {#xray-removal}
 
