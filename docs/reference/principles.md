@@ -94,9 +94,9 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Make operations idempotent {#principle-make-operations-idempotent}
 
-**Decision affected:** Compare current and desired state, then apply only missing changes so repeated or interrupted operations converge. Establish staleness with evidence valid across interruption points and execution environments.
+**Decision affected:** Compare current and desired state, then apply the required additions, updates, and safe removals within authorized scope so repeated or interrupted operations converge. Establish staleness with evidence valid across interruption points and execution environments.
 
-**Example:** On startup, recognize live sessions and create only missing ones. Clean abandoned artifacts only when ownership evidence establishes staleness within authorized scope; a PID alone may be ambiguous across hosts. Rerun after interruption points to check for duplicate work or deletion of live state.
+**Example:** Reconcile jobs by creating missing jobs, updating stale configuration, and safely removing obsolete duplicates within authorized scope. Clean abandoned artifacts only when ownership evidence establishes staleness; a PID alone may be ambiguous across hosts. Rerun after interruption points to check for duplicate work or deletion of live state.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-make-operations-idempotent/SKILL.md).
 

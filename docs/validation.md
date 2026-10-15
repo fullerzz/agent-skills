@@ -21,6 +21,12 @@ The first sandboxed attempts stopped at the mise shims with `Operation not permi
 
 Manual scenario review checked that the text retains empty-result and no-charge contracts, distinguishes external mocks from private helpers, accepts guards for legitimate first-start state while tracing malformed-state producers, permits time-based premise tests, and refuses to infer stale ownership from a PID alone across hosts. This is a prose review, not an independent model evaluation or a live host behavior result. No fresh Codex, Claude Code, or Hermes session exercised the revised guidance; upstream evaluation results are not claimed for this port.
 
+### PR #49 review repair
+
+Addressed the review's convergence gap: reconciliation now explicitly includes additions, updates to incorrect values, and safe removals of surplus resources within authorized scope. The reference example covers missing jobs, stale configuration, and obsolete duplicates; ownership and staleness safeguards remain intact. This is a wording correction within the unreleased `0.11.4` port.
+
+After the correction, `uv run scripts/validate.py` again reported 52 skills and zero problems, `node --test scripts/*.test.mjs` passed all 15 tests including the docs build, and `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'` passed all 93 tests. `git diff --check` passed. These checks validate structure and existing regressions, not fresh-host adherence to the revised prose.
+
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
 ## Plugin website metadata — 2026-10-15

@@ -10,7 +10,7 @@ Design operations so they converge to the correct state regardless of how many t
 
 **Why:** Commands, lifecycle operations, and processing loops run where crashes, restarts, and retries are normal. If partial state changes the next run's outcome, every restart becomes a debugging session.
 
-**The idea:** Read the current state, compare it with the desired state, and apply only the missing changes. Derive the next step from what exists, not what a previous run intended. Repeating completed work should find nothing left to change.
+**The idea:** Read the current state, compare it with the desired state, and apply the required delta: additions, updates to incorrect values, and safe removals of surplus resources within authorized scope. Derive the next step from what exists, not what a previous run intended. Repeating completed work should find nothing left to change.
 
 Leftover locks, temporary files, partial records, and claimed jobs need evidence that lets a later run distinguish stale artifacts from live work. That evidence must remain valid across possible interruption points and execution environments. A PID alone may not identify the owner across hosts or process reuse. Uncertain ownership is not permission to delete an artifact.
 
