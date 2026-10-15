@@ -339,6 +339,27 @@ print(json.dumps([r for r in rows if r[key] == args[3] and args[5] in ('all', r[
                     ]
                 )
                 self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10, 11, 12])
+                # A child branch reused against another base is judged by its newest PR, not this base's old one.
+                git("switch", "-q", "stack/a")
+                publish(
+                    [
+                        rows[0],
+                        {**rows[2], "state": "MERGED"},
+                        {"number": 16, "state": "CLOSED", "headRefName": "stack/b", "baseRefName": "trunk"},
+                    ]
+                )
+                self.assertEqual([r["pr"] for r in s.frontier_set(repo)["prs"]], [10])
+                # A closed child with a live descendant is reported even beside an open sibling.
+                publish(
+                    [
+                        {**rows[0], "state": "OPEN"},
+                        {**rows[2], "state": "CLOSED"},
+                        rows[3],
+                        {"number": 14, "state": "OPEN", "headRefName": "stack/d", "baseRefName": "stack/a"},
+                    ]
+                )
+                with self.assertRaisesRegex(module.UserError, "closed PR #11"):
+                    s.frontier_set(repo)
                 git("switch", "-q", "stack/b")
                 publish(rows[2:3])
                 with self.assertRaisesRegex(module.UserError, "stack/a"):

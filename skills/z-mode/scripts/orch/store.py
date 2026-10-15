@@ -181,16 +181,14 @@ def trunk_branch(repo: Path) -> str:
 
 
 def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
-    heads: dict[str, list[dict[str, Any]]] = {}
-    for row in list_prs(repo, "--base", branch, "all"):
-        heads.setdefault(row["headRefName"], []).append(row)
-    candidates = [current_pr(rows, head) for head, rows in heads.items()]
+    # A head that once targeted this branch is a child only if its current PR, from its full history, still does.
+    heads = {row["headRefName"] for row in list_prs(repo, "--base", branch, "all")}
+    children = [pr for pr in (branch_pr(repo, head) for head in sorted(heads)) if pr["baseRefName"] == branch]
+    for closed in (pr for pr in children if pr["state"] == "CLOSED"):
+        if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
+            raise UserError(f"closed PR #{closed['number']} still has open or merged descendants; retarget them")
     # A child merged into this branch still links the PRs above it; an open child is current.
-    rows = current_rows(candidates, ("OPEN", "MERGED"))
-    if not rows:
-        for closed in candidates:
-            if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
-                raise UserError(f"closed PR #{closed['number']} still has open or merged descendants; retarget them")
+    rows = current_rows(children, ("OPEN", "MERGED"))
     if len(rows) > 1:
         raise UserError(f"stack is not linear: {', '.join(r['headRefName'] for r in rows)} all target {branch}")
     return rows[0] if rows else None
