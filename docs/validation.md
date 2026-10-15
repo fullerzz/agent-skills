@@ -6,6 +6,12 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Orchestration cleanup: shipping safety — 2026-10-14 {#orchestration-shipping}
+
+Top layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). Shipping gains pinned force-push leases, a pre-merge trunk-drift check with a third-rebase hold, and the post-merge child retarget; Autopilot-full scales re-verification to the change; Autopilot-stack names the coordinator as the only link rebaser. Manifests declare `0.8.3`.
+
+This is a wording change checked statically: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, and a clean `git diff --check`. No playbook run landed a stack under the new rules, so they are not live-verified.
+
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 
 Second layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). `orch frontier set` walks the `gh` PR base chain instead of reading Graphite metadata. Manifests declare `0.9.1`.
