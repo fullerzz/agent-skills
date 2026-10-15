@@ -8,9 +8,11 @@ Historical observations below retain the names used during those runs (`pstack`,
 
 ## Orchestration cleanup: shipping safety — 2026-10-14 {#orchestration-shipping}
 
-Top layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). Shipping gains pinned force-push leases, a pre-merge trunk-drift check with a third-rebase hold, and the post-merge child retarget; Autopilot-full scales re-verification to the change; Autopilot-stack names the coordinator as the only link rebaser. Manifests declare `0.8.3`.
+Top layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). Shipping gains pinned force-push leases, a pre-merge trunk-drift check with a third-rebase hold, and the post-merge child retarget; Autopilot-full scales re-verification to the change; Autopilot-stack names the coordinator as the only link rebaser. Manifests declare `0.10.0`.
 
 This is a wording change checked statically: 53 skills with 0 structural problems, 15/15 Node tests, 121 Python tests, and a clean `git diff --check`. No playbook run landed a stack under the new rules, so they are not live-verified.
+
+Review fixes: step 6 applies only when the merged PR has a child, and opening-a-pr requires landing authority before invoking it. Autopilot-stack restates the one-verifier rule, including conflict resolution, and links Autopilot-full. A scratch repository checked the child move: after a parent fix round amended the parent commit and the parent was squash-merged, `git rebase --onto main <parent-final-head> child` stopped on an add/add conflict, while `git rebase --onto main <child-base> child` replayed only the child commit and kept the fixed parent content.
 
 ## Orchestration cleanup: frontier without Graphite — 2026-10-14 {#orchestration-frontier}
 

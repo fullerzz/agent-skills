@@ -22,6 +22,6 @@ Link detailed logs, measurements, and review artifacts instead of pasting SHA li
 
 ## Stacks and readiness
 
-For a requested stack, the first PR targets trunk and each child targets its parent branch. Create or retarget through the chosen tool and read back the actual base. When a parent merges, move its child onto trunk per [Shipping](shipping.md) step 6. Keep each layer's title and body about that layer's diff.
+For a requested stack, the first PR targets trunk and each child targets its parent branch. Create or retarget through the chosen tool and read back the actual base. After a parent merges under explicit landing authority, move its child onto trunk per [Shipping](shipping.md) step 6. Keep each layer's title and body about that layer's diff.
 
 Follow the user's requested draft/ready state and repository policy. Otherwise open ready for review, setting the state explicitly when the tool defaults to draft. Verify the actual state after creation and correct it through the chosen tool when necessary. Ready does not authorize merge or auto-merge.
