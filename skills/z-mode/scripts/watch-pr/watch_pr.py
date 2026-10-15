@@ -3,7 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""Watch PR readiness using read-only GitHub CLI calls."""
+"""Watch PR readiness using read-only GitHub (gh) or GitLab (glab) CLI calls."""
 
 import sys
 from pathlib import Path

@@ -32,12 +32,15 @@ if TYPE_CHECKING:
 
     import cli
     import github
+    import gitlab
     import policy
     import render
     import schema
 else:
     # The helpers import each other by bare name, so load dependencies first.
-    schema, github, policy, render, cli = (load(name) for name in ("schema", "github", "policy", "render", "cli"))
+    schema, github, gitlab, policy, render, cli = (
+        load(name) for name in ("schema", "github", "gitlab", "policy", "render", "cli")
+    )
 
 CONTEXT: schema.Context = {"owner": "owner", "repo": "repo", "number": 1}
 GOLDEN = Path(__file__).resolve().parent / "fixtures/watch-pr-events.golden"
@@ -94,6 +97,8 @@ class Clock:
 class Reader:
     """Fake gh adapter; the per-PR fields script multi-PR and retry scenarios."""
 
+    forge = "GitHub"
+
     def __init__(
         self,
         *,
@@ -108,7 +113,7 @@ class Reader:
         query_failures: int = 0,
     ) -> None:
         self.facts = facts(**(overrides or {}))
-        self.checks = [check()] if checks is None else checks
+        self.fast_checks = [check()] if checks is None else checks
         self.threads = threads or []
         self.rollups: list[github.CommitRollup] = (
             rollups if rollups is not None else [{"oid": "head", "state": "SUCCESS"}]
@@ -133,10 +138,16 @@ class Reader:
         return github.parse_pull_request(self.facts | self.overrides_by_pr.get(n, {}) | changes, context)
 
     def checks_fast_path(self, context: schema.Context) -> github.FastChecks | github.UnusableChecks:
-        return {"kind": "checks", "checks": self.checks_by_pr.get(context["number"], self.checks)}
+        return {"kind": "checks", "checks": self.checks_by_pr.get(context["number"], self.fast_checks)}
 
     def check_rollup_page(self, context: schema.Context, after: str | None) -> github.RollupPage:
         return self.pages.pop(0) if self.pages else {"checks": [], "endCursor": None}
+
+    def checks(self, context: schema.Context) -> github.ResolvedChecks:
+        return github.resolve_checks(self, context)
+
+    def web_url(self, context: schema.Context) -> str:
+        return f"https://{self.forge.lower()}.com/{context['owner']}/{context['repo']}/pull/{context['number']}"
 
     def review_threads(self, context: schema.Context) -> list[schema.Thread]:
         return self.threads
@@ -246,6 +257,49 @@ class GoldenStreamTests(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(golden_stream(), GOLDEN.read_text(encoding="utf-8"))
 
+    def test_pretty_output_names_the_reader_forge(self) -> None:
+        out = io.StringIO()
+        for _, args, factory in GOLDEN_SCENARIOS:
+            reader = factory()
+            reader.forge = "GitLab"
+            argv = ["--owner", "group/sub", "--repo", "repo", "--pretty", *args]
+            cli.main(
+                [*argv, *([] if "--stack-prs" in args else ["--pr", "1"])], reader=reader, clock=Clock(), stdout=out
+            )
+        text = out.getvalue()
+        self.assertNotIn("GitHub", text)
+        self.assertNotIn("github.com", text)
+        for phrase in ("GitLab authentication", "GitLab status", "https://gitlab.com/group/sub/"):
+            self.assertIn(phrase, text)
+        reader = Reader(overrides={"mergeStateStatus": "BLOCKED"}, rollups=[{"oid": "head", "state": "FAILURE"}])
+        reader.forge = "GitLab"
+        row = render.status_table([policy.read_snapshot(reader, CONTEXT)], reader)
+        self.assertIn("❌ GitLab reports failing checks", row)
+
+
+class ForgeSelectionTests(unittest.TestCase):
+    def test_auto_detection_and_explicit_gitlab_host(self) -> None:
+        for origin, forge, env, expected in [
+            ("git@github.com:o/r.git", None, "gitlab.example.com", None),
+            ("https://github.com/o/r", None, None, None),
+            ("git@gitlab.example.com:group/sub/proj.git", None, None, "gitlab.example.com"),
+            ("https://gitlab.com/group/proj.git", None, None, "gitlab.com"),
+            ("git@code.example.com:o/r.git", None, None, None),
+            ("", None, None, None),
+            ("git@gitlab.example.com:group/proj.git", "github", None, None),
+            ("git@gitlab.example.com:group/proj.git", "gitlab", "other.example.com", "gitlab.example.com"),
+            ("", "gitlab", "https://gitlab.internal/", "gitlab.internal"),
+            ("", "gitlab", " ", "gitlab.com"),
+            ("", "gitlab", None, "gitlab.com"),
+            ("git@github.com:o/r.git", "gitlab", None, "gitlab.com"),
+            ("https://github.com/o/r", "gitlab", "gitlab.internal", "gitlab.internal"),
+        ]:
+            with self.subTest(origin=origin, forge=forge, env=env):
+                self.assertEqual(cli.gitlab_host(origin, forge, env), expected)
+
+    def test_github_reader_url(self) -> None:
+        self.assertEqual(github.GitHubReader().web_url(CONTEXT), "https://github.com/owner/repo/pull/1")
+
 
 class WatcherTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -286,13 +340,13 @@ class WatcherTests(unittest.TestCase):
         self.reader.rollups = [{"oid": "head", "state": "FAILURE"}]
         self.reader.facts["mergeStateStatus"] = "BLOCKED"
         gate: schema.Check = {**check("code-review-gate", "Code Review Gate"), "reportedState": "ACTION_REQUIRED"}
-        self.reader.checks = [check(), gate]
+        self.reader.fast_checks = [check(), gate]
         self.assertEqual(self.run_simple()["kind"], "READY")
         self.assertEqual(
             policy.assess_github_merge("BLOCKED", "FAILURE", True),
             {"mergeStateStatus": "BLOCKED", "headRollupState": "FAILURE", "kind": "allowed", "basis": "owner-gate"},
         )
-        self.reader.checks = [check(), check("code-review-gate", "Code Review Gate")]
+        self.reader.fast_checks = [check(), check("code-review-gate", "Code Review Gate")]
         self.assertEqual(self.run_simple()["exitCode"], 4)
 
     def test_priority_across_stack(self) -> None:
@@ -309,7 +363,7 @@ class WatcherTests(unittest.TestCase):
 
     def test_pending_frontier_is_actual_waiting_pr(self) -> None:
         first = self.snapshot()
-        self.reader.checks = [check("pending")]
+        self.reader.fast_checks = [check("pending")]
         second = self.snapshot()
         second["context"] = {**CONTEXT, "number": 2}
         decision = policy.select_stack_decision([first, second])
@@ -319,10 +373,10 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(len(decision["pending"]), 1)
 
     def test_snapshot_skips_history_only_for_pending_queue(self) -> None:
-        self.reader.checks = [check("pending")]
+        self.reader.fast_checks = [check("pending")]
         policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
         self.assertEqual(self.reader.rollup_reads, 0)
-        self.reader.checks = [check("failed")]
+        self.reader.fast_checks = [check("failed")]
         policy.read_snapshot(self.reader, CONTEXT, pending_history="omit")
         self.assertEqual(self.reader.rollup_reads, 1)
         self.reader.facts["state"] = "MERGED"
@@ -331,7 +385,7 @@ class WatcherTests(unittest.TestCase):
 
     def test_poll_and_retry_delays_are_bounded(self) -> None:
         self.options = dataclasses.replace(self.options, timeout=10)
-        self.reader.checks = [check("pending")]
+        self.reader.fast_checks = [check("pending")]
         self.assertEqual(self.run_simple()["exitCode"], 5)
         self.assertEqual(self.clock.sleeps, [10])
         self.clock = Clock()
@@ -354,7 +408,7 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(result["blocker"]["failures"], 3)
 
     def test_checks_fallback_and_empty_fail_closed(self) -> None:
-        self.reader.checks = []
+        self.reader.fast_checks = []
         self.reader.pages = [
             {"checks": [check("pending")], "endCursor": "next"},
             {"checks": [check()], "endCursor": None},
@@ -510,7 +564,7 @@ class WatcherTests(unittest.TestCase):
         event = json.loads(out.getvalue())
         self.assertEqual(event["reason"], "status-only")
         self.assertEqual(len(event["rows"]), 2)
-        self.assertIn("| PR | CI | Review | Merge |", render.render_pretty(event))
+        self.assertIn("| PR | CI | Review | Merge |", render.render_pretty(event, self.reader))
 
     def test_frozen_stack_accepts_whitespace_and_hash_prefixes(self) -> None:
         for value in ("#10, 11,#12", " #10, #11,\t#12 "):
@@ -579,7 +633,7 @@ class WatcherTests(unittest.TestCase):
 
             with self.assertRaises(github.QueryError):
                 github.GitHubReader(query).review_threads(CONTEXT)
-        self.reader.checks = []
+        self.reader.fast_checks = []
         self.reader.pages = [{"checks": [check()], "endCursor": "same"}, {"checks": [], "endCursor": "same"}]
         with self.assertRaises(github.QueryError):
             github.resolve_checks(self.reader, CONTEXT)

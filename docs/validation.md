@@ -4,6 +4,32 @@ outline: [2, 3]
 
 # Validation
 
+## PR watcher GitLab support — 2026-10-15
+
+`watch-pr` now watches GitLab merge requests through `glab` as well as GitHub pull requests through `gh`. A new `gitlab.py` reader maps GitLab merge request data onto the existing facts, so policy, exit codes, and NDJSON schemaVersion 1 stay unchanged. It reads `detailed_merge_status`, head-pipeline jobs and bridges, MR pipelines, and resolvable discussions. Retained wire names are `ci-github-rejected`, the `github` key, and the `gh-pr-checks` and `graphql-rollup` sources; GitLab adds `gitlab-pipeline`. `--forge {github,gitlab}` overrides the default, which is detected from the origin remote. The `Reader` protocol gains `forge`, `checks`, and `web_url`, and pretty output names the forge. The last Graphite reference, `gt` in a subprocess comment, is gone. The shared plugin version advances from `0.11.4` to `0.12.0`.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 108 tests passed. The watcher golden fixture is byte-identical, so GitHub JSON and pretty output are unchanged. New GitLab tests use injected responses and a fake `glab` on `PATH` driven through `uv run watch_pr.py`.
+- Ruff check and format on the watcher and its tests, mypy (28 files, with Rich and PyYAML stubs), ty on `skills/z-mode/scripts`, and `git diff --check`: passed.
+
+Live read-only runs, unauthenticated `glab` 1.123.0 against public gitlab.com:
+
+- `glab api --paginate --output ndjson` emits one value per line across pages. An empty list emits nothing.
+- Merged MR `gitlab-org/cli!4124` mapped to `MERGED`. Its merge-train head pipeline runs on merge-ref sha `727a2ef` and was attributed to MR sha `95641f4`. Its 23 jobs read as 22 passed and 1 skipped.
+- On open MRs, `not_approved` mapped to `BLOCKED` and `REVIEW_REQUIRED`, and `unchecked` mapped to `UNKNOWN`.
+- `watch_pr.py --forge gitlab --owner gitlab-org --repo cli --pr 4124 --status-only` exited 0 in JSON and `--pretty`. The same check on GitHub PR #49 also exited 0.
+
+The first live GitLab run from this GitHub checkout exposed a bug: a forced `--forge gitlab` took `github.com` from the origin as the GitLab host and got HTTP 404. The fix ignores a GitHub origin when choosing the host, and a regression case covers it.
+
+Limits:
+
+- Discussions return 401 without authentication, so thread mapping is proven only by fixtures. No authenticated or self-hosted GitLab instance and no open-MR watch-to-READY cycle were exercised.
+- `detailed_merge_status` reports one blocking reason, so another reason can mask the review state.
+- Checks read the head pipeline's jobs and bridges. Child-pipeline jobs appear only through their bridge's status.
+
 ## Selective pstack principle durability port — 2026-10-15
 
 Ported the four guidance updates from [pstack PR #633](https://github.com/cursor/plugins/pull/633), aligned Correct and the principles reference, and recorded upstream attribution. The shared plugin version advances from `0.11.3` to `0.11.4` for compatible packaged wording changes. Explicit-only invocation metadata, scoped fixes, required validation, safe failure handling, and separate action authority remain intact; no executable behavior changed.

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, assert_never
 
-from github import QueryError, Reader, resolve_checks
+from github import QueryError, Reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -146,7 +146,7 @@ def read_snapshot(reader: Reader, context: Context, pending_history: str = "incl
         return {"kind": "merged", "context": context, "facts": facts}
     if facts["state"] == "CLOSED":
         return {"kind": "closed", "context": context, "facts": facts}
-    threads, checks = reader.review_threads(context), resolve_checks(reader, context)
+    threads, checks = reader.review_threads(context), reader.checks(context)
     failed = [c for c in checks["checks"] if c["kind"] == "failed"]
     pending = [c for c in checks["checks"] if c["kind"] == "pending"]
     base: CiBase = {

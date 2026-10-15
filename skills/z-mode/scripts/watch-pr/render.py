@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING, Protocol, assert_never
 
 if TYPE_CHECKING:
-    from schema import Blocker, Event, ReadyVerdict, Snapshot, TimeoutVerdict, WaitingEvent
+    from schema import Blocker, Context, Event, ReadyVerdict, Snapshot, TimeoutVerdict, WaitingEvent
+
+
+class Forge(Protocol):
+    forge: str
+
+    def web_url(self, context: Context) -> str: ...
 
 
 def render_json(event: Event) -> str:
     return json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
 
 
-def status_table(rows: list[Snapshot]) -> str:
+def status_table(rows: list[Snapshot], forge: Forge) -> str:
     lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"]
     for row in rows:
         context = row["context"]
@@ -29,7 +35,7 @@ def status_table(rows: list[Snapshot]) -> str:
             elif c["kind"] == "ci-failing":
                 ci = f"❌ {len(c['failed'])} failed" + (f", {len(c['pending'])} pending" if c["pending"] else "") + was
             else:
-                ci = "❌ GitHub reports failing checks" + was
+                ci = f"❌ {forge.forge} reports failing checks" + was
             n = len(row["threads"])
             review = (
                 ("🤖 running" + (f", {n} open" if n else ""))
@@ -47,17 +53,16 @@ def status_table(rows: list[Snapshot]) -> str:
                 if facts["mergeable"] == "CONFLICTING" or facts["mergeStateStatus"] in ("DIRTY", "CONFLICTING")
                 else "✅"
             )
-        url = f"https://github.com/{context['owner']}/{context['repo']}/pull/{context['number']}"
-        lines.append(f"| [#{context['number']}]({url}) | {ci} | {review} | {merge} |")
+        lines.append(f"| [#{context['number']}]({forge.web_url(context)}) | {ci} | {review} | {merge} |")
     return "\n".join(lines) + "\n"
 
 
-def blocker_text(blocker: Blocker) -> str:
+def blocker_text(blocker: Blocker, forge: Forge) -> str:
     if blocker["kind"] == "status-query":
         return (
             f"BLOCKER: status-query\nfailures={blocker['failures']}\n"
             f"detail={blocker['failure']['detail']}\n"
-            "action=verify current PR context, GitHub authentication, and API availability, then rearm"
+            f"action=verify current PR context, {forge.forge} authentication, and API availability, then rearm"
         )
     title = blocker["reason"] if blocker["kind"] == "merge-gate" else blocker["kind"]
     lines = [f"BLOCKER: {title}", f"pr={blocker['pr']['number']}"]
@@ -116,12 +121,12 @@ def render_ready(event: ReadyVerdict) -> str:
     return "READY: no merge conflicts, no unresolved review threads, no failing or pending checks" + detail + "\n"
 
 
-def render_timeout(event: TimeoutVerdict) -> str:
+def render_timeout(event: TimeoutVerdict, forge: Forge) -> str:
     reason = event["reason"]
     if reason["kind"] == "pending-checks":
         return "TIMEOUT: checks still pending\n"
     if reason["kind"] == "status-unavailable":
-        return "TIMEOUT: GitHub status remained unavailable\n"
+        return f"TIMEOUT: {forge.forge} status remained unavailable\n"
     n = reason["unmergedCount"]
     return f"TIMEOUT: queued stack still has {n} PR{plural(n)} unmerged; frontier=#{reason['frontier']['number']}\n"
 
@@ -135,9 +140,9 @@ def render_waiting(event: WaitingEvent) -> str:
     return f"WAITING: frontier=#{n} is blocker-free; waiting for merge queue ({count} PR{plural(count)} unmerged)\n"
 
 
-def render_pretty(event: Event) -> str:
+def render_pretty(event: Event, forge: Forge) -> str:
     if event["kind"] == "STATUS":
-        return status_table(event["rows"])
+        return status_table(event["rows"], forge)
     if event["kind"] == "QUEUE":
         n = len(event["queue"])
         return (
@@ -154,16 +159,16 @@ def render_pretty(event: Event) -> str:
         )
     if event["kind"] == "RETRY":
         return (
-            f"RETRY: GitHub status query failed; retrying in {event['retryInSeconds']:g}s\n"
+            f"RETRY: {forge.forge} status query failed; retrying in {event['retryInSeconds']:g}s\n"
             f"detail={event['failure']['detail']}\n"
         )
     if event["kind"] == "BLOCKER":
-        return blocker_text(event["blocker"]) + "\n"
+        return blocker_text(event["blocker"], forge) + "\n"
     if event["kind"] == "READY":
         return render_ready(event)
     if event["kind"] == "COMPLETE":
         n = len(event["queue"])
         return f"COMPLETE: queued stack merged ({n} PR{plural(n)})\n"
     if event["kind"] == "TIMEOUT":
-        return render_timeout(event)
+        return render_timeout(event, forge)
     assert_never(event)
