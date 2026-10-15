@@ -5,11 +5,28 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from typing import TYPE_CHECKING, Any, NoReturn, Protocol
+from typing import TYPE_CHECKING, Literal, NoReturn, Protocol, TypedDict, Unpack
 from urllib.parse import urlsplit
+
+from schema import MERGE_STATES, MERGEABLE, PR_STATES, REVIEW_DECISIONS, ROLLUP_STATES
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    from schema import (
+        Check,
+        CheckDetails,
+        CheckKind,
+        CheckSource,
+        Comment,
+        Context,
+        Failure,
+        FailureExtra,
+        PullRequestFacts,
+        Repo,
+        RollupState,
+        Thread,
+    )
 
 REVIEW_THREADS_QUERY = """query ReviewThreads($owner: String!, $repo: String!, $pr: Int!, $after: String) {
  repository(owner: $owner, name: $repo) { pullRequest(number: $pr) {
@@ -24,16 +41,45 @@ PR_CHECK_ROLLUP_QUERY = """query PrCheckRollup($owner: String!, $repo: String!, 
  commit { statusCheckRollup { contexts(first: 100, after: $after) { pageInfo { hasNextPage endCursor }
  nodes { __typename ... on CheckRun { name status conclusion detailsUrl }
  ... on StatusContext { context state targetUrl } } } } } } } } } }"""
-MERGE_STATES = ("BEHIND", "BLOCKED", "CLEAN", "CONFLICTING", "DIRTY", "DRAFT", "HAS_HOOKS", "UNKNOWN", "UNSTABLE")
-ROLLUP_STATES = ("ERROR", "EXPECTED", "FAILURE", "PENDING", "SUCCESS")
-REVIEW_DECISIONS = ("APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED")
 MISSING = object()
 
 
+class OpenPullRequest(TypedDict):
+    number: int
+    headRefName: str
+    baseRefName: str
+
+
+class FastChecks(TypedDict):
+    kind: Literal["checks"]
+    checks: list[Check]
+
+
+class UnusableChecks(TypedDict):
+    kind: Literal["unusable"]
+    exitCode: int
+    stderr: str
+
+
+class RollupPage(TypedDict):
+    checks: list[Check]
+    endCursor: str | None
+
+
+class CommitRollup(TypedDict):
+    oid: str
+    state: RollupState | None
+
+
+class ResolvedChecks(TypedDict):
+    source: CheckSource
+    checks: list[Check]
+
+
 class QueryError(Exception):
-    def __init__(self, kind: str, detail: str, retryable: bool = True, **extra: object) -> None:
+    def __init__(self, kind: str, detail: str, retryable: bool = True, **extra: Unpack[FailureExtra]) -> None:
         super().__init__(detail)
-        self.failure = dict(kind=kind, retryable=retryable, detail=detail, **extra)
+        self.failure: Failure = {"kind": kind, "retryable": retryable, "detail": detail, **extra}
 
 
 def first_line(value: str) -> str:
@@ -74,13 +120,13 @@ def missing(path: str, value: object = MISSING) -> NoReturn:
     raise QueryError("missing-key", f"invalid {path}: {raw}", rawValue=raw)
 
 
-def record(value: object, path: str) -> dict[str, Any]:
+def record(value: object, path: str) -> dict[str, object]:
     if not isinstance(value, dict):
         missing(path, value)
     return value
 
 
-def array(value: object, path: str) -> list[Any]:
+def array(value: object, path: str) -> list[object]:
     if not isinstance(value, list):
         missing(path, value)
     return value
@@ -105,12 +151,15 @@ def nullable_string(value: object, path: str) -> str | None:
     return None if value is None else string(value, path)
 
 
-def enum(value: object, values: Sequence[str], path: str, nullable: bool = False) -> str | None:
-    if nullable and value is None:
-        return None
-    if not isinstance(value, str) or value not in values:
-        missing(path, value)
-    return value
+def enum[T: str](value: object, values: Sequence[T], path: str) -> T:
+    for choice in values:
+        if value == choice:
+            return choice
+    missing(path, value)
+
+
+def optional_enum[T: str](value: object, values: Sequence[T], path: str) -> T | None:
+    return None if value is None else enum(value, values, path)
 
 
 def pr_number(value: object) -> int:
@@ -134,7 +183,7 @@ def canonical_parts(value: str) -> list[str]:
     return [part for part in url.path.split("/") if part]
 
 
-def parse_remote(value: str) -> dict[str, Any] | None:
+def parse_remote(value: str) -> Repo | None:
     value = value.strip()
     for prefix in ("git@github.com:", "ssh://git@github.com/"):
         if value.startswith(prefix):
@@ -146,7 +195,7 @@ def parse_remote(value: str) -> dict[str, Any] | None:
         return None
 
 
-def parse_pr_url(value: str) -> dict[str, Any]:
+def parse_pr_url(value: str) -> Context:
     try:
         parts = canonical_parts(value)
         if len(parts) != 4 or parts[2] != "pull":
@@ -158,54 +207,62 @@ def parse_pr_url(value: str) -> dict[str, Any]:
         ) from error
 
 
-def details(value: dict[str, Any], name_key: str) -> dict[str, Any]:
+def optional_text(value: dict[str, object], key: str) -> str:
+    item = value.get(key)
+    return item if isinstance(item, str) else ""
+
+
+def details(value: dict[str, object], name_key: str) -> CheckDetails:
     return {
         "name": string(value.get(name_key), name_key),
-        "description": value.get("description") if isinstance(value.get("description"), str) else "",
-        "link": next((value[k] for k in ("link", "detailsUrl") if isinstance(value.get(k), str)), ""),
-        "workflow": value.get("workflow") if isinstance(value.get("workflow"), str) else "",
+        "description": optional_text(value, "description"),
+        "link": next((link for k in ("link", "detailsUrl") if isinstance(link := value.get(k), str)), ""),
+        "workflow": optional_text(value, "workflow"),
     }
+
+
+def check(base: CheckDetails, kind: CheckKind, state: str) -> Check:
+    return {**base, "kind": kind, "reportedState": state}
 
 
 # The owner-approval gate waits on a human, so it counts as neither pending nor failed.
-def gate_or(kind: str, value: dict[str, Any], state: str) -> dict[str, Any]:
-    return value | {
-        "kind": "code-review-gate" if value["name"] == "Code Review Gate" else kind,
-        "reportedState": state,
-    }
+def gate_or(kind: CheckKind, value: CheckDetails, state: str) -> Check:
+    return check(value, "code-review-gate" if value["name"] == "Code Review Gate" else kind, state)
 
 
-def parse_fast_check(value: object) -> dict[str, Any]:
+def parse_fast_check(value: object) -> Check:
     value = record(value, "check")
     base = details(value, "name")
     state = string(value.get("state"), "check.state").upper()
     bucket = string(value.get("bucket"), "check.bucket")
     if state == "ACTION_REQUIRED":
         return gate_or("failed", base, state)
+    kind: CheckKind
     if bucket == "fail" or state in ("FAILURE", "ERROR"):
         kind = "failed"
     elif bucket == "pending":
         return gate_or("pending", base, state)
     else:
-        kind = {"pass": "passed", "skipping": "skipped"}.get(bucket, "failed")
-    return base | {"kind": kind, "reportedState": state}
+        kind = "passed" if bucket == "pass" else "skipped" if bucket == "skipping" else "failed"
+    return check(base, kind, state)
 
 
-def map_rollup_node(value: object) -> dict[str, Any] | None:
+def map_rollup_node(value: object) -> Check | None:
     value = record(value, "rollup node")
     typename = value.get("__typename")
     if typename not in ("CheckRun", "StatusContext"):
         return None
     base = details(value, "name" if typename == "CheckRun" else "context")
-    if isinstance(value.get("targetUrl"), str):
-        base["link"] = value["targetUrl"]
+    if isinstance(target := value.get("targetUrl"), str):
+        base["link"] = target
+    kind: CheckKind
     if typename == "CheckRun":
         status, conclusion = str(value.get("status") or "").upper(), str(value.get("conclusion") or "").upper()
         if status != "COMPLETED":
             return gate_or("pending", base, "PENDING")
         if conclusion == "ACTION_REQUIRED":
             return gate_or("failed", base, conclusion)
-        kind = {"SUCCESS": "passed", "NEUTRAL": "skipped", "SKIPPED": "skipped"}.get(conclusion, "failed")
+        kind = "passed" if conclusion == "SUCCESS" else "skipped" if conclusion in ("NEUTRAL", "SKIPPED") else "failed"
         state = conclusion if conclusion in ("SUCCESS", "NEUTRAL", "SKIPPED") else "FAILURE"
     else:
         state = str(value.get("state") or "").upper()
@@ -213,36 +270,38 @@ def map_rollup_node(value: object) -> dict[str, Any] | None:
             return gate_or("pending", base, "PENDING")
         kind = "passed" if state == "SUCCESS" else "failed"
         state = state or "FAILURE"
-    return base | {"kind": kind, "reportedState": state}
+    return check(base, kind, state)
 
 
-def parse_pull_request(value: object, context: dict[str, Any]) -> dict[str, Any]:
+def parse_pull_request(value: object, context: Context) -> PullRequestFacts:
     value = record(value, "pull request")
-    if type(value.get("isDraft")) is not bool:
-        missing("pull request.isDraft", value.get("isDraft"))
-    result = {"context": context, "isDraft": value["isDraft"]}
-    for key, choices in [
-        ("mergeable", ("MERGEABLE", "CONFLICTING", "UNKNOWN")),
-        ("mergeStateStatus", MERGE_STATES),
-        ("state", ("OPEN", "CLOSED", "MERGED")),
-    ]:
-        result[key] = enum(at(value, key), choices, "pull request." + key)
-    decision = at(value, "reviewDecision")
-    result["reviewDecision"] = enum(
-        None if decision == "" else decision, REVIEW_DECISIONS, "pull request.reviewDecision", True
-    )
-    for key in ("headRefOid", "mergedAt"):
-        result[key] = nullable_string(at(value, key), "pull request." + key)
-    for key in ("headRefName", "baseRefName"):
-        result[key] = string(at(value, key), "pull request." + key)
-    return result
+    is_draft = value.get("isDraft")
+    if not isinstance(is_draft, bool):
+        missing("pull request.isDraft", is_draft)
+    return {
+        "context": context,
+        "isDraft": is_draft,
+        "mergeable": enum(at(value, "mergeable"), MERGEABLE, "pull request.mergeable"),
+        "mergeStateStatus": enum(at(value, "mergeStateStatus"), MERGE_STATES, "pull request.mergeStateStatus"),
+        "state": enum(at(value, "state"), PR_STATES, "pull request.state"),
+        # gh pr view reports a missing review decision as "".
+        "reviewDecision": optional_enum(
+            None if (decision := at(value, "reviewDecision")) == "" else decision,
+            REVIEW_DECISIONS,
+            "pull request.reviewDecision",
+        ),
+        "headRefOid": nullable_string(at(value, "headRefOid"), "pull request.headRefOid"),
+        "mergedAt": nullable_string(at(value, "mergedAt"), "pull request.mergedAt"),
+        "headRefName": string(at(value, "headRefName"), "pull request.headRefName"),
+        "baseRefName": string(at(value, "baseRefName"), "pull request.baseRefName"),
+    }
 
 
-def parse_comment(value: object) -> dict[str, Any]:
+def parse_comment(value: object) -> Comment:
     value = record(value, "review comment")
     author = at(value, "author")
     line = at(value, "line")
-    if line is not None and type(line) is not int:
+    if line is not None and (not isinstance(line, int) or isinstance(line, bool)):
         missing("review comment.line", line)
     return {
         "authorLogin": None if author is None else nullable_string(at(author, "login"), "author.login"),
@@ -253,7 +312,7 @@ def parse_comment(value: object) -> dict[str, Any]:
     }
 
 
-def is_bugbot(comment: dict[str, Any] | None) -> bool:
+def is_bugbot(comment: Comment | None) -> bool:
     if comment is None:
         return False
     author, body = (comment["authorLogin"] or "").lower(), comment["body"].lower()
@@ -266,13 +325,16 @@ def is_bugbot(comment: dict[str, Any] | None) -> bool:
     )
 
 
-def parse_review_threads(value: object) -> list[dict[str, Any]]:
+def parse_review_threads(value: object) -> list[Thread]:
     nodes = array(at(value, "data", "repository", "pullRequest", "reviewThreads", "nodes"), "reviewThreads.nodes")
-    threads, keys, keyless = [], set(), False
-    for node in nodes:
-        record(node, "review thread")
-        if type(node.get("isResolved")) is not bool:
-            missing("review thread.isResolved", node.get("isResolved"))
+    unresolved: list[tuple[str, Comment | None, bool]] = []
+    keys: set[str] = set()
+    keyless = False
+    for raw in nodes:
+        node = record(raw, "review thread")
+        resolved = node.get("isResolved")
+        if not isinstance(resolved, bool):
+            missing("review thread.isResolved", resolved)
         comments = array(at(node, "comments", "nodes"), "comments.nodes")
         comment = parse_comment(comments[0]) if comments else None
         bugbot = is_bugbot(comment)
@@ -284,15 +346,16 @@ def parse_review_threads(value: object) -> list[dict[str, Any]]:
                 keys.add(match[1])
             else:
                 keyless = True
-        if not node["isResolved"]:
-            threads.append(
-                {"id": string(at(node, "id"), "review thread.id"), "firstComment": comment, "isBugbot": bugbot}
-            )
+        if not resolved:
+            unresolved.append((string(at(node, "id"), "review thread.id"), comment, bugbot))
     passes = len(keys) or int(keyless)
-    return [row | {"bugbotReviewPasses": passes} for row in threads]
+    return [
+        {"id": id, "firstComment": comment, "isBugbot": bugbot, "bugbotReviewPasses": passes}
+        for id, comment, bugbot in unresolved
+    ]
 
 
-def graphql_args(query: str, context: dict[str, Any], after: str | None = None) -> list[str]:
+def graphql_args(query: str, context: Context, after: str | None = None) -> list[str]:
     args = [
         "gh",
         "api",
@@ -311,12 +374,13 @@ def graphql_args(query: str, context: dict[str, Any], after: str | None = None) 
     return args
 
 
-def next_cursor(connection: dict[str, Any], seen: set[str]) -> str | None:
+def next_cursor(connection: dict[str, object], seen: set[str]) -> str | None:
     page = record(at(connection, "pageInfo"), "pageInfo")
-    if type(page.get("hasNextPage")) is not bool:
-        missing("pageInfo.hasNextPage", page.get("hasNextPage"))
+    has_next = page.get("hasNextPage")
+    if not isinstance(has_next, bool):
+        missing("pageInfo.hasNextPage", has_next)
     cursor = nullable_string(at(page, "endCursor"), "pageInfo.endCursor")
-    if not page["hasNextPage"]:
+    if not has_next:
         return None
     if not cursor or cursor in seen:
         missing("pageInfo.endCursor", cursor)
@@ -325,25 +389,25 @@ def next_cursor(connection: dict[str, Any], seen: set[str]) -> str | None:
 
 
 class Reader(Protocol):
-    def origin_repo(self) -> dict[str, Any] | None: ...
-    def current_pr(self, pr: int | None) -> dict[str, Any]: ...
-    def pull_request(self, context: dict[str, Any]) -> dict[str, Any]: ...
-    def open_pull_requests(self, context: dict[str, Any]) -> list[dict[str, Any]]: ...
-    def checks_fast_path(self, context: dict[str, Any]) -> dict[str, Any]: ...
-    def check_rollup_page(self, context: dict[str, Any], after: str | None) -> dict[str, Any]: ...
-    def review_threads(self, context: dict[str, Any]) -> list[dict[str, Any]]: ...
-    def commit_rollups(self, context: dict[str, Any]) -> list[dict[str, Any]]: ...
+    def origin_repo(self) -> Repo | None: ...
+    def current_pr(self, pr: int | None) -> Context: ...
+    def pull_request(self, context: Context) -> PullRequestFacts: ...
+    def open_pull_requests(self, context: Context) -> list[OpenPullRequest]: ...
+    def checks_fast_path(self, context: Context) -> FastChecks | UnusableChecks: ...
+    def check_rollup_page(self, context: Context, after: str | None) -> RollupPage: ...
+    def review_threads(self, context: Context) -> list[Thread]: ...
+    def commit_rollups(self, context: Context) -> list[CommitRollup]: ...
 
 
 class GitHubReader:
     def __init__(self, query_json: Callable[[list[str]], object] = run_json) -> None:
         self.query_json = query_json
 
-    def origin_repo(self) -> dict[str, Any] | None:
+    def origin_repo(self) -> Repo | None:
         result = run(["git", "remote", "get-url", "origin"])
         return parse_remote(result.stdout) if result.returncode == 0 else None
 
-    def current_pr(self, pr: int | None) -> dict[str, Any]:
+    def current_pr(self, pr: int | None) -> Context:
         args = ["gh", "pr", "view"] + ([str(pr)] if pr is not None else []) + ["--json", "number,url"]
         value = record(self.query_json(args), "current PR")
         result = parse_pr_url(string(at(value, "url"), "current PR.url"))
@@ -353,7 +417,7 @@ class GitHubReader:
             missing("current PR.number", value.get("number"))
         return result
 
-    def pull_request(self, context: dict[str, Any]) -> dict[str, Any]:
+    def pull_request(self, context: Context) -> PullRequestFacts:
         value = self.query_json(
             [
                 "gh",
@@ -368,7 +432,7 @@ class GitHubReader:
         )
         return parse_pull_request(value, context)
 
-    def open_pull_requests(self, context: dict[str, Any]) -> list[dict[str, Any]]:
+    def open_pull_requests(self, context: Context) -> list[OpenPullRequest]:
         values = self.query_json(
             [
                 "gh",
@@ -384,8 +448,9 @@ class GitHubReader:
                 "number,headRefName,baseRefName",
             ]
         )
-        rows = []
-        for value in array(values, "open PRs"):
+        rows: list[OpenPullRequest] = []
+        for raw in array(values, "open PRs"):
+            value = record(raw, "open PR")
             try:
                 number = pr_number(at(value, "number"))
             except ValueError:
@@ -399,7 +464,7 @@ class GitHubReader:
             )
         return rows
 
-    def checks_fast_path(self, context: dict[str, Any]) -> dict[str, Any]:
+    def checks_fast_path(self, context: Context) -> FastChecks | UnusableChecks:
         result = run(
             [
                 "gh",
@@ -421,7 +486,7 @@ class GitHubReader:
                 pass
         return {"kind": "unusable", "exitCode": result.returncode, "stderr": result.stderr}
 
-    def check_rollup_page(self, context: dict[str, Any], after: str | None) -> dict[str, Any]:
+    def check_rollup_page(self, context: Context, after: str | None) -> RollupPage:
         value = self.query_json(graphql_args(PR_CHECK_ROLLUP_QUERY, context, after))
         commits = array(at(value, "data", "repository", "pullRequest", "commits", "nodes"), "commits.nodes")
         if not commits:
@@ -437,8 +502,8 @@ class GitHubReader:
         ]
         return {"checks": checks, "endCursor": next_cursor(connection, {after} if after else set())}
 
-    def review_threads(self, context: dict[str, Any]) -> list[dict[str, Any]]:
-        nodes: list[Any] = []
+    def review_threads(self, context: Context) -> list[Thread]:
+        nodes: list[object] = []
         after: str | None = None
         seen: set[str] = set()
         while True:
@@ -458,10 +523,10 @@ class GitHubReader:
                 break
         return parse_review_threads({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}})
 
-    def commit_rollups(self, context: dict[str, Any]) -> list[dict[str, Any]]:
+    def commit_rollups(self, context: Context) -> list[CommitRollup]:
         value = self.query_json(graphql_args(PR_COMMIT_STATUS_QUERY, context))
         commits = array(at(value, "data", "repository", "pullRequest", "commits", "nodes"), "commits.nodes")
-        result = []
+        result: list[CommitRollup] = []
         for node in commits:
             commit = at(node, "commit")
             rollup = at(commit, "statusCheckRollup")
@@ -470,17 +535,19 @@ class GitHubReader:
                     "oid": string(at(commit, "oid"), "commit.oid"),
                     "state": None
                     if rollup is None
-                    else enum(at(rollup, "state"), ROLLUP_STATES, "statusCheckRollup.state", True),
+                    else optional_enum(at(rollup, "state"), ROLLUP_STATES, "statusCheckRollup.state"),
                 }
             )
         return result
 
 
-def resolve_checks(reader: Reader, context: dict[str, Any]) -> dict[str, Any]:
+def resolve_checks(reader: Reader, context: Context) -> ResolvedChecks:
     fast = reader.checks_fast_path(context)
     if fast["kind"] == "checks" and fast["checks"]:
         return {"source": "gh-pr-checks", "checks": fast["checks"]}
-    checks, after, seen = [], None, set()
+    checks: list[Check] = []
+    after: str | None = None
+    seen: set[str] = set()
     while True:
         page = reader.check_rollup_page(context, after)
         checks.extend(page["checks"])
@@ -500,7 +567,7 @@ def resolve_checks(reader: Reader, context: dict[str, Any]) -> dict[str, Any]:
     raise QueryError("checks-unavailable", "could not read PR checks: " + suffix)
 
 
-def resolve_context(reader: Reader, owner: str | None, repo: str | None, pr: int | None) -> dict[str, Any]:
+def resolve_context(reader: Reader, owner: str | None, repo: str | None, pr: int | None) -> Context:
     if pr is not None and owner is not None and repo is not None:
         return {"owner": owner, "repo": repo, "number": pr}
     if pr is not None:
@@ -519,21 +586,22 @@ def resolve_context(reader: Reader, owner: str | None, repo: str | None, pr: int
     }
 
 
-def order_stack(context: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def order_stack(context: Context, rows: list[OpenPullRequest]) -> list[Context]:
     by_number, by_head = {r["number"]: r for r in rows}, {r["headRefName"]: r for r in rows}
     start = by_number.get(context["number"])
     if start is None:
         return [context]
-    down, current, seen = [], start, {start["number"]}
+    down: list[OpenPullRequest] = []
+    current, seen = start, {start["number"]}
     while current["baseRefName"] in by_head:
         current = by_head[current["baseRefName"]]
         if current["number"] in seen:
             raise QueryError("missing-key", "cycle in PR stack")
         seen.add(current["number"])
         down.append(current)
-    up = []
+    up: list[OpenPullRequest] = []
 
-    def visit(parent: dict[str, Any]) -> None:
+    def visit(parent: OpenPullRequest) -> None:
         for child in sorted(rows, key=lambda r: r["number"]):
             if child["baseRefName"] == parent["headRefName"] and child["number"] not in seen:
                 seen.add(child["number"])
@@ -541,4 +609,4 @@ def order_stack(context: dict[str, Any], rows: list[dict[str, Any]]) -> list[dic
                 visit(child)
 
     visit(start)
-    return [context | {"number": r["number"]} for r in [*list(reversed(down)), start, *up]]
+    return [{**context, "number": r["number"]} for r in [*list(reversed(down)), start, *up]]

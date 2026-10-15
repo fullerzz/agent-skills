@@ -12,10 +12,10 @@ import uuid
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict, TypeGuard
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
 UNIT_FIELDS = ["id", "track", "state", "branch", "pr", "sha", "brief"]
 LEDGER_FIELDS = ["pr", "sha", "verdict", "evidence", "verifier", "ts"]
@@ -24,11 +24,104 @@ VERDICTS = ("live-ui-verified", "unit-test-verified", "type-check-only", "verifi
 MAX_SAFE_INTEGER = 2**53 - 1
 
 
+type PrState = Literal["OPEN", "MERGED", "CLOSED"]
+PR_STATES: tuple[PrState, ...] = ("OPEN", "MERGED", "CLOSED")
+
+
+class PullRequestRow(TypedDict):
+    number: int
+    state: PrState
+    headRefName: str
+    baseRefName: str
+    isCrossRepository: bool
+    createdAt: str
+
+
+class FrontierPr(TypedDict):
+    pr: int
+    branches: str
+    sha: str
+    state: PrState
+
+
+class Frontier(TypedDict):
+    generation: int
+    prs: list[FrontierPr]
+    lowestUnmerged: int | None
+
+
+class StandingOrder(TypedDict):
+    number: int
+    line: str
+
+
+# Rows stored as TSV keep every cell a string, in *_FIELDS order.
+class UnitRow(TypedDict):
+    id: str
+    track: str
+    state: str
+    branch: str
+    pr: str
+    sha: str
+    brief: str
+
+
+class LedgerRow(TypedDict):
+    pr: str
+    sha: str
+    verdict: str
+    evidence: str
+    verifier: str
+    ts: str
+
+
+class InboxPointer(TypedDict):
+    ts: str
+    agent: str
+    unit: str
+    status: str
+    report: str
+
+
+class InboxReceipt(TypedDict):
+    pointer: InboxPointer
+    filename: str
+
+
+class OpenGate(TypedDict):
+    kind: Literal["open"]
+    id: str
+    question: str
+    options: str
+    defaultAnswer: str
+
+
+class ResolvedGate(TypedDict):
+    kind: Literal["resolved"]
+    id: str
+    question: str
+    options: str
+    defaultAnswer: str
+    answer: str
+
+
+type Gate = OpenGate | ResolvedGate
+
+
 class StatusSummary(TypedDict):
     unitStates: dict[str, int]
     ledgerVerdicts: dict[str, int]
     frontierGeneration: int
     openGateIds: list[str]
+
+
+class StatusReport(TypedDict):
+    units: list[UnitRow]
+    ledger: list[LedgerRow]
+    frontier: Frontier
+    gates: list[Gate]
+    summary: StatusSummary
+    changed: str
 
 
 class UserError(Exception):
@@ -73,6 +166,43 @@ def atomic_write(path: Path, contents: str) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def unit_row(row: Mapping[str, str]) -> UnitRow:
+    return {
+        "id": row["id"],
+        "track": row["track"],
+        "state": row["state"],
+        "branch": row["branch"],
+        "pr": row["pr"],
+        "sha": row["sha"],
+        "brief": row["brief"],
+    }
+
+
+def ledger_row(row: Mapping[str, str]) -> LedgerRow:
+    return {
+        "pr": row["pr"],
+        "sha": row["sha"],
+        "verdict": row["verdict"],
+        "evidence": row["evidence"],
+        "verifier": row["verifier"],
+        "ts": row["ts"],
+    }
+
+
+def inbox_pointer(row: Mapping[str, str]) -> InboxPointer:
+    return {
+        "ts": row["ts"],
+        "agent": row["agent"],
+        "unit": row["unit"],
+        "status": row["status"],
+        "report": row["report"],
+    }
+
+
+def row_cells(row: Mapping[str, object], fields: Sequence[str]) -> list[object]:
+    return [row[key] for key in fields]
+
+
 def counts(values: Iterable[str]) -> dict[str, int]:
     return dict(sorted(Counter(values).items()))
 
@@ -94,9 +224,6 @@ def table(headers: Sequence[str], rows: list[list[object]]) -> str:
     )
 
 
-PR_STATES = {"OPEN", "MERGED", "CLOSED"}
-
-
 def command(argv: list[str], repo: Path) -> str:
     try:
         return subprocess.run(  # noqa: S603 - Fixed Git/gh argument vectors from local callers; no shell.
@@ -113,7 +240,7 @@ def command(argv: list[str], repo: Path) -> str:
         raise UserError(f"{' '.join(argv)} failed: {error}") from error
 
 
-def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, Any]]:
+def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[PullRequestRow]:
     fields = "number,state,headRefName,baseRefName,isCrossRepository,createdAt"
     argv = ["gh", "pr", "list", flag, branch, "--state", state, "--limit", "1000", "--json", fields]
     label = " ".join(argv[:5])
@@ -137,7 +264,7 @@ def list_prs(repo: Path, flag: str, branch: str, state: str) -> list[dict[str, A
     return [row for row in rows if not row["isCrossRepository"]]
 
 
-def current_pr(rows: list[dict[str, Any]], branch: str) -> dict[str, Any]:
+def current_pr(rows: list[PullRequestRow], branch: str) -> PullRequestRow:
     if len(opened := [row for row in rows if row["state"] == "OPEN"]) > 1:
         raise UserError(
             f"branch {branch} has multiple open pull requests: {', '.join(f'#{r['number']}' for r in opened)}"
@@ -146,14 +273,14 @@ def current_pr(rows: list[dict[str, Any]], branch: str) -> dict[str, Any]:
     return opened[0] if opened else max(rows, key=lambda row: row["createdAt"])
 
 
-def branch_pr(repo: Path, branch: str) -> dict[str, Any]:
+def branch_pr(repo: Path, branch: str) -> PullRequestRow:
     rows = list_prs(repo, "--head", branch, "all")
     if not rows:
         raise UserError(f"branch {branch} has no pull request; open one or resolve from a fully submitted branch")
     return current_pr(rows, branch)
 
 
-def children_of(repo: Path, branch: str) -> list[dict[str, Any]]:
+def children_of(repo: Path, branch: str) -> list[PullRequestRow]:
     # A head that once targeted this branch is a child only if its current PR, from its full history, still does.
     heads = {row["headRefName"] for row in list_prs(repo, "--base", branch, "all")}
     return [pr for pr in (branch_pr(repo, head) for head in sorted(heads)) if pr["baseRefName"] == branch]
@@ -178,7 +305,7 @@ def trunk_branch(repo: Path) -> str:
     return trunk
 
 
-def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
+def child_pr(repo: Path, branch: str) -> PullRequestRow | None:
     children = children_of(repo, branch)
     for closed in (pr for pr in children if pr["state"] == "CLOSED"):
         if has_live_descendant(repo, closed["headRefName"], {branch, closed["headRefName"]}):
@@ -197,7 +324,7 @@ def child_pr(repo: Path, branch: str) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
-def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
+def resolve_frontier(repo: Path) -> list[FrontierPr]:
     """Walk the PR base chain from the current branch down to trunk, then up through its children."""
     trunk = trunk_branch(repo)
     current = command(["git", "symbolic-ref", "--short", "HEAD"], repo).strip()
@@ -221,7 +348,7 @@ def resolve_frontier(repo: Path) -> list[dict[str, Any]]:
         chain.append(child)
     if len({row["number"] for row in chain}) != len(chain):
         raise UserError("pull request base chain contains duplicate pull requests")
-    result = []
+    result: list[FrontierPr] = []
     for row in chain:
         branch = row["headRefName"]
         if row["state"] == "CLOSED" and has_live_descendant(repo, branch, {branch}):
@@ -255,6 +382,41 @@ def previous_summary(path: Path) -> StatusSummary | None:
             except ValueError:
                 pass
     return before
+
+
+def has_frontier_shape(value: Mapping[str, object]) -> bool:
+    generation, lowest = value.get("generation"), value.get("lowestUnmerged")
+    return (
+        isinstance(generation, int)
+        and not isinstance(generation, bool)
+        and 0 <= generation <= MAX_SAFE_INTEGER
+        and isinstance(value.get("prs"), list)
+        and "lowestUnmerged" in value
+        and (
+            lowest is None
+            or (isinstance(lowest, int) and not isinstance(lowest, bool) and abs(lowest) <= MAX_SAFE_INTEGER)
+        )
+    )
+
+
+def is_frontier_pr(row: object) -> bool:
+    if not isinstance(row, dict):
+        return False
+    pr, branches = row.get("pr"), row.get("branches")
+    return (
+        isinstance(pr, int)
+        and not isinstance(pr, bool)
+        and 0 < pr <= MAX_SAFE_INTEGER
+        and isinstance(branches, str)
+        and bool(branches)
+        and isinstance(row.get("sha"), str)
+        and row.get("state") in PR_STATES
+    )
+
+
+def is_frontier(value: Mapping[str, object]) -> TypeGuard[Frontier]:
+    prs = value.get("prs")
+    return has_frontier_shape(value) and isinstance(prs, list) and all(map(is_frontier_pr, prs))
 
 
 class Store:
@@ -354,33 +516,33 @@ class Store:
             result.append(dict(zip(fields, cells, strict=True)))
         return result
 
-    def save_tsv(self, name: str, fields: Sequence[str], rows: list[dict[str, str]]) -> None:
+    def save_tsv(self, name: str, fields: Sequence[str], rows: Sequence[Mapping[str, object]]) -> None:
         atomic_write(
             self.path / name,
             "\t".join(fields)
             + "\n"
-            + "".join("\t".join(clean_cell(row[key]) for key in fields) + "\n" for row in rows),
+            + "".join("\t".join(map(clean_cell, row_cells(row, fields))) + "\n" for row in rows),
         )
 
-    def unit_list(self, state: str | None = None, track: str | None = None) -> list[dict[str, str]]:
+    def unit_list(self, state: str | None = None, track: str | None = None) -> list[UnitRow]:
         state = required(state, "state") if state is not None else None
         track = required(track, "track") if track is not None else None
         return [
-            row
+            unit_row(row)
             for row in self.read_tsv("units.tsv", UNIT_FIELDS)
             if (state is None or row["state"] == state) and (track is None or row["track"] == track)
         ]
 
-    def unit_get(self, id: str) -> dict[str, str]:
+    def unit_get(self, id: str) -> UnitRow:
         id = required(id, "unit id")
         for row in self.unit_list():
             if row["id"] == id:
                 return row
         raise NotFoundError(f"unit {id} not found")
 
-    def unit_add(self, id: str, track: str, brief: str | None = None) -> dict[str, str]:
+    def unit_add(self, id: str, track: str, brief: str | None = None) -> UnitRow:
         self.begin_write()
-        row = {
+        row: UnitRow = {
             "id": required(id, "unit id"),
             "track": required(track, "track"),
             "state": "pending",
@@ -397,13 +559,14 @@ class Store:
 
     def unit_set(
         self, id: str, state: str, branch: str | None = None, pr: int | None = None, sha: str | None = None
-    ) -> dict[str, str]:
+    ) -> UnitRow:
         self.begin_write()
         old = self.unit_get(id)
-        row = {**old, "state": required(state, "state")}
-        for key, value in [("branch", branch), ("sha", sha)]:
-            if value is not None:
-                row[key] = required(value, key)
+        row: UnitRow = {**old, "state": required(state, "state")}
+        if branch is not None:
+            row["branch"] = required(branch, "branch")
+        if sha is not None:
+            row["sha"] = required(sha, "sha")
         if pr is not None:
             row["pr"] = str(positive(pr))
         self.save_tsv("units.tsv", UNIT_FIELDS, [row if item["id"] == old["id"] else item for item in self.unit_list()])
@@ -412,20 +575,18 @@ class Store:
     def unit_counts(self) -> dict[str, int]:
         return counts(row["state"] for row in self.unit_list())
 
-    def read_ledger(self) -> list[dict[str, str]]:
-        rows = self.read_tsv("ledger.tsv", LEDGER_FIELDS)
+    def read_ledger(self) -> list[LedgerRow]:
+        rows = [ledger_row(row) for row in self.read_tsv("ledger.tsv", LEDGER_FIELDS)]
         for row in rows:
             if row["verdict"] not in VERDICTS:
                 raise UserError(f"ledger.tsv has invalid verdict {row['verdict']}")
         return rows
 
-    def ledger_record(
-        self, pr: int, sha: str, verdict: str, evidence: str, verifier: str | None = None
-    ) -> dict[str, str]:
+    def ledger_record(self, pr: int, sha: str, verdict: str, evidence: str, verifier: str | None = None) -> LedgerRow:
         self.begin_write()
         if verdict not in VERDICTS:
             raise UserError("verdict must be " + ", ".join(VERDICTS))
-        row = {
+        row: LedgerRow = {
             "pr": str(positive(pr)),
             "sha": required(sha, "SHA"),
             "verdict": verdict,
@@ -443,7 +604,7 @@ class Store:
         self.save_tsv("ledger.tsv", LEDGER_FIELDS, rows)
         return row
 
-    def ledger_check(self, pr: int, sha: str) -> dict[str, str]:
+    def ledger_check(self, pr: int, sha: str) -> LedgerRow:
         pr_text, sha = str(positive(pr)), required(sha, "SHA")
         for row in self.read_ledger():
             if (row["pr"], row["sha"]) == (pr_text, sha):
@@ -453,7 +614,7 @@ class Store:
     def ledger_summary(self) -> dict[str, int]:
         return counts(row["verdict"] for row in self.read_ledger())
 
-    def inbox_peek(self) -> list[dict[str, str]]:
+    def inbox_peek(self) -> list[InboxPointer]:
         self.ensure_open()
         inbox = self.path / "inbox"
         if not inbox.is_dir():
@@ -466,15 +627,15 @@ class Store:
             cells = raw.split("\t")
             if "\r" in raw or "\n" in raw or len(cells) != 5:
                 raise UserError(f"inbox pointer {path.name} is malformed")
-            rows.append(dict(zip(POINTER_FIELDS, cells, strict=True)))
+            rows.append(inbox_pointer(dict(zip(POINTER_FIELDS, cells, strict=True))))
         return rows
 
     def inbox_count(self) -> int:
         return len(self.inbox_peek())
 
-    def inbox_push(self, agent: str, unit: str, status: str, report: str | None = None) -> dict[str, Any]:
+    def inbox_push(self, agent: str, unit: str, status: str, report: str | None = None) -> InboxReceipt:
         self.begin_write()
-        row = {
+        row: InboxPointer = {
             "ts": timestamp(),
             "agent": required(agent, "agent"),
             "unit": required(unit, "unit"),
@@ -482,10 +643,10 @@ class Store:
             "report": required(report, "report") if report is not None else "",
         }
         filename = re.sub(r"[:.]", "-", row["ts"]) + f"-{os.getpid()}-{uuid.uuid4()}.tsv"
-        atomic_write(self.path / "inbox" / filename, "\t".join(clean_cell(row[key]) for key in POINTER_FIELDS) + "\n")
+        atomic_write(self.path / "inbox" / filename, "\t".join(map(clean_cell, row_cells(row, POINTER_FIELDS))) + "\n")
         return {"pointer": row, "filename": filename}
 
-    def inbox_drain(self) -> list[dict[str, str]]:
+    def inbox_drain(self) -> list[InboxPointer]:
         self.begin_write()
         rows = self.inbox_peek()
         inbox = self.path / "inbox"
@@ -499,14 +660,14 @@ class Store:
         shutil.rmtree(drained)
         return rows
 
-    def read_gates(self) -> list[dict[str, str]]:
+    def read_gates(self) -> list[Gate]:
         raw = self.read("gates.md").replace("\r", "").strip()
         if not raw:
             return []
         prefix = "# Gates\n\n## "
         if not raw.startswith(prefix):
             raise UserError("gates.md has an invalid heading")
-        rows = []
+        rows: list[Gate] = []
         for block in raw[len(prefix) :].split("\n\n## "):
             lines = list(filter(None, block.split("\n")))
             id = lines.pop(0)
@@ -518,23 +679,29 @@ class Store:
                 fields[match[1]] = match[2]
             if not id or not {"Status", "Question", "Options", "Default"} <= fields.keys():
                 raise UserError(f"gates.md has a malformed gate {id}")
-            row = {
-                "kind": fields["Status"],
-                "id": id,
-                "question": fields["Question"],
-                "options": fields["Options"],
-                "defaultAnswer": fields["Default"],
-            }
-            if row["kind"] == "resolved" and "Answer" in fields:
-                row["answer"] = fields["Answer"]
-            elif row["kind"] != "open":
-                raise UserError(f"gates.md has invalid status {row['kind']}")
-            rows.append(row)
+            question, options, default = fields["Question"], fields["Options"], fields["Default"]
+            if fields["Status"] == "resolved" and "Answer" in fields:
+                rows.append(
+                    {
+                        "kind": "resolved",
+                        "id": id,
+                        "question": question,
+                        "options": options,
+                        "defaultAnswer": default,
+                        "answer": fields["Answer"],
+                    }
+                )
+            elif fields["Status"] == "open":
+                rows.append(
+                    {"kind": "open", "id": id, "question": question, "options": options, "defaultAnswer": default}
+                )
+            else:
+                raise UserError(f"gates.md has invalid status {fields['Status']}")
         if len({row["id"] for row in rows}) != len(rows):
             raise UserError("gates.md has duplicate gate ids")
         return rows
 
-    def save_gates(self, rows: list[dict[str, str]]) -> None:
+    def save_gates(self, rows: list[Gate]) -> None:
         blocks = [
             (
                 f"## {r['id']}\n\n- Status: {r['kind']}\n- Question: {r['question']}\n"
@@ -545,9 +712,9 @@ class Store:
         ]
         atomic_write(self.path / "gates.md", "# Gates\n\n" + "\n\n".join(blocks) + "\n" if blocks else "")
 
-    def gate_park(self, id: str, question: str, options: str, default: str) -> dict[str, str]:
+    def gate_park(self, id: str, question: str, options: str, default: str) -> OpenGate:
         self.begin_write()
-        row = {
+        row: OpenGate = {
             "kind": "open",
             "id": required(id, "gate id", True),
             "question": required(question, "question", True),
@@ -564,22 +731,22 @@ class Store:
         self.save_gates(rows)
         return row
 
-    def gate_list(self) -> list[dict[str, str]]:
+    def gate_list(self) -> list[OpenGate]:
         return [row for row in self.read_gates() if row["kind"] == "open"]
 
-    def gate_resolve(self, id: str, answer: str) -> dict[str, str]:
+    def gate_resolve(self, id: str, answer: str) -> ResolvedGate:
         self.begin_write()
         id = required(id, "gate id", True)
         rows = self.read_gates()
         for index, old in enumerate(rows):
             if old["id"] == id:
-                row = {**old, "kind": "resolved", "answer": required(answer, "answer", True)}
+                row: ResolvedGate = {**old, "kind": "resolved", "answer": required(answer, "answer", True)}
                 rows[index] = row
                 self.save_gates(rows)
                 return row
         raise NotFoundError(f"gate {id} not found")
 
-    def frontier_show(self) -> dict[str, Any]:
+    def frontier_show(self) -> Frontier:
         try:
             value = json.loads(self.read("frontier.json"))
         except ValueError:
@@ -588,31 +755,12 @@ class Store:
             raise UserError("frontier.json must contain an object")
         if not value:
             return {"generation": 0, "prs": [], "lowestUnmerged": None}
-        if (
-            type(value.get("generation")) is not int
-            or not 0 <= value["generation"] <= MAX_SAFE_INTEGER
-            or not isinstance(value.get("prs"), list)
-            or "lowestUnmerged" not in value
-            or (
-                value["lowestUnmerged"] is not None
-                and (type(value["lowestUnmerged"]) is not int or abs(value["lowestUnmerged"]) > MAX_SAFE_INTEGER)
-            )
-        ):
-            raise UserError("frontier.json has an invalid shape")
-        for row in value["prs"]:
-            if (
-                not isinstance(row, dict)
-                or type(row.get("pr")) is not int
-                or not 0 < row["pr"] <= MAX_SAFE_INTEGER
-                or not isinstance(row.get("branches"), str)
-                or not row["branches"]
-                or not isinstance(row.get("sha"), str)
-                or row.get("state") not in ("OPEN", "MERGED", "CLOSED")
-            ):
-                raise UserError("frontier.json has an invalid PR row")
+        if not is_frontier(value):
+            shape_ok = has_frontier_shape(value)
+            raise UserError("frontier.json has an invalid PR row" if shape_ok else "frontier.json has an invalid shape")
         return value
 
-    def frontier_set(self, repo: str | Path, prs: list[int] | None = None) -> dict[str, Any]:
+    def frontier_set(self, repo: str | Path, prs: list[int] | None = None) -> Frontier:
         self.begin_write()
         if prs is not None:
             prs = [positive(pr) for pr in prs]
@@ -634,7 +782,7 @@ class Store:
                 "frontier pin mismatch: "
                 + ("; ".join(drift) or f"order differs: expected {join(prs)}; resolved {join(actual)}")
             )
-        result = {
+        result: Frontier = {
             "generation": old["generation"] + 1,
             "prs": rows,
             "lowestUnmerged": next((row["pr"] for row in rows if row["state"] == "OPEN"), None),
@@ -642,8 +790,8 @@ class Store:
         atomic_write(self.path / "frontier.json", json.dumps(result, indent=2) + "\n")
         return result
 
-    def standing_show(self) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
+    def standing_show(self) -> list[StandingOrder]:
+        rows: list[StandingOrder] = []
         raw = self.read("preferences.md").replace("\r", "")
         if not raw.strip():
             return rows
@@ -654,14 +802,14 @@ class Store:
             rows.append({"number": int(match[1]), "line": match[2]})
         return rows
 
-    def standing_add(self, line: str) -> dict[str, Any]:
+    def standing_add(self, line: str) -> StandingOrder:
         self.begin_write()
         rows = self.standing_show()
-        row = {"number": len(rows) + 1, "line": required(line, "standing order", True)}
+        row: StandingOrder = {"number": len(rows) + 1, "line": required(line, "standing order", True)}
         atomic_write(self.path / "preferences.md", "".join(f"{r['number']}. {r['line']}\n" for r in [*rows, row]))
         return row
 
-    def status(self) -> dict[str, Any]:
+    def status(self) -> StatusReport:
         self.begin_write()
         units, ledger, frontier, gates = self.unit_list(), self.read_ledger(), self.frontier_show(), self.read_gates()
         summary: StatusSummary = {
@@ -692,12 +840,12 @@ class Store:
             f"States: {count_line(summary['unitStates'])}\n\n"
         )
         text += table(
-            ["ID", "Track", "State", "Branch", "PR", "SHA", "Brief"], [[r[k] for k in UNIT_FIELDS] for r in units]
+            ["ID", "Track", "State", "Branch", "PR", "SHA", "Brief"], [row_cells(r, UNIT_FIELDS) for r in units]
         )
         text += f"\n\n## Verification ledger\n\nVerdicts: {count_line(summary['ledgerVerdicts'])}\n\n"
         text += table(
             ["PR", "SHA", "Verdict", "Evidence", "Verifier", "Timestamp"],
-            [[r[k] for k in LEDGER_FIELDS] for r in ledger],
+            [row_cells(r, LEDGER_FIELDS) for r in ledger],
         )
         text += (
             f"\n\n## Frontier\n\nGeneration: {frontier['generation']}\n"
@@ -705,11 +853,11 @@ class Store:
         )
         text += table(
             ["Branch", "PR", "SHA", "State"],
-            [[r[k] for k in ("branches", "pr", "sha", "state")] for r in frontier["prs"]],
+            [row_cells(r, ("branches", "pr", "sha", "state")) for r in frontier["prs"]],
         )
         text += "\n\n## Gates\n\n" + table(
             ["ID", "Status", "Question", "Options", "Default", "Answer"],
-            [[r.get(k, "") for k in ("id", "kind", "question", "options", "defaultAnswer", "answer")] for r in gates],
+            [[r["id"], r["kind"], r["question"], r["options"], r["defaultAnswer"], r.get("answer", "")] for r in gates],
         )
         text += "\n\n<!-- orch-summary " + json.dumps(summary, separators=(",", ":")) + " -->\n"
         atomic_write(path, text)

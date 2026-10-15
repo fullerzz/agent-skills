@@ -251,7 +251,9 @@ class XrayTests(unittest.TestCase):
         )
 
     def read(self, host: str = "codex", session: str = "session") -> dict[str, Any]:
-        return XRAY["read_records"](host, session, self.data)
+        # runpy exposes the helper untyped; tests index nested JSON freely.
+        records: dict[str, Any] = XRAY["read_records"](host, session, self.data)
+        return records
 
     def test_disabled_writes_nothing(self) -> None:
         self.hook({"session_id": "session", "hook_event_name": "PreToolUse"}, env={**self.env, "ZSTACK_XRAY": "0"})

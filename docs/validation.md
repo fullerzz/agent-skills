@@ -6,6 +6,42 @@ outline: [2, 3]
 
 Historical observations below retain the names used during those runs (`pstack`, `poteto-mode`, and `poteto-agent`). Current equivalents are `zstack`, `z-mode`, and `z-agent`; those earlier observations do not establish live behavior under the new names.
 
+## Strict mypy for helper scripts — 2026-10-14 {#strict-mypy}
+
+`mypy.ini` now enables `strict`. The changes:
+
+- **watch-pr:**
+  - The NDJSON contract lives in `schema.py` as TypedDict unions: events, snapshots, blockers, CI states and parsed GitHub facts.
+  - CI is split into pending, failing, rejected and clean variants, so a ready proof can only carry clean CI.
+  - Watcher options and poll steps are frozen dataclasses.
+  - Blocker exit codes and poll steps are matched exhaustively.
+- **orch:**
+  - The store types its unit, ledger, inbox, gate, frontier, standing-order and status rows. Gates are an open/resolved union.
+  - The CLI dispatches each command group through a typed `match` instead of `getattr`.
+- **Tests:** the watcher tests import the real modules, so mypy checks the fake reader against the `Reader` protocol.
+
+On this macOS host:
+
+- `just mypy` passed on 28 files, and ruff check and format were clean.
+- Structural validation found 53 skills and zero problems.
+- All 15 Node tests and all 124 Python tests passed, and `git diff --check` was clean.
+
+**Watcher evidence.** The committed golden file `scripts/fixtures/watch-pr-events.golden` was generated from the HEAD modules. It runs 22 scenarios in JSON and `--pretty`, 44 runs in total. The runs cover:
+
+- every verdict, blocker, wait and timeout kind
+- retries
+- stack, queued-stack and status-only modes
+
+The refactored modules reproduce it byte for byte. Reordering one key in a dict literal makes the golden test fail.
+
+**Parser evidence.** A scratch harness compared `GitHubReader` parsing with HEAD on valid and malformed responses. The only difference was the error detail for a non-object `gh pr list` row: `invalid open PR: 5` instead of `invalid number: 5`.
+
+**Fixed after review.** An intermediate version of this change read `reviewDecision` before `mergeable`, `mergeStateStatus` and `state`. That changed which error a payload with several bad fields reported. The original order is restored and covered by a regression test.
+
+**orch evidence.** A scratch transcript ran 89 orch commands, compact and `--json`, against HEAD and the refactor. It included `frontier set` through a fake `gh`, malformed store files, and a hand-edited `frontier.json` with reordered and extra keys. After normalizing timestamps, paths and SHAs, the two transcripts were identical. An intermediate version rebuilt `frontier.json` and dropped unknown keys; `frontier_show` now returns the validated object unchanged.
+
+**Limits.** All of these runs used fake `gh` responses, not live GitHub.
+
 ## Orchestration cleanup: shipping safety — 2026-10-14 {#orchestration-shipping}
 
 Top layer of the [orchestration cleanup stack](provenance.md#pstack-orchestration-cleanup). Shipping gains pinned force-push leases, a pre-merge trunk-drift check with a third-rebase hold, and the post-merge child retarget; Autopilot-full scales re-verification to the change; Autopilot-stack names the coordinator as the only link rebaser. Manifests declare `0.10.0`.

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, assert_never
+
+if TYPE_CHECKING:
+    from schema import Blocker, Event, ReadyVerdict, Snapshot, TimeoutVerdict, WaitingEvent
 
 
-def render_json(event: dict[str, Any]) -> str:
+def render_json(event: Event) -> str:
     return json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
 
 
-def status_table(rows: list[dict[str, Any]]) -> str:
+def status_table(rows: list[Snapshot]) -> str:
     lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"]
     for row in rows:
         context = row["context"]
@@ -49,31 +52,32 @@ def status_table(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def blocker_text(blocker: dict[str, Any]) -> str:
-    kind = blocker["kind"]
-    if kind == "status-query":
+def blocker_text(blocker: Blocker) -> str:
+    if blocker["kind"] == "status-query":
         return (
             f"BLOCKER: status-query\nfailures={blocker['failures']}\n"
             f"detail={blocker['failure']['detail']}\n"
             "action=verify current PR context, GitHub authentication, and API availability, then rearm"
         )
-    lines = [f"BLOCKER: {blocker['reason'] if kind == 'merge-gate' else kind}", f"pr={blocker['pr']['number']}"]
-    if kind == "merge-conflicts":
+    title = blocker["reason"] if blocker["kind"] == "merge-gate" else blocker["kind"]
+    lines = [f"BLOCKER: {title}", f"pr={blocker['pr']['number']}"]
+    if blocker["kind"] == "merge-conflicts":
         lines += [
             f"mergeable={blocker['facts']['mergeable']}",
             f"mergeStateStatus={blocker['facts']['mergeStateStatus']}",
             "action=resolve merge conflicts before waiting for CI",
         ]
-    elif kind == "review-threads":
+    elif blocker["kind"] == "review-threads":
         lines.append(f"unresolved={len(blocker['threads'])}")
         for thread in blocker["threads"]:
-            c = thread["firstComment"] or {}
-            body = c.get("body", "").split("\n")[0].removesuffix("\r")[:180]
+            c = thread["firstComment"]
+            path, line, author = (c["path"], c["line"], c["authorLogin"]) if c else (None, None, None)
+            body = c["body"].split("\n")[0].removesuffix("\r")[:180] if c else ""
             lines.append(
-                f"{thread['id']} {c.get('path')} {c.get('line')} {c.get('authorLogin')} "
+                f"{thread['id']} {path} {line} {author} "
                 f"isBugBot={str(thread['isBugbot']).lower()} bugbotReviewPasses={thread['bugbotReviewPasses']} {body}"
             )
-    elif kind == "failing-checks":
+    elif blocker["kind"] == "failing-checks":
         ci = blocker["ci"]
         lines.append(f"failed={len(ci['failed'])}")
         lines += [f"{c['name']} {c['reportedState']} {c['description']} {c['link']}" for c in ci["failed"]]
@@ -82,7 +86,7 @@ def blocker_text(blocker: dict[str, Any]) -> str:
                 f"mergeStateStatus={ci['github']['mergeStateStatus']}",
                 f"headRollupState={ci['github']['headRollupState']}",
             ]
-    elif kind == "merge-gate":
+    elif blocker["kind"] == "merge-gate":
         actions = {
             "closed-without-merge": "restore or remove the closed PR from the queued stack",
             "draft-pr": "mark the PR ready for review before waiting for the merge queue",
@@ -96,7 +100,7 @@ def plural(n: int) -> str:
     return "" if n == 1 else "s"
 
 
-def render_ready(event: dict[str, Any]) -> str:
+def render_ready(event: ReadyVerdict) -> str:
     detail = ""
     if event["scope"]["kind"] == "single" and event["scope"]["pr"]["kind"] == "ready-pr":
         proof = event["scope"]["pr"]["proof"]
@@ -111,7 +115,7 @@ def render_ready(event: dict[str, Any]) -> str:
     return "READY: no merge conflicts, no unresolved review threads, no failing or pending checks" + detail + "\n"
 
 
-def render_timeout(event: dict[str, Any]) -> str:
+def render_timeout(event: TimeoutVerdict) -> str:
     reason = event["reason"]
     if reason["kind"] == "pending-checks":
         return "TIMEOUT: checks still pending\n"
@@ -121,7 +125,7 @@ def render_timeout(event: dict[str, Any]) -> str:
     return f"TIMEOUT: queued stack still has {n} PR{plural(n)} unmerged; frontier=#{reason['frontier']['number']}\n"
 
 
-def render_waiting(event: dict[str, Any]) -> str:
+def render_waiting(event: WaitingEvent) -> str:
     reason, n = event["reason"], event["frontier"]["number"]
     if reason["kind"] == "pending-checks":
         count = len(reason["pending"])
@@ -130,37 +134,35 @@ def render_waiting(event: dict[str, Any]) -> str:
     return f"WAITING: frontier=#{n} is blocker-free; waiting for merge queue ({count} PR{plural(count)} unmerged)\n"
 
 
-def render_pretty(event: dict[str, Any]) -> str:
-    kind = event["kind"]
-
-    if kind == "STATUS":
+def render_pretty(event: Event) -> str:
+    if event["kind"] == "STATUS":
         return status_table(event["rows"])
-    if kind == "QUEUE":
+    if event["kind"] == "QUEUE":
         n = len(event["queue"])
         return (
             f"QUEUE: captured {n} PR{plural(n)} bottom-to-top: "
             + ",".join(f"#{c['number']}" for c in event["queue"])
             + "\n"
         )
-    if kind == "WAITING":
+    if event["kind"] == "WAITING":
         return render_waiting(event)
-    if kind == "ADVANCE":
+    if event["kind"] == "ADVANCE":
         return (
             f"ADVANCE: merged #{event['merged']['number']}; next=#{event['frontier']['number']}; "
             f"remaining={event['remaining']}\n"
         )
-    if kind == "RETRY":
+    if event["kind"] == "RETRY":
         return (
             f"RETRY: GitHub status query failed; retrying in {event['retryInSeconds']:g}s\n"
             f"detail={event['failure']['detail']}\n"
         )
-    if kind == "BLOCKER":
+    if event["kind"] == "BLOCKER":
         return blocker_text(event["blocker"]) + "\n"
-    if kind == "READY":
+    if event["kind"] == "READY":
         return render_ready(event)
-    if kind == "COMPLETE":
+    if event["kind"] == "COMPLETE":
         n = len(event["queue"])
         return f"COMPLETE: queued stack merged ({n} PR{plural(n)})\n"
-    if kind == "TIMEOUT":
+    if event["kind"] == "TIMEOUT":
         return render_timeout(event)
-    raise ValueError(f"unknown verdict {kind}")
+    assert_never(event)
