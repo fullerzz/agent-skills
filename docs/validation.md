@@ -4,6 +4,21 @@ outline: [2, 3]
 
 # Validation
 
+## Selective pstack PR #634 wording cleanup — 2026-10-15
+
+Adapted the recommended parts of [PR #634](https://github.com/cursor/plugins/pull/634): Interrogate loses repeated lead-judgment setup and Verdict Calibration, including the suggested five-item Act On limit; the type-system principle keeps all eight decisions with shorter examples; API migration loses only its repeated introduction and conclusion. Direct diff review confirmed that API migration retains all four rules and three applicability conditions, Interrogate retains every filtering/security/correctness criterion, and skill frontmatter is unchanged. Swarm, the Interrogate entrypoint, and the principles reference are unchanged. The three native manifests advance together from `0.12.0` to `0.12.1` under the packaged-wording patch policy.
+
+Three native workers used exclusive file scopes; the coordinator inspected each result and corrected a reversed verb in the provenance draft. A separate fresh read-only evaluator applied the updated lead-judgment reference to dashboard helper source and nine candidate findings. It returned all seven reachable correctness defects under Act on and dismissed a speculative zero-input warning and an unsupported class-extraction suggestion, with evidence and rationale. The brief supplied the source, caller contracts, and candidate reports without an intended verdict. This is one source-based native scenario, not a runtime execution or a before/after equivalence result. Built-in native agents substituted for the named z-agent role; their model identity was not exposed.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, zero failed or skipped.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 118 tests passed.
+- `git diff --check`: passed.
+
+Local orchestration state, scenario input/receipt, and command logs are retained in the ignored `.agent-work/pstack-634-selective-port/` directory. The generic skill-creator validator rejected the existing `disable-model-invocation` key during the pilot; the repository validator accepts that supported metadata, which remains unchanged. Live Codex, Claude Code, and Hermes plugin sessions were not rerun, so these results do not establish behavior across all hosts. No new executable code or dependencies were added.
+
 ## PR watcher GitLab support — 2026-10-15
 
 `watch-pr` now watches GitLab merge requests through `glab` as well as GitHub pull requests through `gh`. A new `gitlab.py` reader maps GitLab merge request data onto the existing facts, so policy, exit codes, and NDJSON schemaVersion 1 stay unchanged. It reads `detailed_merge_status`, head-pipeline jobs and bridges, MR pipelines, and resolvable discussions. Retained wire names are `ci-github-rejected`, the `github` key, and the `gh-pr-checks` and `graphql-rollup` sources; GitLab adds `gitlab-pipeline`. `--forge {github,gitlab}` overrides the default, which is detected from the origin remote. The `Reader` protocol gains `forge`, `checks`, and `web_url`, and pretty output names the forge. The watcher's last Graphite reference, `gt` in a subprocess comment, is gone; `worktree_audit.py` keeps its own copy of that comment outside this change. The shared plugin version advances from `0.11.4` to `0.12.0`.
