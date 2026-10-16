@@ -16,7 +16,7 @@ type ReviewDecision = Literal["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"
 type Mergeable = Literal["MERGEABLE", "CONFLICTING", "UNKNOWN"]
 type PrState = Literal["OPEN", "CLOSED", "MERGED"]
 type CheckKind = Literal["passed", "failed", "pending", "skipped", "code-review-gate"]
-type CheckSource = Literal["gh-pr-checks", "graphql-rollup"]
+type CheckSource = Literal["gh-pr-checks", "graphql-rollup", "gitlab-pipeline"]
 MERGE_STATES: tuple[MergeState, ...] = (
     "BEHIND",
     "BLOCKED",
@@ -107,6 +107,7 @@ class RefusedMerge(TypedDict):
     kind: Literal["refused"]
 
 
+# schemaVersion 1 names: GitHubMerge, the `github` key, and ci-github-rejected carry any forge's merge assessment.
 type GitHubMerge = AllowedMerge | RefusedMerge
 
 

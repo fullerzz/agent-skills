@@ -88,7 +88,7 @@ def first_line(value: str) -> str:
 
 def run(argv: list[str]) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(  # noqa: S603 - Fixed Git/gh/gt argument vectors from local callers; no shell.
+        return subprocess.run(  # noqa: S603 - Fixed Git/gh/glab argument vectors from local callers; no shell.
             argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8"
         )
     except OSError as error:
@@ -389,17 +389,28 @@ def next_cursor(connection: dict[str, object], seen: set[str]) -> str | None:
 
 
 class Reader(Protocol):
+    """Forge-neutral read-only PR source; `forge` is the display name used in human output."""
+
+    forge: str
+
     def origin_repo(self) -> Repo | None: ...
     def current_pr(self, pr: int | None) -> Context: ...
     def pull_request(self, context: Context) -> PullRequestFacts: ...
     def open_pull_requests(self, context: Context) -> list[OpenPullRequest]: ...
-    def checks_fast_path(self, context: Context) -> FastChecks | UnusableChecks: ...
-    def check_rollup_page(self, context: Context, after: str | None) -> RollupPage: ...
+    def checks(self, context: Context) -> ResolvedChecks: ...
     def review_threads(self, context: Context) -> list[Thread]: ...
     def commit_rollups(self, context: Context) -> list[CommitRollup]: ...
+    def web_url(self, context: Context) -> str: ...
+
+
+class CheckPages(Protocol):
+    def checks_fast_path(self, context: Context) -> FastChecks | UnusableChecks: ...
+    def check_rollup_page(self, context: Context, after: str | None) -> RollupPage: ...
 
 
 class GitHubReader:
+    forge = "GitHub"
+
     def __init__(self, query_json: Callable[[list[str]], object] = run_json) -> None:
         self.query_json = query_json
 
@@ -463,6 +474,12 @@ class GitHubReader:
                 }
             )
         return rows
+
+    def web_url(self, context: Context) -> str:
+        return f"https://github.com/{context['owner']}/{context['repo']}/pull/{context['number']}"
+
+    def checks(self, context: Context) -> ResolvedChecks:
+        return resolve_checks(self, context)
 
     def checks_fast_path(self, context: Context) -> FastChecks | UnusableChecks:
         result = run(
@@ -541,7 +558,7 @@ class GitHubReader:
         return result
 
 
-def resolve_checks(reader: Reader, context: Context) -> ResolvedChecks:
+def resolve_checks(reader: CheckPages, context: Context) -> ResolvedChecks:
     fast = reader.checks_fast_path(context)
     if fast["kind"] == "checks" and fast["checks"]:
         return {"source": "gh-pr-checks", "checks": fast["checks"]}

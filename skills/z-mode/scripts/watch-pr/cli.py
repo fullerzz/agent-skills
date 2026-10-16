@@ -1,14 +1,17 @@
-"""Read-only PR watcher CLI. NDJSON is the default output."""
+"""Read-only GitHub or GitLab PR watcher CLI. NDJSON is the default output."""
 
 from __future__ import annotations
 
 import argparse
 import math
+import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 from typing import TYPE_CHECKING, TextIO
 
-from github import GitHubReader, QueryError, Reader, order_stack, pr_number, resolve_context
+from github import GitHubReader, QueryError, Reader, order_stack, parse_remote, pr_number, resolve_context, run
+from gitlab import GitLabReader, parse_gitlab_remote
 from policy import Clock, Options, WatchClock, run_queued, run_simple, status_query_verdict, verdict_factory
 from render import render_json, render_pretty
 
@@ -45,9 +48,38 @@ def prs(value: str) -> list[int]:
     return values
 
 
+def gitlab_host(origin: str, forge: str | None, env_host: str | None) -> str | None:
+    """Return the GitLab host to watch, or None to watch GitHub; forge None means auto-detect from origin."""
+    parsed = parse_gitlab_remote(origin)
+    # parse_remote rejects explicit ports, so also recognize a github.com origin by its hostname.
+    github_origin = parse_remote(origin) is not None or (parsed is not None and parsed[0].split(":")[0] == "github.com")
+    if forge == "github" or (forge is None and github_origin):
+        return None
+    # A forced GitLab watch from a GitHub checkout must not reuse github.com as the GitLab host.
+    if not github_origin and parsed is not None and (forge == "gitlab" or "gitlab" in parsed[0]):
+        return parsed[0]
+    if forge is None:
+        return None
+    return (env_host or "").strip().split("://", 1)[-1].rstrip("/") or "gitlab.com"
+
+
+def origin_url() -> str:
+    try:
+        result = run(["git", "remote", "get-url", "origin"])
+    except QueryError:
+        return ""
+    return result.stdout if result.returncode == 0 else ""
+
+
+def detect_reader(forge: str | None) -> Reader:
+    host = None if forge == "github" else gitlab_host(origin_url(), forge, os.environ.get("GITLAB_HOST"))
+    return GitHubReader() if host is None else GitLabReader(host)
+
+
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="watch-pr", description=__doc__, allow_abbrev=False)
-    parser.add_argument("--owner")
+    parser.add_argument("--forge", choices=("github", "gitlab"), help="default: detect from the origin remote")
+    parser.add_argument("--owner", help="owner or GitLab namespace, such as group/subgroup")
     parser.add_argument("--repo")
     parser.add_argument("--pr", type=lambda v: integer(v.removeprefix("#")))
     modes = parser.add_mutually_exclusive_group()
@@ -80,7 +112,7 @@ def main(
             args = parse_args(argv)
     except SystemExit as error:
         return 0 if error.code == 0 else 64
-    reader, clock = reader or GitHubReader(), clock or Clock()
+    reader, clock = reader or detect_reader(args.forge), clock or Clock()
     mode: Mode = "queued-stack" if args.queued_stack else "stack" if args.stack else "single"
     options = Options(
         interval=args.interval,
@@ -89,7 +121,7 @@ def main(
         max_query_errors=args.max_query_errors,
         allow_draft=args.allow_draft,
     )
-    render = render_pretty if args.pretty else render_json
+    render = partial(render_pretty, forge=reader) if args.pretty else render_json
 
     def emit(event: Event) -> None:
         stdout.write(render(event))
