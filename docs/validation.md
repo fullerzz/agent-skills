@@ -17,6 +17,8 @@ Checks on this macOS host:
 
 Source review checked the guidance against the Codex packaging resources, Claude plugin agent registration, Hermes plugin entrypoint, and linked installer. These checks establish instruction and packaging consistency; live Codex, Claude Code, and Hermes delegation sessions were not run, so suppression of the fallback announcement is not behaviorally verified. Native agent definitions, hooks, invocation policy, and dependencies are unchanged.
 
+PR #52 review also reconciles the no-comments entrypoint, its workflow reference, and the Codex setup guide with the shared contract. The comment reviewer remains read-only and returns the same report; role selection, scoped briefs, and reporting capability gaps follow the native contract. The existing `0.12.2` patch bump covers these corrections within the same PR.
+
 ## Selective pstack PR #634 wording cleanup — 2026-10-15
 
 Adapted the recommended parts of [PR #634](https://github.com/cursor/plugins/pull/634): Interrogate loses repeated lead-judgment setup and Verdict Calibration, including the suggested five-item Act On limit; the type-system principle keeps all eight decisions with shorter examples; API migration loses only its repeated introduction and conclusion. Direct diff review confirmed that API migration retains all four rules and three applicability conditions, Interrogate retains every filtering/security/correctness criterion, and skill frontmatter is unchanged. Swarm, the Interrogate entrypoint, and the principles reference are unchanged. The three native manifests advance together from `0.12.0` to `0.12.1` under the packaged-wording patch policy.

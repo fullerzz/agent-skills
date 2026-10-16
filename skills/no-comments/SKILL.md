@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # No comments
 
-Use native comment-sicko for a scoped report, or an equivalent read-only reviewer with disclosed fallback. Follow the [native contract](../z-mode/references/native-hosts.md).
+Use an available `comment-sicko` role or an equivalent read-only native reviewer for a scoped report. Follow the [native contract](../z-mode/references/native-hosts.md) for role selection, scoped briefs, and reporting capability gaps.
 
 The reviewer returns locations, proposed removals, refactor targets, evidence, and exceptions. It does not edit code or comments.
 

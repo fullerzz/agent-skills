@@ -36,7 +36,7 @@ codex plugin add zstack@zstack-local
 
 Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. Only `how` and `why` permit automatic selection in Codex.
 
-If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; workflows use available roles or disclose a fallback. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
+If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; use available native workers with scoped briefs and report capability gaps that affect the requested work. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
 
 ### Native Claude Code plugin
 
