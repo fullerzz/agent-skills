@@ -6,7 +6,7 @@ outline: [2, 3]
 
 ## PR watcher GitLab support — 2026-10-15
 
-`watch-pr` now watches GitLab merge requests through `glab` as well as GitHub pull requests through `gh`. A new `gitlab.py` reader maps GitLab merge request data onto the existing facts, so policy, exit codes, and NDJSON schemaVersion 1 stay unchanged. It reads `detailed_merge_status`, head-pipeline jobs and bridges, MR pipelines, and resolvable discussions. Retained wire names are `ci-github-rejected`, the `github` key, and the `gh-pr-checks` and `graphql-rollup` sources; GitLab adds `gitlab-pipeline`. `--forge {github,gitlab}` overrides the default, which is detected from the origin remote. The `Reader` protocol gains `forge`, `checks`, and `web_url`, and pretty output names the forge. The last Graphite reference, `gt` in a subprocess comment, is gone. The shared plugin version advances from `0.11.4` to `0.12.0`.
+`watch-pr` now watches GitLab merge requests through `glab` as well as GitHub pull requests through `gh`. A new `gitlab.py` reader maps GitLab merge request data onto the existing facts, so policy, exit codes, and NDJSON schemaVersion 1 stay unchanged. It reads `detailed_merge_status`, head-pipeline jobs and bridges, MR pipelines, and resolvable discussions. Retained wire names are `ci-github-rejected`, the `github` key, and the `gh-pr-checks` and `graphql-rollup` sources; GitLab adds `gitlab-pipeline`. `--forge {github,gitlab}` overrides the default, which is detected from the origin remote. The `Reader` protocol gains `forge`, `checks`, and `web_url`, and pretty output names the forge. The watcher's last Graphite reference, `gt` in a subprocess comment, is gone; `worktree_audit.py` keeps its own copy of that comment outside this change. The shared plugin version advances from `0.11.4` to `0.12.0`.
 
 Checks on this macOS host:
 
@@ -29,6 +29,35 @@ Limits:
 - Discussions return 401 without authentication, so thread mapping is proven only by fixtures. No authenticated or self-hosted GitLab instance and no open-MR watch-to-READY cycle were exercised.
 - `detailed_merge_status` reports one blocking reason, so another reason can mask the review state.
 - Checks read the head pipeline's jobs and bridges. Child-pipeline jobs appear only through their bridge's status.
+- The live watcher run used a merged MR, which returns before reading jobs, pipelines, or discussions; those paths were exercised live only through direct reader calls.
+
+### PR #50 review fixes
+
+An interrogate review and the PR's bot comments found five defects in the GitLab reader. All five are fixed in `gitlab.py`:
+
+- **Outdated head pipeline.** After a push or a `[ci skip]` push, `head_pipeline` can still point at the previous commit's green run, and that used to read as ready. Now it counts as current only if its sha equals the MR sha, or if it is a `refs/merge-requests/<iid>/merge|train` pipeline whose merge commit has the MR sha among its parents. An outdated pipeline adds no checks and keeps its own sha in the rollups. If nothing else remains, the watcher raises a retryable `checks-unavailable`.
+- **Non-review merge blockers.** These read as ready because the policy allows `BLOCKED` with a green rollup. Each one now adds a synthetic `GitLab merge check`:
+  - Failed for `merge_time`, `merge_request_blocked`, `jira_association_missing`, `title_regex`, `locked_paths`, `locked_lfs_files`, `security_policy_violations`, `commits_status`, and the legacy `blocked_status`.
+  - Pending for `status_checks_must_pass`, the legacy `external_status_checks`, and `security_policy_pipeline_check`.
+  - Review-type statuses keep their GitHub-equivalent behavior.
+- **`status_checks_must_pass`.** This documented status is now mapped. A test confirms that all 24 statuses in GitLab's current list map.
+- **`canceling` pipelines.** Rollups now map `canceling` to `FAILURE`. Before, auto-canceled pipelines caused retry churn.
+- **Pipeline that fails before creating any job.** A CI config error leaves the head pipeline failed with no jobs. It now becomes a failed `GitLab pipeline` check (exit 4) instead of `checks-unavailable` (exit 7).
+
+A Herdr-launched Claude Code worker made the fixes. It reverted each fix in turn and confirmed that a new test failed each time, then restored the file byte for byte. It also checked public MR `gitlab-org/cli!4124` live: the merge-train head pipeline's merge commit `727a2ef` has MR sha `95641f4` among its parents, so the pipeline is accepted as current, with 23 checks and its rollup relabelled.
+
+Coordinator checks after the fixes:
+
+- `uv run scripts/validate.py`: 52 skills, zero problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 115 tests passed. The golden fixture is unchanged.
+- Ruff check and format, mypy (28 files), ty, and `git diff --check`: passed.
+
+Limits:
+
+- None of the following were exercised live: an outdated pipeline, an open MR with a merge gate, a `/merge` ref, a fork MR, a zero-job failed pipeline, or a `canceling` pipeline.
+- `merge_time` reports as failing (exit 4) even though it clears on its own.
+- A failed external status check reads as pending until timeout.
 
 ## Selective pstack principle durability port — 2026-10-15
 

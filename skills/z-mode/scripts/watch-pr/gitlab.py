@@ -58,6 +58,7 @@ MERGE_STATUS: dict[str, tuple[MergeState, Mergeable]] = {
             "blocked_status",
             "requested_changes",
             "external_status_checks",
+            "status_checks_must_pass",
             "jira_association_missing",
             "merge_request_blocked",
             "merge_time",
@@ -70,6 +71,26 @@ MERGE_STATUS: dict[str, tuple[MergeState, Mergeable]] = {
         ),
         ("BLOCKED", "MERGEABLE"),
     ),
+}
+# Policy allows BLOCKED with a green rollup, so non-review gates surface as a synthetic check.
+# shortcut: a failed external status check reads as pending until it times out;
+# upgrade via the MR status_checks endpoint.
+MERGE_CHECKS: dict[str, CheckKind] = {
+    **dict.fromkeys(
+        (
+            "merge_time",
+            "merge_request_blocked",
+            "jira_association_missing",
+            "title_regex",
+            "locked_paths",
+            "locked_lfs_files",
+            "security_policy_violations",
+            "commits_status",
+            "blocked_status",
+        ),
+        "failed",
+    ),
+    **dict.fromkeys(("status_checks_must_pass", "external_status_checks", "security_policy_pipeline_check"), "pending"),
 }
 # shortcut: detailed_merge_status reports one blocking reason, so another reason can mask a review state;
 # upgrade via the approvals endpoints if that matters.
@@ -88,6 +109,7 @@ ROLLUPS: dict[str, RollupState | None] = {
     "success": "SUCCESS",
     "failed": "FAILURE",
     "canceled": "FAILURE",
+    "canceling": "FAILURE",
     "skipped": None,
     **dict.fromkeys((*PENDING, "manual"), "PENDING"),
 }
@@ -275,19 +297,68 @@ class GitLabReader:
             )
         return rows
 
-    def checks(self, context: Context) -> ResolvedChecks:
-        pipeline = at(self.api(self.merge_request_path(context)), "head_pipeline")
-        if pipeline is None:
-            raise QueryError("checks-unavailable", "could not read MR checks: no head pipeline")
+    def current(self, context: Context, value: dict[str, object], pipeline: object) -> bool:
+        # A push or [ci skip] leaves head_pipeline on the previous commit's run.
+        sha = nullable_string(at(value, "sha"), "merge request.sha")
+        pipeline_sha = string(at(pipeline, "sha"), "head_pipeline.sha")
+        if sha is None or pipeline_sha == sha:
+            return sha is not None
+        refs = [f"refs/merge-requests/{context['number']}/{kind}" for kind in ("merge", "train")]
+        if string(at(pipeline, "ref"), "head_pipeline.ref") not in refs:
+            return False
+        # Merged-results and merge-train pipelines test a merge commit built on the MR head.
+        project = positive(at(pipeline, "project_id"), "head_pipeline.project_id")
+        commit = self.api(f"projects/{project}/repository/commits/{pipeline_sha}")
+        return sha in array(at(commit, "parent_ids"), "commit.parent_ids")
+
+    def pipeline_checks(self, pipeline: object) -> list[Check]:
         # Fork MR pipelines run in the source project, so use the pipeline's own project.
         path = (
             f"projects/{positive(at(pipeline, 'project_id'), 'head_pipeline.project_id')}"
             f"/pipelines/{positive(at(pipeline, 'id'), 'head_pipeline.id')}"
         )
         jobs = [*self.api_list(path + "/jobs?per_page=100"), *self.api_list(path + "/bridges?per_page=100")]
-        if not jobs:
-            raise QueryError("checks-unavailable", "could not read MR checks: head pipeline has no jobs")
-        return {"source": "gitlab-pipeline", "checks": [parse_job(job) for job in jobs]}
+        status = at(pipeline, "status")
+        if not jobs and lookup(ROLLUPS, status, "head_pipeline.status") == "FAILURE":
+            # A CI config error fails the pipeline before it creates any job.
+            state = string(status, "head_pipeline.status")
+            link = optional_text(record(pipeline, "head_pipeline"), "web_url")
+            return [
+                {
+                    "name": "GitLab pipeline",
+                    "description": state,
+                    "link": link,
+                    "workflow": "",
+                    "kind": "failed",
+                    "reportedState": state.upper(),
+                }
+            ]
+        return [parse_job(job) for job in jobs]
+
+    def checks(self, context: Context) -> ResolvedChecks:
+        value = self.api(self.merge_request_path(context))
+        pipeline = at(value, "head_pipeline")
+        checks: list[Check] = []
+        reason = "no head pipeline"
+        if pipeline is not None and not self.current(context, value, pipeline):
+            reason = "head pipeline is not for the current head"
+        elif pipeline is not None:
+            checks, reason = self.pipeline_checks(pipeline), "head pipeline has no jobs"
+        status = string(at(value, "detailed_merge_status"), "merge request.detailed_merge_status")
+        if (kind := MERGE_CHECKS.get(status)) is not None:
+            checks.append(
+                {
+                    "name": "GitLab merge check",
+                    "description": status,
+                    "link": optional_text(value, "web_url"),
+                    "workflow": "",
+                    "kind": kind,
+                    "reportedState": status.upper(),
+                }
+            )
+        if not checks:
+            raise QueryError("checks-unavailable", "could not read MR checks: " + reason)
+        return {"source": "gitlab-pipeline", "checks": checks}
 
     def commit_rollups(self, context: Context) -> list[CommitRollup]:
         path = self.merge_request_path(context)
@@ -295,13 +366,14 @@ class GitLabReader:
         head = at(value, "head_pipeline")
         head_id = None if head is None else positive(at(head, "id"), "head_pipeline.id")
         sha = nullable_string(at(value, "sha"), "merge request.sha")
+        current = head is not None and self.current(context, value, head)
         heads: list[CommitRollup] = []
         rest: list[CommitRollup] = []
         for raw in self.api_list(path + "/pipelines?per_page=100"):
             pipeline = record(raw, "pipeline")
             is_head = positive(at(pipeline, "id"), "pipeline.id") == head_id
-            # Merged-results and merge-train pipelines run on a merge-ref sha, not the MR head sha.
-            oid = sha if is_head and sha is not None else string(at(pipeline, "sha"), "pipeline.sha")
+            # A current merged-results or merge-train pipeline runs on a merge-ref sha, not the MR head sha.
+            oid = sha if is_head and current and sha is not None else string(at(pipeline, "sha"), "pipeline.sha")
             state = lookup(ROLLUPS, at(pipeline, "status"), "pipeline.status")
             (heads if is_head else rest).append({"oid": oid, "state": state})
         # Policy reads the first rollup matching the head oid, so the head pipeline goes first.

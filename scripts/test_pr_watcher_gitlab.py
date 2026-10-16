@@ -42,6 +42,36 @@ PROJECT = "projects/group%2Fsub%2Fproj"
 MR = PROJECT + "/merge_requests/7"
 JOBS = "projects/99/pipelines/50/jobs?per_page=100"
 BRIDGES = "projects/99/pipelines/50/bridges?per_page=100"
+PIPELINES = MR + "/pipelines?per_page=100"
+MERGE_COMMIT = "projects/99/repository/commits/merge-ref"
+TRAIN = "refs/merge-requests/7/train"
+# GitLab's documented detailed_merge_status values.
+DOCUMENTED_STATUSES = [
+    "approvals_syncing",
+    "checking",
+    "ci_must_pass",
+    "ci_still_running",
+    "commits_status",
+    "conflict",
+    "discussions_not_resolved",
+    "draft_status",
+    "jira_association_missing",
+    "locked_lfs_files",
+    "locked_paths",
+    "merge_request_blocked",
+    "merge_time",
+    "mergeable",
+    "need_rebase",
+    "not_approved",
+    "not_open",
+    "preparing",
+    "requested_changes",
+    "security_policy_pipeline_check",
+    "security_policy_violations",
+    "status_checks_must_pass",
+    "title_regex",
+    "unchecked",
+]
 CONTEXT: schema.Context = {"owner": "group/sub", "repo": "proj", "number": 7}
 
 
@@ -56,7 +86,19 @@ def merge_request(**changes: object) -> dict[str, object]:
         "target_branch": "main",
         "detailed_merge_status": "mergeable",
         "has_conflicts": False,
-        "head_pipeline": {"id": 50, "project_id": 99, "sha": "merge-ref", "status": "success"},
+        "web_url": f"https://{HOST}/group/sub/proj/-/merge_requests/7",
+        "head_pipeline": pipeline(),
+    } | changes
+
+
+def pipeline(**changes: object) -> dict[str, object]:
+    return {
+        "id": 50,
+        "project_id": 99,
+        "sha": "head",
+        "ref": "topic",
+        "status": "success",
+        "web_url": f"https://{HOST}/group/sub/proj/-/pipelines/50",
     } | changes
 
 
@@ -160,6 +202,11 @@ class MergeRequestTests(unittest.TestCase):
         self.assertEqual(self.facts(state="locked")["state"], "OPEN")
         self.assertEqual(self.facts(state="merged")["state"], "MERGED")
 
+    def test_documented_merge_statuses_map(self) -> None:
+        for status in DOCUMENTED_STATUSES:
+            with self.subTest(status=status):
+                self.facts(detailed_merge_status=status)
+
     def test_unknown_values_fail_closed(self) -> None:
         unknowns: list[dict[str, object]] = [
             {"detailed_merge_status": "new_reason"},
@@ -210,21 +257,78 @@ class CheckTests(unittest.TestCase):
                 Api(objects, lists).reader().checks(CONTEXT)
             self.assertEqual(caught.exception.failure["kind"], kind)
 
-    def test_commit_rollups_put_head_pipeline_first_with_mr_sha(self) -> None:
+    def test_failed_pipeline_without_jobs_is_a_failed_check(self) -> None:
+        head = pipeline(status="failed")
+        api = Api({MR: merge_request(head_pipeline=head)}, {JOBS: [], BRIDGES: []})
+        self.assertEqual(
+            api.reader().checks(CONTEXT)["checks"],
+            [
+                {
+                    "name": "GitLab pipeline",
+                    "description": "failed",
+                    "link": head["web_url"],
+                    "workflow": "",
+                    "kind": "failed",
+                    "reportedState": "FAILED",
+                }
+            ],
+        )
+
+    def test_merge_gates_add_a_synthetic_check(self) -> None:
+        for status, kind in [("merge_time", "failed"), ("status_checks_must_pass", "pending")]:
+            api = Api({MR: merge_request(detailed_merge_status=status)}, {JOBS: [job("success")], BRIDGES: []})
+            with self.subTest(status=status):
+                self.assertEqual(
+                    api.reader().checks(CONTEXT)["checks"][-1],
+                    {
+                        "name": "GitLab merge check",
+                        "description": status,
+                        "link": merge_request()["web_url"],
+                        "workflow": "",
+                        "kind": kind,
+                        "reportedState": status.upper(),
+                    },
+                )
+
+    def test_stale_head_pipeline_contributes_no_checks(self) -> None:
+        cases: list[tuple[dict[str, object], list[str]]] = [
+            (pipeline(sha="old"), []),
+            (pipeline(sha="merge-ref", ref=TRAIN), ["base", "other"]),
+            (pipeline(sha="merge-ref", ref="refs/merge-requests/8/train"), ["base", "head"]),
+        ]
+        for head, parents in cases:
+            api = Api(
+                {MR: merge_request(head_pipeline=head), MERGE_COMMIT: {"parent_ids": parents}},
+                {JOBS: [job("success")], BRIDGES: []},
+            )
+            with self.subTest(head=head, parents=parents), self.assertRaises(github.QueryError) as caught:
+                api.reader().checks(CONTEXT)
+            self.assertEqual(caught.exception.failure["kind"], "checks-unavailable")
+            self.assertIn("not for the current head", caught.exception.failure["detail"])
+
+    def test_commit_rollups_relabel_only_a_current_merge_train_pipeline(self) -> None:
         pipelines: list[object] = [
             {"id": 40, "sha": "head", "status": "success"},
             {"id": 50, "sha": "merge-ref", "status": "failed"},
             {"id": 30, "sha": "old", "status": "skipped"},
+            {"id": 20, "sha": "older", "status": "canceling"},
         ]
-        api = Api({MR: merge_request()}, {MR + "/pipelines?per_page=100": list(pipelines)})
-        self.assertEqual(
-            api.reader().commit_rollups(CONTEXT),
-            [
-                {"oid": "head", "state": "FAILURE"},
-                {"oid": "head", "state": "SUCCESS"},
-                {"oid": "old", "state": None},
-            ],
-        )
+        head = pipeline(sha="merge-ref", ref=TRAIN)
+        for parents, oid in [(["base", "head"], "head"), (["base", "other"], "merge-ref")]:
+            api = Api(
+                {MR: merge_request(head_pipeline=head), MERGE_COMMIT: {"parent_ids": parents}},
+                {PIPELINES: list(pipelines)},
+            )
+            with self.subTest(parents=parents):
+                self.assertEqual(
+                    api.reader().commit_rollups(CONTEXT),
+                    [
+                        {"oid": oid, "state": "FAILURE"},
+                        {"oid": "head", "state": "SUCCESS"},
+                        {"oid": "old", "state": None},
+                        {"oid": "older", "state": "FAILURE"},
+                    ],
+                )
 
 
 class ThreadTests(unittest.TestCase):
@@ -252,25 +356,56 @@ class ThreadTests(unittest.TestCase):
 
 
 class SnapshotTests(unittest.TestCase):
-    def snapshot(self, jobs: list[object]) -> policy.Decision:
+    def snapshot(
+        self, jobs: list[object], objects: Mapping[str, object] | None = None, **changes: object
+    ) -> policy.Decision:
+        mr = merge_request(**changes)
         api = Api(
-            {MR: merge_request()},
+            {MR: mr, **(objects or {})},
             {
                 JOBS: jobs,
                 BRIDGES: [],
                 MR + "/discussions?per_page=100": [],
-                MR + "/pipelines?per_page=100": [{"id": 50, "sha": "merge-ref", "status": "success"}],
+                PIPELINES: [github.record(mr["head_pipeline"], "pipeline") | {"status": "success"}],
             },
         )
         return policy.select_stack_decision([policy.read_snapshot(api.reader(), CONTEXT)])
 
+    def assert_failing(self, decision: policy.Decision, names: list[str]) -> None:
+        if decision["kind"] != "blocker" or decision["blocker"]["kind"] != "failing-checks":
+            self.fail(str(decision))
+        self.assertEqual([c["name"] for c in decision["blocker"]["ci"]["failed"]], names)
+
     def test_ready_and_failing_checks(self) -> None:
         ready = self.snapshot([job("success")])
         self.assertEqual(ready["kind"], "clear")
-        blocked = self.snapshot([job("success"), job("failed", name="lint")])
-        if blocked["kind"] != "blocker" or blocked["blocker"]["kind"] != "failing-checks":
-            self.fail(str(blocked))
-        self.assertEqual([c["name"] for c in blocked["blocker"]["ci"]["failed"]], ["lint"])
+        self.assert_failing(self.snapshot([job("success"), job("failed", name="lint")]), ["lint"])
+
+    def test_stale_head_pipeline_is_not_ready(self) -> None:
+        with self.assertRaises(github.QueryError) as caught:
+            self.snapshot([job("success")], head_pipeline=pipeline(sha="old"))
+        self.assertEqual(caught.exception.failure["kind"], "checks-unavailable")
+        train = pipeline(sha="merge-ref", ref=TRAIN)
+        accepted = self.snapshot(
+            [job("success")], {MERGE_COMMIT: {"parent_ids": ["base", "head"]}}, head_pipeline=train
+        )
+        self.assertEqual(accepted["kind"], "clear")
+
+    def test_merge_gates_are_not_ready(self) -> None:
+        self.assert_failing(self.snapshot([job("success")], detailed_merge_status="merge_time"), ["GitLab merge check"])
+        self.assert_failing(
+            self.snapshot([job("success")], detailed_merge_status="locked_paths", head_pipeline=pipeline(sha="old")),
+            ["GitLab merge check"],
+        )
+        waiting = self.snapshot([job("success")], detailed_merge_status="status_checks_must_pass")
+        self.assertEqual(waiting["kind"], "waiting")
+        self.assertEqual(self.snapshot([job("success")], detailed_merge_status="not_approved")["kind"], "clear")
+
+    def test_pipeline_without_jobs(self) -> None:
+        self.assert_failing(self.snapshot([], head_pipeline=pipeline(status="failed")), ["GitLab pipeline"])
+        with self.assertRaises(github.QueryError) as caught:
+            self.snapshot([], head_pipeline=pipeline(status="running"))
+        self.assertEqual(caught.exception.failure["kind"], "checks-unavailable")
 
 
 class GitLabProcessTests(unittest.TestCase):
@@ -298,7 +433,7 @@ args=sys.argv[1:]
 assert args[:3] == ['api','--hostname','gitlab.example.com'], args
 path=args[3]
 mr='projects/group%2Fsub%2Fproj/merge_requests/7'
-pipeline={'id':50,'project_id':99,'sha':'merge-ref','status':'success'}
+pipeline={'id':50,'project_id':99,'sha':'head','ref':'topic','status':'success'}
 values={
  mr: dict(iid=7,state='opened',draft=False,sha='head',merged_at=None,source_branch='topic',target_branch='main',
   detailed_merge_status='mergeable',has_conflicts=False,head_pipeline=pipeline),
