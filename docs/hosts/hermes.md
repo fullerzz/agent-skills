@@ -77,7 +77,7 @@ Hermes currently has no documented native plugin hook for **completed** compacti
 
 ## Host boundaries
 
-The plugin does not register the Codex TOML or Claude Markdown agent roles. Workflows default to Hermes' available native delegation with a scoped brief and inherited configuration; explicitly enabled Herdr execution uses independent CLI sessions under the shared execution contract. The [native contract](../../skills/z-mode/references/native-hosts.md#hermes) explains resource resolution and fallback reporting. The linked installer still targets Codex and Claude Code only.
+The plugin does not register the Codex TOML or Claude Markdown agent roles. Workflows default to Hermes' available native delegation with a scoped brief and inherited configuration; explicitly enabled Herdr execution uses independent CLI sessions under the shared execution contract. The [native contract](../../skills/z-mode/references/native-hosts.md#hermes) explains resource resolution and capability reporting. The linked installer still targets Codex and Claude Code only.
 
 Hook contracts follow the official [plugin API](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins) and [lifecycle hooks](https://hermes-agent.nousresearch.com/docs/developer-guide/observer-hooks), with native runtime evidence recorded in [validation](../validation.md#native-hermes-plugin).
 

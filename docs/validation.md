@@ -4,6 +4,19 @@ outline: [2, 3]
 
 # Validation
 
+## Host-aware native agent guidance — 2026-10-16
+
+The shared delegation contract now selects only roles exposed by the worker's host. Native workers are the expected path for Codex and Hermes plugin installations; Claude Code prefers its registered plugin roles, and linked installations can use their native role copies when exposed. Expected role absence no longer requires a fallback announcement. Missing delegation and capability gaps that affect the requested work still require reporting, and the selected execution method's fallback rules still apply. The absolute z-mode instruction path and scoped brief remain required for children following the mode. The README and all three host guides use the same distinction. The shared plugin version advances from `0.12.1` to `0.12.2` for this packaged wording fix.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, zero failed or skipped, including the documentation build.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 118 tests passed.
+- `git diff --check`: passed.
+
+Source review checked the guidance against the Codex packaging resources, Claude plugin agent registration, Hermes plugin entrypoint, and linked installer. These checks establish instruction and packaging consistency; live Codex, Claude Code, and Hermes delegation sessions were not run, so suppression of the fallback announcement is not behaviorally verified. Native agent definitions, hooks, invocation policy, and dependencies are unchanged.
+
 ## Selective pstack PR #634 wording cleanup — 2026-10-15
 
 Adapted the recommended parts of [PR #634](https://github.com/cursor/plugins/pull/634): Interrogate loses repeated lead-judgment setup and Verdict Calibration, including the suggested five-item Act On limit; the type-system principle keeps all eight decisions with shorter examples; API migration loses only its repeated introduction and conclusion. Direct diff review confirmed that API migration retains all four rules and three applicability conditions, Interrogate retains every filtering/security/correctness criterion, and skill frontmatter is unchanged. Swarm, the Interrogate entrypoint, and the principles reference are unchanged. The three native manifests advance together from `0.12.0` to `0.12.1` under the packaged-wording patch policy.
