@@ -87,6 +87,8 @@ MERGE_CHECKS: dict[str, CheckKind] = {
             "security_policy_violations",
             "commits_status",
             "blocked_status",
+            # Fast-forward and semi-linear merge methods refuse until the source branch is rebased.
+            "need_rebase",
         ),
         "failed",
     ),
@@ -345,7 +347,11 @@ class GitLabReader:
         elif pipeline is not None:
             checks, reason = self.pipeline_checks(pipeline), "head pipeline has no jobs"
         status = string(at(value, "detailed_merge_status"), "merge request.detailed_merge_status")
-        if (kind := MERGE_CHECKS.get(status)) is not None:
+        kind = MERGE_CHECKS.get(status)
+        # GitLab can reject CI that the jobs don't explain, such as a skipped pipeline when skips don't count.
+        if status == "ci_must_pass" and not any(c["kind"] in ("failed", "pending") for c in checks):
+            kind = "failed"
+        if kind is not None:
             checks.append(
                 {
                     "name": "GitLab merge check",

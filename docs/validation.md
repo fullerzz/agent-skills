@@ -59,6 +59,21 @@ Limits:
 - `merge_time` reports as failing (exit 4) even though it clears on its own.
 - A failed external status check reads as pending until timeout.
 
+### Rebase and skipped-pipeline gates
+
+Two more review findings could produce a false READY:
+
+- **Required rebase.** `need_rebase` maps to `BEHIND`, which the policy allows. It now also adds a failed `GitLab merge check`, because fast-forward and semi-linear merge methods refuse to merge until the source branch is rebased.
+- **Unexplained `ci_must_pass`.** A skipped head pipeline can carry `ci_must_pass` in a project that doesn't count skipped pipelines as passing. Its jobs read as skipped and its rollup is empty. `ci_must_pass` now adds a failed merge check whenever no enumerated job is failed or pending. Real failing or pending jobs still explain the gate on their own.
+
+Two decision-level regressions run through `policy.read_snapshot` and `select_stack_decision`. Both failed before the fix and pass with it. The snapshot fixture now passes the head pipeline's actual status into the rollups instead of forcing `success`.
+
+Checks after the fix:
+
+- Full Python unittest discovery passed.
+- Ruff check and format, mypy (28 files), ty, `uv run scripts/validate.py` (52 skills, zero problems), and `git diff --check` passed.
+- Neither gate was exercised against a live GitLab MR.
+
 ## Selective pstack principle durability port — 2026-10-15
 
 Ported the four guidance updates from [pstack PR #633](https://github.com/cursor/plugins/pull/633), aligned Correct and the principles reference, and recorded upstream attribution. The shared plugin version advances from `0.11.3` to `0.11.4` for compatible packaged wording changes. Explicit-only invocation metadata, scoped fixes, required validation, safe failure handling, and separate action authority remain intact; no executable behavior changed.

@@ -366,7 +366,7 @@ class SnapshotTests(unittest.TestCase):
                 JOBS: jobs,
                 BRIDGES: [],
                 MR + "/discussions?per_page=100": [],
-                PIPELINES: [github.record(mr["head_pipeline"], "pipeline") | {"status": "success"}],
+                PIPELINES: [mr["head_pipeline"]],
             },
         )
         return policy.select_stack_decision([policy.read_snapshot(api.reader(), CONTEXT)])
@@ -400,6 +400,20 @@ class SnapshotTests(unittest.TestCase):
         waiting = self.snapshot([job("success")], detailed_merge_status="status_checks_must_pass")
         self.assertEqual(waiting["kind"], "waiting")
         self.assertEqual(self.snapshot([job("success")], detailed_merge_status="not_approved")["kind"], "clear")
+
+    def test_required_rebase_is_not_ready(self) -> None:
+        self.assert_failing(
+            self.snapshot([job("success")], detailed_merge_status="need_rebase"), ["GitLab merge check"]
+        )
+
+    def test_ci_gate_holds_when_jobs_do_not_explain_it(self) -> None:
+        skipped = self.snapshot(
+            [job("skipped")], detailed_merge_status="ci_must_pass", head_pipeline=pipeline(status="skipped")
+        )
+        self.assert_failing(skipped, ["GitLab merge check"])
+        # Failing or pending jobs already explain the gate, so no extra check is added.
+        self.assert_failing(self.snapshot([job("failed", name="lint")], detailed_merge_status="ci_must_pass"), ["lint"])
+        self.assertEqual(self.snapshot([job("running")], detailed_merge_status="ci_must_pass")["kind"], "waiting")
 
     def test_pipeline_without_jobs(self) -> None:
         self.assert_failing(self.snapshot([], head_pipeline=pipeline(status="failed")), ["GitLab pipeline"])
