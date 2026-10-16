@@ -114,7 +114,7 @@ To remove, preview `uv run scripts/install.py uninstall --host claude`, then rep
 
 ## Agents
 
-Agent roles are `z-agent` and `comment-sicko`, with Markdown frontmatter and `model: inherit`. A native role or tool missing from the session gets a disclosed fallback. Queue work within actual nesting and concurrency limits.
+Agent roles use Markdown frontmatter and `model: inherit`. Prefer `zstack:z-agent` and `zstack:comment-sicko` in plugin installations, or `z-agent` and `comment-sicko` in linked installations, when exposed. Otherwise use an available native worker with the same scoped brief. Report missing delegation or capability gaps that affect the requested work. Queue work within actual nesting and concurrency limits.
 
 ::: warning Not a complete sandbox
 The comment reviewer excludes Write and Edit and is instructed to avoid all writes, including Bash and MCP. Those exclusions alone are not a complete sandbox.

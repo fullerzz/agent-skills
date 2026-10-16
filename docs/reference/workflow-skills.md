@@ -353,7 +353,7 @@ You want to review redundant comments, correctness suppressions, or workarounds.
 
 ### How it works
 
-A native comment-sicko or disclosed read-only fallback returns locations, proposed removals, refactor targets, evidence, and exceptions. The parent checks claims and investigates ambiguous constraints through how or why. Authorized edits fix root causes before removing suppressions and then verify replacements.
+An available `comment-sicko` role or equivalent read-only native reviewer returns locations, proposed removals, refactor targets, evidence, and exceptions. Role selection, scoped briefs, and reporting capability gaps follow the [native contract](../../skills/z-mode/references/native-hosts.md#delegation). The parent checks claims and investigates ambiguous constraints through how or why. Authorized edits fix root causes before removing suppressions and then verify replacements.
 
 ### Expected result
 

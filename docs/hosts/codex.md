@@ -45,7 +45,7 @@ For Codex 0.157+, use the [shared-daemon workaround](../guide/herdr.md#known-cod
 
 ### Native agents
 
-This package does not register `agents/codex/` as plugin roles. Existing native agent copies may still be used; otherwise workflows disclose a built-in or direct fallback. Use the linked installation below if you need the installer-managed native roles, and disable/remove the plugin to avoid duplicate skills. See [OpenAI's conversion guidance](https://developers.openai.com/plugins/guides/submit-claude-plugin) for the distinction between reusable plugin skills and agent files.
+This package does not register `agents/codex/` as plugin roles. Built-in native workers are the normal execution path; existing native agent copies may also be used when exposed. Give workers the same scoped brief and z-mode instruction path described in the [native contract](../../skills/z-mode/references/native-hosts.md#delegation). Use the linked installation below if you need the installer-managed native roles, and disable/remove the plugin to avoid duplicate skills. See [OpenAI's conversion guidance](https://developers.openai.com/plugins/guides/submit-claude-plugin) for the distinction between reusable plugin skills and agent files.
 
 ### Plugin update and removal
 
@@ -71,7 +71,7 @@ Confirm `zstack@zstack-local` is installed and enabled. In a new session, check 
 | Duplicate skill names | Remove the old linked installation in its original scope before using the plugin. |
 | Checkout edits are missing | Rebuild `dist/zstack`, remove and add the cached plugin, then start a new session. |
 | Skills load but mode persistence is unavailable | Check hook trust, including after a refresh that changed the hook definition, and whether uv is available on the execution host. |
-| `z-agent` or `comment-sicko` is unavailable | The plugin does not register these roles; use the linked installation if you need installer-managed agents. |
+| `z-agent` or `comment-sicko` is unavailable | Expected for plugin installations; use available native workers. The linked installation supplies installer-managed roles if needed. |
 | CLI reports it could not create PATH aliases | Check the command's exit status and output. This is a Codex CLI startup warning, not a zstack hook error. In the recorded sandbox check, help and plugin listing still succeeded. |
 
 Installed/enabled status proves registration, not skill execution. See the [validation record](../validation.md) for observed host behavior and remaining gaps.
@@ -121,7 +121,7 @@ To remove, preview `uv run scripts/install.py uninstall --host codex`, then repe
 
 ## Agents
 
-Native roles are `z-agent` and `comment-sicko`. They use standalone TOML with name, description, and developer_instructions. Model overrides are omitted to inherit native defaults. The comment reviewer uses read-only sandboxing. If custom agents or delegation are disabled, use the disclosed built-in or direct fallback.
+Native roles are `z-agent` and `comment-sicko`. They use standalone TOML with name, description, and developer_instructions. Model overrides are omitted to inherit native defaults. The comment reviewer uses read-only sandboxing. If custom roles are unavailable, use available native workers with the same scoped brief. If delegation is disabled, work directly and report missing independent coverage.
 
 ::: warning Installation does not grant trust
 Project agent discovery requires a trusted project and enabled native agents. Confirm those settings through Codex's native trust flow.
