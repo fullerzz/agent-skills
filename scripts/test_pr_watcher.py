@@ -292,6 +292,9 @@ class ForgeSelectionTests(unittest.TestCase):
             ("", "gitlab", " ", "gitlab.com"),
             ("", "gitlab", None, "gitlab.com"),
             ("git@github.com:o/r.git", "gitlab", None, "gitlab.com"),
+            ("ssh://git@github.com:22/o/r.git", "gitlab", None, "gitlab.com"),
+            ("https://github.com:443/o/r", "gitlab", "gitlab.internal", "gitlab.internal"),
+            ("ssh://git@github.com:22/o/r.git", None, None, None),
             ("https://github.com/o/r", "gitlab", "gitlab.internal", "gitlab.internal"),
         ]:
             with self.subTest(origin=origin, forge=forge, env=env):

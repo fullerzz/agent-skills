@@ -50,12 +50,13 @@ def prs(value: str) -> list[int]:
 
 def gitlab_host(origin: str, forge: str | None, env_host: str | None) -> str | None:
     """Return the GitLab host to watch, or None to watch GitHub; forge None means auto-detect from origin."""
-    github_origin = parse_remote(origin) is not None
+    parsed = parse_gitlab_remote(origin)
+    # parse_remote rejects explicit ports, so also recognize a github.com origin by its hostname.
+    github_origin = parse_remote(origin) is not None or (parsed is not None and parsed[0].split(":")[0] == "github.com")
     if forge == "github" or (forge is None and github_origin):
         return None
     # A forced GitLab watch from a GitHub checkout must not reuse github.com as the GitLab host.
-    parsed = None if github_origin else parse_gitlab_remote(origin)
-    if parsed is not None and (forge == "gitlab" or "gitlab" in parsed[0]):
+    if not github_origin and parsed is not None and (forge == "gitlab" or "gitlab" in parsed[0]):
         return parsed[0]
     if forge is None:
         return None

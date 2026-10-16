@@ -74,6 +74,25 @@ Checks after the fix:
 - Ruff check and format, mypy (28 files), ty, `uv run scripts/validate.py` (52 skills, zero problems), and `git diff --check` passed.
 - Neither gate was exercised against a live GitLab MR.
 
+### Transient states, CI retry, and ported GitHub remotes
+
+The second bot review of `67c778b` raised three threads:
+
+- **Statuses still being computed.** `checking`, `unchecked`, `preparing`, `approvals_syncing`, and `ci_still_running` mean GitLab is still evaluating mergeability, approvals, or CI. Each now adds a pending `GitLab merge check`, so the watcher waits instead of reading the MR as clear.
+- **Unexplained `ci_must_pass`.** The fallback now applies only to a current head pipeline:
+  - A missing or outdated pipeline stays a retryable `checks-unavailable`.
+  - A running pipeline adds a pending check, which covers both no jobs yet and all jobs green so far.
+  - A finished pipeline whose jobs don't explain the gate still fails.
+- **GitHub remotes with an explicit port.** With `--forge gitlab`, `ssh://git@github.com:22/...` and `https://github.com:443/...` were taken as GitLab host `github.com`. `parse_remote` rejects ports, so a github.com hostname now also counts as a GitHub origin, and the host falls back to `GITLAB_HOST` or `gitlab.com`.
+
+The new forge-selection cases and decision-level tests failed before the fix (8 subtest failures) and pass with it.
+
+Checks after the fix:
+
+- Full Python unittest discovery passed.
+- Ruff check and format, mypy (28 files), ty, `uv run scripts/validate.py` (52 skills, zero problems), and `git diff --check` passed.
+- None of these paths was exercised live.
+
 ## Selective pstack principle durability port — 2026-10-15
 
 Ported the four guidance updates from [pstack PR #633](https://github.com/cursor/plugins/pull/633), aligned Correct and the principles reference, and recorded upstream attribution. The shared plugin version advances from `0.11.3` to `0.11.4` for compatible packaged wording changes. Explicit-only invocation metadata, scoped fixes, required validation, safe failure handling, and separate action authority remain intact; no executable behavior changed.

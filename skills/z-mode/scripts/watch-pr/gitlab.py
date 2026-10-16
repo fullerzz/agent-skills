@@ -93,6 +93,8 @@ MERGE_CHECKS: dict[str, CheckKind] = {
         "failed",
     ),
     **dict.fromkeys(("status_checks_must_pass", "external_status_checks", "security_policy_pipeline_check"), "pending"),
+    # GitLab is still computing mergeability, approvals, or CI, so wait rather than read them as clear.
+    **dict.fromkeys(("checking", "unchecked", "preparing", "approvals_syncing", "ci_still_running"), "pending"),
 }
 # shortcut: detailed_merge_status reports one blocking reason, so another reason can mask a review state;
 # upgrade via the approvals endpoints if that matters.
@@ -342,15 +344,18 @@ class GitLabReader:
         pipeline = at(value, "head_pipeline")
         checks: list[Check] = []
         reason = "no head pipeline"
-        if pipeline is not None and not self.current(context, value, pipeline):
+        current = pipeline is not None and self.current(context, value, pipeline)
+        if pipeline is not None and not current:
             reason = "head pipeline is not for the current head"
-        elif pipeline is not None:
+        elif current:
             checks, reason = self.pipeline_checks(pipeline), "head pipeline has no jobs"
         status = string(at(value, "detailed_merge_status"), "merge request.detailed_merge_status")
         kind = MERGE_CHECKS.get(status)
         # GitLab can reject CI that the jobs don't explain, such as a skipped pipeline when skips don't count.
-        if status == "ci_must_pass" and not any(c["kind"] in ("failed", "pending") for c in checks):
-            kind = "failed"
+        # A missing or stale pipeline stays unavailable CI to retry, and a running one is still pending.
+        if status == "ci_must_pass" and current and not any(c["kind"] in ("failed", "pending") for c in checks):
+            running = lookup(ROLLUPS, at(pipeline, "status"), "head_pipeline.status") == "PENDING"
+            kind = "pending" if running else "failed"
         if kind is not None:
             checks.append(
                 {

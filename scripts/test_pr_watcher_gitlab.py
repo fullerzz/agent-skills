@@ -414,6 +414,23 @@ class SnapshotTests(unittest.TestCase):
         # Failing or pending jobs already explain the gate, so no extra check is added.
         self.assert_failing(self.snapshot([job("failed", name="lint")], detailed_merge_status="ci_must_pass"), ["lint"])
         self.assertEqual(self.snapshot([job("running")], detailed_merge_status="ci_must_pass")["kind"], "waiting")
+        # A missing or stale pipeline is unavailable CI to retry, and a running one waits; neither is a CI failure.
+        for head in (None, pipeline(sha="old")):
+            with self.subTest(head=head), self.assertRaises(github.QueryError) as caught:
+                self.snapshot([], detailed_merge_status="ci_must_pass", head_pipeline=head)
+            self.assertEqual(caught.exception.failure["kind"], "checks-unavailable")
+        cases: list[list[object]] = [[], [job("success")]]
+        for jobs in cases:
+            with self.subTest(jobs=jobs):
+                running = self.snapshot(
+                    jobs, detailed_merge_status="ci_must_pass", head_pipeline=pipeline(status="running")
+                )
+                self.assertEqual(running["kind"], "waiting")
+
+    def test_transient_merge_states_wait(self) -> None:
+        for status in ("checking", "unchecked", "preparing", "approvals_syncing", "ci_still_running"):
+            with self.subTest(status=status):
+                self.assertEqual(self.snapshot([job("success")], detailed_merge_status=status)["kind"], "waiting")
 
     def test_pipeline_without_jobs(self) -> None:
         self.assert_failing(self.snapshot([], head_pipeline=pipeline(status="failed")), ["GitLab pipeline"])
