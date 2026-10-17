@@ -25,7 +25,7 @@ The packaging command requires a Git checkout and refreshes `dist/zstack` from t
 
 The source and staged package use the native manifest because CLI 0.160.0 discovered its hook there, while a portable root manifest's OpenAI extension did not expose the hook on that tested host.
 
-Start a new session. Plugin skills appear with names such as `zstack:how` and `zstack:z-mode`; select them through the skill picker. CLI 0.160.0 discovered all 48 skills in an isolated installation; see [validation](../validation.md) for the tested behavior and remaining live checks.
+Start a new session. Plugin skills appear with names such as `zstack:how` and `zstack:z-mode`; select them through the skill picker. In a historical run before the Python skill was added, CLI 0.160.0 discovered the then-current 48 skills in an isolated installation. Discovery of the current 53-skill package has not been verified in a fresh host session; see [validation](../validation.md) for the tested behavior and remaining live checks.
 
 The plugin enables automatic selection for `how` and `why` for read-only code explanation and historical rationale, and for `python-best-practices` for Python work. Codex uses their `agents/openai.yaml` policies; their shared `disable-model-invocation` flags retain explicit invocation in Claude Code. Select z-mode through the installed skill picker when you want its engineering style; installation does not activate it.
 

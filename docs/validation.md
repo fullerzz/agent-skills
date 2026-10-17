@@ -6,6 +6,8 @@ outline: [2, 3]
 
 ## Python best-practices skill — 2026-10-17
 
+Latest review follow-up: updated the documentation landing page to 53 skills (the README was already corrected), and explicitly labeled the Codex 48-skill discovery result as historical. Structural validation (53 skills, zero problems), all four documentation tests including the production build, and `git diff --check` passed. Fresh-host discovery was not rerun, so the guide does not claim discovery of the current 53-skill package.
+
 PR review follow-up: corrected the workflow count to 29 and the README total to 53, and reconciled automatic Python skill selection across the overview, setup guide, and Codex host guide. Structural validation (53 skills, zero problems), all 15 Node tests including the documentation build, and `git diff --check` passed. This documentation-only correction did not rerun Python tests or live host invocation.
 
 Follow-up: enabled Codex implicit invocation for Python guidance and updated the validator allowlist, regression fixtures, and workflow reference. Claude's shared invocation flag remains explicit. Structural validation, all 15 Node tests, all 122 Python tests, Ruff lint/format checks, and project mypy passed after this change. Live automatic skill selection remains unverified. The existing `0.13.0` minor bump covers the new skill and its final invocation policy in this PR.
