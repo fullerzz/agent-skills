@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Python best-practices skill — 2026-10-17
+
+Added an explicit-only Python companion with uv workflows, Ruff formatting and linting, mypy, extensive type hints, and Pydantic boundary validation. The examples reference contains script/package commands, checking configuration, a boundary self-check, and typed internal variants. Added its workflow reference and advanced all three native plugin manifests from `0.12.3` to `0.13.0` under the new-skill versioning policy.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 53 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the documentation build and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 122 tests passed.
+- Extracted both Python examples and the mypy/Ruff configuration into a temporary directory. Ruff formatting and lint checks passed; strict mypy with the Pydantic plugin passed for both files. Pytest ran the boundary example: one test passed, covering valid data, empty input, invalid quantity types/ranges, and extra fields.
+- `git diff --check`: passed.
+
+The mise shim failed inside the sandbox, including subprocesses in the first Python suite run. Checks passed after selecting the installed uv and Node binaries directly through PATH. The generic skill-creator validator rejects this repository's supported `disable-model-invocation` field; the repository validator verifies that field and the matching Codex explicit-only policy successfully. No personal configuration was installed or changed. Fresh-host skill invocation and the full initialization command sequences were not exercised; example execution and structural checks do not establish live agent behavior.
+
 ## PR watcher single-pass status and repositories without checks — 2026-10-17
 
 [Issue #53](https://github.com/fullerzz/agent-skills/issues/53) reported that `--status-only` retried for minutes when GitHub reported no checks. The GitHub resolver now accepts exit 1 with `no checks reported` as zero checks after the GraphQL fallback succeeds with an empty rollup. Other fast-path errors and failed fallback queries still fail closed; checks found by the fallback still take precedence. Status-only runs use a one-attempt query-error budget, returning the existing terminal status-query blocker (exit 7) on failure. Normal polling retains its retry budget.

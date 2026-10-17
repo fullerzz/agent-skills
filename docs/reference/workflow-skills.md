@@ -598,6 +598,29 @@ The rules serve clarity rather than mechanical compliance. Product UI copy follo
 
 [Full technical-writing instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/technical-writing/SKILL.md)
 
+## Python best practices {#python-best-practices}
+
+You want Python scripts, packages, or reviews guided by uv, Ruff, mypy, extensive type hints, and Pydantic validation.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$python-best-practices Add a typed JSON importer with Pydantic boundary validation.` |
+| Claude Code | `/python-best-practices Add a typed JSON importer with Pydantic boundary validation.` |
+
+### How it works
+
+Uses uv for Python operations wherever supported, Ruff for both formatting and linting, and mypy for type checking. External data is parsed into typed Pydantic models or through TypeAdapter. Examples cover standalone scripts, packages, checking configuration, boundary tests, and internal domain variants.
+
+### Expected result
+
+Scoped Python changes with precise annotations, validated inputs, and reported formatting, lint, type-check, and runtime-test evidence.
+
+### Dependencies and limits
+
+Explicit-only, like the TypeScript companion. Reuses type-system and boundary principles. Examples target Python 3.11+ and Pydantic 2; adapt to the project's supported versions. Existing packaging is not silently migrated, and static checks do not prove runtime behavior.
+
+[Full python-best-practices instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/python-best-practices/SKILL.md)
+
 ## TypeScript best practices {#typescript-best-practices}
 
 You want TypeScript changes or review guided by explicit domain and boundary types.
