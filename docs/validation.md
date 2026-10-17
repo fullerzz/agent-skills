@@ -8,6 +8,8 @@ outline: [2, 3]
 
 [Issue #53](https://github.com/fullerzz/agent-skills/issues/53) reported that `--status-only` retried for minutes when GitHub reported no checks. The GitHub resolver now accepts exit 1 with `no checks reported` as zero checks after the GraphQL fallback succeeds with an empty rollup. Other fast-path errors and failed fallback queries still fail closed; checks found by the fallback still take precedence. Status-only runs use a one-attempt query-error budget, returning the existing terminal status-query blocker (exit 7) on failure. Normal polling retains its retry budget.
 
+The shared Codex, Claude Code, and Hermes plugin version advances from `0.12.2` to `0.12.3` for this compatible packaged fix.
+
 Checks on this macOS host:
 
 - New regressions failed before the fix: the no-checks case returned BLOCKER, the subprocess fixture timed out, and status-only failures emitted five events instead of one.
