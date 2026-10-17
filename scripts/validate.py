@@ -19,8 +19,8 @@ from urllib.parse import unquote
 import yaml
 from rich.console import Console
 
-# Codex opts in only these read-only workflows; Claude retains explicit invocation.
-CODEX_IMPLICIT_SKILLS = {"how", "why"}
+# Codex opts in these skills; Claude retains explicit invocation.
+CODEX_IMPLICIT_SKILLS = {"how", "why", "python-best-practices"}
 
 
 class YamlLoader(yaml.SafeLoader):
@@ -114,7 +114,7 @@ def validate_policy(file: Path, meta: dict[str, object], relative: str, fail: Fa
             relative,
             "Explicit-only Codex policy missing"
             if meta["name"] not in CODEX_IMPLICIT_SKILLS
-            else "Read-only Codex implicit policy missing",
+            else "Codex implicit policy missing",
         )
 
 

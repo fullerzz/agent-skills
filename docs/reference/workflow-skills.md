@@ -1,8 +1,8 @@
 # Workflow skills
 
-These entries describe the 28 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 29 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
-Codex permits automatic selection only for the read-only `how` and `why` skills; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how` and `why`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
+Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
 Delegated workflows use native host agents by default, or [Herdr execution](#herdr-workflow) when explicitly enabled. Native agents inherit model configuration; Herdr-launched CLIs use their own settings. Both retain bounded concurrency and isolated write ownership. Independent runs are not proof of provider diversity. Reports disclose unavailable agents and incomplete coverage. A workflow request does not independently authorize commits, publication, messages, or tracker writes.
 
@@ -597,6 +597,29 @@ Clearer technical writing with a consistent document purpose, concrete names, re
 The rules serve clarity rather than mechanical compliance. Product UI copy follows product guidelines. New jargon offenders are proposed with the diff, not silently added to unslop. Counts and trees must match the repository state.
 
 [Full technical-writing instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/technical-writing/SKILL.md)
+
+## Python best practices {#python-best-practices}
+
+You want Python scripts, packages, or reviews guided by uv, Ruff, mypy, extensive type hints, and Pydantic validation.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$python-best-practices Add a typed JSON importer with Pydantic boundary validation.` |
+| Claude Code | `/python-best-practices Add a typed JSON importer with Pydantic boundary validation.` |
+
+### How it works
+
+Uses uv for Python operations wherever supported, Ruff for both formatting and linting, and mypy for type checking. External data is parsed into typed Pydantic models or through TypeAdapter. Examples cover standalone scripts, packages, checking configuration, boundary tests, and internal domain variants.
+
+### Expected result
+
+Scoped Python changes with precise annotations, validated inputs, and reported formatting, lint, type-check, and runtime-test evidence.
+
+### Dependencies and limits
+
+Codex agents may select this skill automatically for Python work; Claude Code invocation remains explicit. Reuses type-system and boundary principles. Examples target Python 3.11+ and Pydantic 2; adapt to the project's supported versions. Existing packaging is not silently migrated, and static checks do not prove runtime behavior.
+
+[Full python-best-practices instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/python-best-practices/SKILL.md)
 
 ## TypeScript best practices {#typescript-best-practices}
 

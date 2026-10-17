@@ -4,6 +4,26 @@ outline: [2, 3]
 
 # Validation
 
+## Python best-practices skill — 2026-10-17
+
+Latest review follow-up: updated the documentation landing page to 53 skills (the README was already corrected), and explicitly labeled the Codex 48-skill discovery result as historical. Structural validation (53 skills, zero problems), all four documentation tests including the production build, and `git diff --check` passed. Fresh-host discovery was not rerun, so the guide does not claim discovery of the current 53-skill package.
+
+PR review follow-up: corrected the workflow count to 29 and the README total to 53, and reconciled automatic Python skill selection across the overview, setup guide, and Codex host guide. Structural validation (53 skills, zero problems), all 15 Node tests including the documentation build, and `git diff --check` passed. This documentation-only correction did not rerun Python tests or live host invocation.
+
+Follow-up: enabled Codex implicit invocation for Python guidance and updated the validator allowlist, regression fixtures, and workflow reference. Claude's shared invocation flag remains explicit. Structural validation, all 15 Node tests, all 122 Python tests, Ruff lint/format checks, and project mypy passed after this change. Live automatic skill selection remains unverified. The existing `0.13.0` minor bump covers the new skill and its final invocation policy in this PR.
+
+Added a Python companion with uv workflows, Ruff formatting and linting, mypy, extensive type hints, and Pydantic boundary validation. The examples reference contains script/package commands, checking configuration, a boundary self-check, and typed internal variants. Added its workflow reference and advanced all three native plugin manifests from `0.12.3` to `0.13.0` under the new-skill versioning policy.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 53 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the documentation build and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 122 tests passed.
+- Extracted both Python examples and the mypy/Ruff configuration into a temporary directory. Ruff formatting and lint checks passed; strict mypy with the Pydantic plugin passed for both files. Pytest ran the boundary example: one test passed, covering valid data, empty input, invalid quantity types/ranges, and extra fields.
+- `git diff --check`: passed.
+
+The mise shim failed inside the sandbox, including subprocesses in the first Python suite run. Checks passed after selecting the installed uv and Node binaries directly through PATH. The generic skill-creator validator rejects this repository's supported `disable-model-invocation` field; the repository validator verifies that field and the matching Codex invocation policy successfully. No personal configuration was installed or changed. Fresh-host skill invocation and the full initialization command sequences were not exercised; example execution and structural checks do not establish live agent behavior.
+
 ## PR watcher single-pass status and repositories without checks — 2026-10-17
 
 [Issue #53](https://github.com/fullerzz/agent-skills/issues/53) reported that `--status-only` retried for minutes when GitHub reported no checks. The GitHub resolver now accepts exit 1 with `no checks reported` as zero checks after the GraphQL fallback succeeds with an empty rollup. Other fast-path errors and failed fallback queries still fail closed; checks found by the fallback still take precedence. Status-only runs use a one-attempt query-error budget, returning the existing terminal status-query blocker (exit 7) on failure. Normal polling retains its retry budget.
