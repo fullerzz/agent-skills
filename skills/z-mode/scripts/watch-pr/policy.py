@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, assert_never
 
@@ -366,6 +366,8 @@ def run_simple(
     status_only: bool = False,
 ) -> Verdict:
     stamp = verdict_factory(clock, mode)
+    if status_only:
+        options = replace(options, max_query_errors=1)
 
     def step() -> StepResult:
         rows = [read_snapshot(reader, context) for context in contexts]

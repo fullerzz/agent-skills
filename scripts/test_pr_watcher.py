@@ -422,6 +422,62 @@ class WatcherTests(unittest.TestCase):
         with self.assertRaises(github.QueryError):
             github.resolve_checks(self.reader, CONTEXT)
 
+    def test_no_checks_reported_is_ready_after_empty_rollup(self) -> None:
+        self.reader.rollups = [{"oid": "head", "state": None}]
+        fast: github.UnusableChecks = {
+            "kind": "unusable",
+            "exitCode": 1,
+            "stderr": "no checks reported on the 'topic' branch\n",
+        }
+        with patch.object(self.reader, "checks_fast_path", return_value=fast):
+            result = self.run_simple()
+        self.assertEqual(result["kind"], "READY")
+        self.assertEqual(self.clock.sleeps, [])
+
+    def test_empty_rollup_does_not_hide_other_fast_path_errors(self) -> None:
+        for code, stderr in [(1, "authentication failed"), (8, "no checks reported"), (0, "bad json")]:
+            with self.subTest(code=code, stderr=stderr):
+                fast: github.UnusableChecks = {"kind": "unusable", "exitCode": code, "stderr": stderr}
+                with (
+                    patch.object(self.reader, "checks_fast_path", return_value=fast),
+                    self.assertRaises(github.QueryError),
+                ):
+                    github.resolve_checks(self.reader, CONTEXT)
+
+    def test_no_checks_message_does_not_hide_rollup_checks_or_errors(self) -> None:
+        fast: github.UnusableChecks = {"kind": "unusable", "exitCode": 1, "stderr": "no checks reported"}
+        with patch.object(self.reader, "checks_fast_path", return_value=fast):
+            self.reader.pages = [{"checks": [check("failed")], "endCursor": None}]
+            self.assertEqual(self.run_simple()["exitCode"], 4)
+            with (
+                patch.object(self.reader, "check_rollup_page", side_effect=github.QueryError("json-parse", "bad")),
+                self.assertRaises(github.QueryError),
+            ):
+                github.resolve_checks(self.reader, CONTEXT)
+
+    def test_status_only_query_failure_never_retries(self) -> None:
+        for args in ([], ["--stack"], ["--queued-stack", "--stack-prs", "1,2"]):
+            for stage in ("pull_request", "review_threads", "checks", "commit_rollups"):
+                with self.subTest(args=args, stage=stage):
+                    clock, out = Clock(), io.StringIO()
+                    failure = github.QueryError("checks-unavailable", "unavailable")
+                    with patch.object(self.reader, stage, side_effect=failure):
+                        code = cli.main(
+                            ["--owner", "o", "--repo", "r", "--pr", "1", "--status-only", *args],
+                            reader=self.reader,
+                            clock=clock,
+                            stdout=out,
+                        )
+                    self.assertEqual(code, 7)
+                    events = [json.loads(line) for line in out.getvalue().splitlines()]
+                    self.assertEqual(len(events), 1)
+                    event = events[0]
+                    self.assertEqual(event["kind"], "BLOCKER")
+                    self.assertTrue(event["terminal"])
+                    self.assertEqual(event["blocker"]["failures"], 1)
+                    self.assertEqual(event["blocker"]["failure"], failure.failure)
+                    self.assertEqual(clock.sleeps, [])
+
     def mapped_kind(self, node: object) -> str:
         check = github.map_rollup_node(node)
         if check is None:
@@ -718,6 +774,8 @@ state=os.environ['CHECK_STATE']
 if args[:2] == ['pr','view']:
  value=dict(mergeable='MERGEABLE',mergeStateStatus='CLEAN',reviewDecision='',headRefOid='head',headRefName='topic',baseRefName='main',state='OPEN',mergedAt=None,isDraft=False)
 elif args[:2] == ['pr','checks']:
+ if state=='NONE':
+  print("no checks reported on the 'topic' branch",file=sys.stderr); sys.exit(1)
  value=[dict(name='CI',state=state,bucket='pending' if state=='PENDING' else 'pass',description='',link='',workflow='')]
  print(json.dumps(value)); sys.exit(8 if state=='PENDING' else 0)
 elif args[:2] == ['api','graphql']:
@@ -725,7 +783,10 @@ elif args[:2] == ['api','graphql']:
  if 'ReviewThreads' in query:
   value=dict(data=dict(repository=dict(pullRequest=dict(reviewThreads=dict(nodes=[],pageInfo=dict(hasNextPage=False,endCursor=None))))))
  elif 'PrCommitStatuses' in query:
-  commit={'oid': 'head', 'statusCheckRollup': {'state': state}}
+  commit={'oid': 'head', 'statusCheckRollup': None if state=='NONE' else {'state': state}}
+  value={'data': {'repository': {'pullRequest': {'commits': {'nodes': [{'commit': commit}]}}}}}
+ elif 'PrCheckRollup' in query:
+  commit={'statusCheckRollup': None}
   value={'data': {'repository': {'pullRequest': {'commits': {'nodes': [{'commit': commit}]}}}}}
  else: raise AssertionError(args)
 else: raise AssertionError(args)
@@ -734,7 +795,12 @@ print(json.dumps(value))
             )
             gh.chmod(0o755)
             env = os.environ | {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_CWD": str(root)}
-            for state, code, kind in [("SUCCESS", 0, "READY"), ("PENDING", 5, "TIMEOUT")]:
+            for state, code, kind, extra in [
+                ("SUCCESS", 0, "READY", []),
+                ("PENDING", 5, "TIMEOUT", []),
+                ("NONE", 0, "READY", []),
+                ("NONE", 0, "STATUS", ["--status-only"]),
+            ]:
                 result = subprocess.run(  # noqa: S603 - Local CLI fixtures use explicit argument vectors, never a shell.
                     [
                         executable("uv"),
@@ -748,6 +814,7 @@ print(json.dumps(value))
                         "1",
                         "--timeout",
                         "0.01",
+                        *extra,
                     ],
                     cwd=root,
                     env=env | {"CHECK_STATE": state},

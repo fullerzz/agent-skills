@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## PR watcher single-pass status and repositories without checks — 2026-10-17
+
+[Issue #53](https://github.com/fullerzz/agent-skills/issues/53) reported that `--status-only` retried for minutes when GitHub reported no checks. The GitHub resolver now accepts exit 1 with `no checks reported` as zero checks after the GraphQL fallback succeeds with an empty rollup. Other fast-path errors and failed fallback queries still fail closed; checks found by the fallback still take precedence. Status-only runs use a one-attempt query-error budget, returning the existing terminal status-query blocker (exit 7) on failure. Normal polling retains its retry budget.
+
+Checks on this macOS host:
+
+- New regressions failed before the fix: the no-checks case returned BLOCKER, the subprocess fixture timed out, and status-only failures emitted five events instead of one.
+- `uv run scripts/validate.py`: 52 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the documentation build and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 122 tests passed, including 56 watcher tests. The existing output golden is unchanged. New checks cover status-only failures at each snapshot query in single, stack, and queued-stack modes, plus open no-checks PRs through the subprocess fixture.
+- Ruff check and format check on the changed Python files, strict mypy (28 source files), and `git diff --check` passed.
+
+Live read-only check: `gh pr checks 5 --repo fullerzz/busy-apps` still returned exit 1 with `no checks reported`. Calling `GitHubReader.checks()` directly for that PR reproduced the reported retryable `checks-unavailable` before the fix and returned `{"source": "graphql-rollup", "checks": []}` after it. That PR is now merged and the repository had no open PRs, so the complete open-PR path is verified by fixtures. Subprocess timeouts remain outside this fix.
+
 ## Host-aware native agent guidance — 2026-10-16
 
 The shared delegation contract now selects only roles exposed by the worker's host. Native workers are the expected path for Codex and Hermes plugin installations; Claude Code prefers its registered plugin roles, and linked installations can use their native role copies when exposed. Expected role absence no longer requires a fallback announcement. Missing delegation and capability gaps that affect the requested work still require reporting, and the selected execution method's fallback rules still apply. The absolute z-mode instruction path and scoped brief remain required for children following the mode. The README and all three host guides use the same distinction. The shared plugin version advances from `0.12.1` to `0.12.2` for this packaged wording fix.

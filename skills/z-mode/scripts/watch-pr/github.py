@@ -576,6 +576,8 @@ def resolve_checks(reader: CheckPages, context: Context) -> ResolvedChecks:
         seen.add(after)
     if checks:
         return {"source": "graphql-rollup", "checks": checks}
+    if fast["kind"] == "unusable" and fast["exitCode"] == 1 and fast["stderr"].strip().startswith("no checks reported"):
+        return {"source": "graphql-rollup", "checks": []}
     suffix = "fast path and GraphQL rollup were empty"
     if fast["kind"] == "unusable":
         suffix = f"fast path exit={fast['exitCode']}; GraphQL rollup was empty" + (
