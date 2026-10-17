@@ -34,7 +34,7 @@ codex plugin marketplace add "$PWD"
 codex plugin add zstack@zstack-local
 ```
 
-Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. Only `how` and `why` permit automatic selection in Codex.
+Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. `how`, `why`, and `python-best-practices` permit automatic selection in Codex.
 
 If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; use available native workers with scoped briefs and report capability gaps that affect the requested work. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
 

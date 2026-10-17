@@ -27,7 +27,7 @@ The source and staged package use the native manifest because CLI 0.160.0 discov
 
 Start a new session. Plugin skills appear with names such as `zstack:how` and `zstack:z-mode`; select them through the skill picker. CLI 0.160.0 discovered all 48 skills in an isolated installation; see [validation](../validation.md) for the tested behavior and remaining live checks.
 
-The plugin enables automatic selection only for `how` and `why`, limited to read-only code explanation and historical rationale. Codex uses their `agents/openai.yaml` policies; their shared `disable-model-invocation` flags retain explicit invocation in Claude Code. Select z-mode through the installed skill picker when you want its engineering style; installation does not activate it.
+The plugin enables automatic selection for `how` and `why` for read-only code explanation and historical rationale, and for `python-best-practices` for Python work. Codex uses their `agents/openai.yaml` policies; their shared `disable-model-invocation` flags retain explicit invocation in Claude Code. Select z-mode through the installed skill picker when you want its engineering style; installation does not activate it.
 
 ### Session hook
 
@@ -111,7 +111,7 @@ Skills are links; native agents are copies. An explicit `--home` uses that root'
 
 ## Invoke
 
-Start a new session in the target project. Confirm `how` appears in the skill picker, then invoke `$how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Select `$z-mode` when ready to route broader work. Explicit-only skills have `agents/openai.yaml` with `policy.allow_implicit_invocation: false`; `how` and `why` permit automatic selection in Codex.
+Start a new session in the target project. Confirm `how` appears in the skill picker, then invoke `$how explain how this command parses arguments; read-only, cite the source`. Verify the response uses the intended skill and target source. Select `$z-mode` when ready to route broader work. Explicit-only skills have `agents/openai.yaml` with `policy.allow_implicit_invocation: false`; `how`, `why`, and `python-best-practices` permit automatic selection in Codex.
 
 ## Update and remove
 

@@ -4,14 +4,14 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 52 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 53 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
 
 ## Install
 
-Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. Only `how` and `why` permit automatic selection in Codex; z-mode and the other workflows remain explicit.
+Codex can load this checkout as a native plugin: shared skills plus one trusted `SessionStart` hook. See [Codex plugin setup](docs/hosts/codex.md#native-plugin) for installation, migration from linked skills, and hook trust. `how`, `why`, and `python-best-practices` permit automatic selection in Codex; z-mode and the other workflows remain explicit.
 
 From this checkout, stage and install the native Codex plugin:
 

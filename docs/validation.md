@@ -6,6 +6,8 @@ outline: [2, 3]
 
 ## Python best-practices skill — 2026-10-17
 
+PR review follow-up: corrected the workflow count to 29 and the README total to 53, and reconciled automatic Python skill selection across the overview, setup guide, and Codex host guide. Structural validation (53 skills, zero problems), all 15 Node tests including the documentation build, and `git diff --check` passed. This documentation-only correction did not rerun Python tests or live host invocation.
+
 Follow-up: enabled Codex implicit invocation for Python guidance and updated the validator allowlist, regression fixtures, and workflow reference. Claude's shared invocation flag remains explicit. Structural validation, all 15 Node tests, all 122 Python tests, Ruff lint/format checks, and project mypy passed after this change. Live automatic skill selection remains unverified. The existing `0.13.0` minor bump covers the new skill and its final invocation policy in this PR.
 
 Added a Python companion with uv workflows, Ruff formatting and linting, mypy, extensive type hints, and Pydantic boundary validation. The examples reference contains script/package commands, checking configuration, a boundary self-check, and typed internal variants. Added its workflow reference and advanced all three native plugin manifests from `0.12.3` to `0.13.0` under the new-skill versioning policy.
