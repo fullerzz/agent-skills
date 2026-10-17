@@ -138,16 +138,16 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("scripts/check_plan.py: Missing tool entrypoint", failures)
         self.assertTrue(any(failure.startswith("skills/show-me-your-work/scripts/log.sh:") for failure in failures))
 
-    def test_codex_read_only_activation_preserves_claude_policy(self) -> None:
-        for name in ("how", "why"):
+    def test_codex_implicit_activation_preserves_claude_policy(self) -> None:
+        for name in ("how", "why", "python-best-practices"):
             self.write(
                 f"skills/{name}/SKILL.md",
                 f"---\nname: {name}\ndescription: Explain code\ndisable-model-invocation: true\n---\n",
             )
             self.write(f"skills/{name}/agents/openai.yaml", "policy:\n  allow_implicit_invocation: true\n")
-        self.assertEqual(validate(self.root), (2, []))
-        self.write("skills/how/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
-        self.assertIn("skills/how/SKILL.md: Read-only Codex implicit policy missing", validate(self.root)[1])
+        self.assertEqual(validate(self.root), (3, []))
+        self.write("skills/python-best-practices/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
+        self.assertIn("skills/python-best-practices/SKILL.md: Codex implicit policy missing", validate(self.root)[1])
 
     def test_generated_plugin_does_not_duplicate_source_skills(self) -> None:
         text = "---\nname: example\ndescription: Explain code\n---\n"
@@ -173,7 +173,7 @@ class ValidateTests(unittest.TestCase):
         self.write("skills/setup-zstack/agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
         self.assertEqual(validate(self.root), (1, []))
 
-    def test_only_read_only_skills_opt_into_codex_implicit_invocation(self) -> None:
+    def test_only_selected_skills_opt_into_codex_implicit_invocation(self) -> None:
         skills = Path(__file__).resolve().parent.parent / "skills"
         implicit = set()
         for skill in skills.iterdir():
@@ -184,7 +184,7 @@ class ValidateTests(unittest.TestCase):
             policy = policy.get("policy") if isinstance(policy, dict) else None
             if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
                 implicit.add(skill.name)
-        self.assertEqual(implicit, {"how", "why"})
+        self.assertEqual(implicit, {"how", "why", "python-best-practices"})
         for name in implicit | {"ketchup", "in-your-own-words"}:
             self.assertIs(frontmatter(skills / name / "SKILL.md")["disable-model-invocation"], True)
 

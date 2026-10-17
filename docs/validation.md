@@ -6,7 +6,9 @@ outline: [2, 3]
 
 ## Python best-practices skill — 2026-10-17
 
-Added an explicit-only Python companion with uv workflows, Ruff formatting and linting, mypy, extensive type hints, and Pydantic boundary validation. The examples reference contains script/package commands, checking configuration, a boundary self-check, and typed internal variants. Added its workflow reference and advanced all three native plugin manifests from `0.12.3` to `0.13.0` under the new-skill versioning policy.
+Follow-up: enabled Codex implicit invocation for Python guidance and updated the validator allowlist, regression fixtures, and workflow reference. Claude's shared invocation flag remains explicit. Structural validation, all 15 Node tests, all 122 Python tests, Ruff lint/format checks, and project mypy passed after this change. Live automatic skill selection remains unverified. The existing `0.13.0` minor bump covers the new skill and its final invocation policy in this PR.
+
+Added a Python companion with uv workflows, Ruff formatting and linting, mypy, extensive type hints, and Pydantic boundary validation. The examples reference contains script/package commands, checking configuration, a boundary self-check, and typed internal variants. Added its workflow reference and advanced all three native plugin manifests from `0.12.3` to `0.13.0` under the new-skill versioning policy.
 
 Checks on this macOS host:
 
@@ -16,7 +18,7 @@ Checks on this macOS host:
 - Extracted both Python examples and the mypy/Ruff configuration into a temporary directory. Ruff formatting and lint checks passed; strict mypy with the Pydantic plugin passed for both files. Pytest ran the boundary example: one test passed, covering valid data, empty input, invalid quantity types/ranges, and extra fields.
 - `git diff --check`: passed.
 
-The mise shim failed inside the sandbox, including subprocesses in the first Python suite run. Checks passed after selecting the installed uv and Node binaries directly through PATH. The generic skill-creator validator rejects this repository's supported `disable-model-invocation` field; the repository validator verifies that field and the matching Codex explicit-only policy successfully. No personal configuration was installed or changed. Fresh-host skill invocation and the full initialization command sequences were not exercised; example execution and structural checks do not establish live agent behavior.
+The mise shim failed inside the sandbox, including subprocesses in the first Python suite run. Checks passed after selecting the installed uv and Node binaries directly through PATH. The generic skill-creator validator rejects this repository's supported `disable-model-invocation` field; the repository validator verifies that field and the matching Codex invocation policy successfully. No personal configuration was installed or changed. Fresh-host skill invocation and the full initialization command sequences were not exercised; example execution and structural checks do not establish live agent behavior.
 
 ## PR watcher single-pass status and repositories without checks — 2026-10-17
 

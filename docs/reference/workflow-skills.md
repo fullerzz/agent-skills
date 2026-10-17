@@ -617,7 +617,7 @@ Scoped Python changes with precise annotations, validated inputs, and reported f
 
 ### Dependencies and limits
 
-Explicit-only, like the TypeScript companion. Reuses type-system and boundary principles. Examples target Python 3.11+ and Pydantic 2; adapt to the project's supported versions. Existing packaging is not silently migrated, and static checks do not prove runtime behavior.
+Codex agents may select this skill automatically for Python work; Claude Code invocation remains explicit. Reuses type-system and boundary principles. Examples target Python 3.11+ and Pydantic 2; adapt to the project's supported versions. Existing packaging is not silently migrated, and static checks do not prove runtime behavior.
 
 [Full python-best-practices instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/python-best-practices/SKILL.md)
 
