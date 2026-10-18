@@ -4,6 +4,22 @@ outline: [2, 3]
 
 # Validation
 
+## Ketchup batch coverage and formal verification — 2026-10-18
+
+Added explicit constituent-item coverage to ketchup and an explicit-only formal-verification generator. The three native manifests advance to `0.14.0`. Two bounded implementation workers owned separate skill files; a fresh independent source reviewer found no actionable issues. Model identity was unavailable. The coordinator inspected the resulting diff and evaluation artifacts.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 54 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the documentation build and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 137 tests passed.
+- `uv run scripts/package_plugin.py`: succeeded; the new entrypoint, Codex invocation policy, and ketchup entrypoint matched the packaged files byte for byte.
+- `git diff --check`: passed.
+
+A fresh native worker followed the new generator in an isolated temporary project with a saturating counter. Its checker executed the actual transition function to a fixed point: the baseline passed with three reachable states and six transitions. Removing the increment guard in an owned disposable copy produced the specific counterexample `inc, inc, inc → 3`, rather than only a changed-source warning. After scratch cleanup, the unchanged baseline passed again; invocation from another working directory also passed, and source snapshots, the mutation diff, commands, and results survived cleanup. The coordinator inspected the generated skill, checker, and report. Completeness applies to this pure, deterministic finite-state fixture under the documented assumptions, not arbitrary Python programs.
+
+Ketchup received a static scenario review for single decisions, a batch of twelve PRs, and mixed recommendations; no live catch-up output was evaluated. The formal-verification exercise is one local native-agent scenario, not proof of fresh plugin discovery on Codex, Claude Code, or Hermes, nor coverage of handwritten models, an already-failing baseline, or every verification tool. Evidence remains in `/private/tmp/zstack-formal-eval-x2rnak2w/evidence/`; orchestration notes remain in the ignored `.agent-work/formal-verification-port/` directory. The generic skill-creator validator rejects the repository-supported `disable-model-invocation` field; the repository validator accepted it and the matching Codex policy. Installed Homebrew uv and Node binaries bypassed sandbox-incompatible mise shims; no personal installation was changed.
+
 ## Upstream documentation consistency adaptation — 2026-10-17
 
 CommonMark review follow-up: replaced source-destination regex extraction with markdown-it-py's CommonMark tokens, using the parser already installed through Rich and declaring it explicitly in the validator's inline dependencies. Existing bare destinations with balanced/nested parentheses and Markdown escapes are accepted; rendered full, collapsed, and shortcut reference links and images receive the same path checks. Unused definitions and inline, indented, or fenced code examples are excluded. Nine regression subcases failed before the repair. All 137 Python tests and 15 Node tests passed afterward, including the documentation build; structural validation (53 skills, zero problems), Ruff lint/format, project mypy (28 files), and diff whitespace checks also passed. Generic local-link validation and packaged plugin behavior remain unchanged; live host behavior was not rerun.
