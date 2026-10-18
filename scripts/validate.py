@@ -147,11 +147,15 @@ def validate_agent(file: Path, relative: str, fail: Fail) -> None:
             fail(relative, "Agent name/model mismatch")
 
 
+def markdown_prose(text: str) -> str:
+    return re.sub(r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE)
+
+
 def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
     text = file.read_text(encoding="utf-8")
     if re.search(r"[ \t]+$", text, re.MULTILINE):
         fail(relative, "Trailing whitespace")
-    prose = re.sub(r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE)
+    prose = markdown_prose(text)
     for match in re.finditer(r"\]\(([^)]+)\)", prose):
         link = match[1]
         if re.match(r"(?:https?:|mailto:|#)", link) or re.search(r"[<>]", link):
@@ -185,6 +189,41 @@ def validate_helpers(root: Path, fail: Fail) -> None:
     for path in (".cursor-plugin", "automations/benny", "skills/make-bot-ui"):
         if (root / path).exists():
             fail(path, "Retired content remains")
+
+
+def validate_catalog(root: Path, fail: Fail) -> None:
+    counts = {
+        "skills": sum(1 for _ in (root / "skills").glob("*/SKILL.md")),
+        "engineering principles": sum(1 for _ in (root / "skills").glob("principle-*/SKILL.md")),
+        "workflow playbooks": sum(1 for _ in (root / "skills/z-mode/playbooks").glob("*.md")),
+        "native agent roles": len(
+            {path.stem for path in (root / "agents/codex").glob("*.toml")}
+            | {path.stem for path in (root / "agents/claude").glob("*.md")}
+        ),
+    }
+    # Only these pages advertise whole-library totals; guides can describe subsets.
+    for relative in ("README.md", "docs/index.md"):
+        file = root / relative
+        if not file.is_file():
+            continue
+        prose = markdown_prose(file.read_text(encoding="utf-8"))
+        for match in re.finditer(
+            r"\b(\d+|two) (skills|engineering principles|workflow playbooks|native agent roles)\b", prose
+        ):
+            claimed = 2 if match[1] == "two" else int(match[1])
+            if claimed != counts[match[2]]:
+                fail(relative, f"Catalog says {match[0]}, but the tree has {counts[match[2]]}")
+    # These links point at this checkout's current source, not arbitrary GitHub history.
+    files = [root / "README.md", *(root / "docs/guide").glob("*.md"), *(root / "docs/reference").glob("*.md")]
+    for file in files:
+        if not file.is_file():
+            continue
+        prose = markdown_prose(file.read_text(encoding="utf-8"))
+        for match in re.finditer(
+            r"\]\(https://github\.com/fullerzz/agent-skills/blob/main/([^\s)#]+)(?:#[^)]*)?\)", prose
+        ):
+            if not (root / unquote(match[1], errors="strict")).is_file():
+                fail(file.relative_to(root).as_posix(), f"Broken current-source link: {match[1]}")
 
 
 def validate_plugin(root: Path, fail: Fail) -> None:
@@ -287,6 +326,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
     validate_plugin(root, fail)
     validate_claude_plugin(root, fail)
     validate_hermes_plugin(root, fail)
+    validate_catalog(root, fail)
     return len(names), failures
 
 

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from validate import frontmatter, load_yaml, validate
+from validate import frontmatter, load_yaml, validate, validate_catalog
 
 
 class ValidateTests(unittest.TestCase):
@@ -71,6 +71,51 @@ class ValidateTests(unittest.TestCase):
             "skills/on/SKILL.md: Explicit-only Codex policy missing",
             validate(self.root)[1],
         )
+
+    def test_catalog_counts_follow_the_tree_and_deduplicate_native_roles(self) -> None:
+        self.write("skills/example/SKILL.md", "")
+        self.write("skills/principle-example/SKILL.md", "")
+        self.write("skills/z-mode/playbooks/example.md", "")
+        for host, suffix in (("codex", "toml"), ("claude", "md")):
+            self.write(f"agents/{host}/reviewer.{suffix}", "")
+            self.write(f"agents/{host}/worker.{suffix}", "")
+        self.write("README.md", "2 skills, 1 engineering principles, 1 workflow playbooks, two native agent roles.\n")
+        self.write("docs/index.md", "details: 2 skills, 1 engineering principles, and 1 workflow playbooks.\n")
+        failures = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        self.write("README.md", "3 skills, 2 engineering principles, 2 workflow playbooks, 3 native agent roles.\n")
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(len(failures), 4)
+        self.assertTrue(all("Catalog says" in failure for failure in failures))
+        self.write("docs/index.md", "details: 99 skills.\n")
+        failures.clear()
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertIn("docs/index.md: Catalog says 99 skills, but the tree has 2", failures)
+
+    def test_catalog_checks_current_source_links_without_policing_examples_or_history(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("skills/example/SKILL.md", "")
+        self.write("docs/reference/workflow-skills.md", f"[source]({source}skills/example/SKILL.md#example)\n")
+        self.write("README.md", f"```md\n99 skills\n[example]({source}absent.md)\n```\n")
+        self.write("docs/guide/example.md", "Three workflow playbooks cover this subset.\n")
+        self.write("docs/provenance.md", f"99 skills previously. [old]({source}retired.md)\n")
+        self.write("docs/reference/other.md", "[external](https://github.com/other/repo/blob/main/absent.md)\n")
+        failures = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        (self.root / "skills/example/SKILL.md").unlink()
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(
+            failures, ["docs/reference/workflow-skills.md: Broken current-source link: skills/example/SKILL.md"]
+        )
+
+    def test_skill_slug_metadata_rejects_nonportable_names_and_lengths(self) -> None:
+        for name in ("Mixed-Case", "has space", "under_score", "-leading", "trailing-", "double--dash", "x" * 65):
+            with self.subTest(name=name):
+                file = self.write("skills/example/SKILL.md", f"---\nname: {name}\ndescription: Example\n---\n")
+                with self.assertRaisesRegex(ValueError, "Invalid identifier"):
+                    frontmatter(file)
 
     def test_reports_structural_failures_and_ignores_fenced_links(self) -> None:
         self.write(

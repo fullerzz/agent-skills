@@ -4,6 +4,19 @@ outline: [2, 3]
 
 # Validation
 
+## Upstream documentation consistency adaptation — 2026-10-17
+
+Reviewed pstack #702, #705, and #704 against zstack's current native-host contracts. The selective #704 adaptation adds tree-backed overview counts and current-source link checks to the existing validator. Three regression tests cover stale counts, missing source targets, fenced examples, historical records, native-role deduplication, and invalid skill slugs. Existing rendered-reference-anchor tests continue to cover the documentation catalog.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 53 skills, zero structural problems.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 125 tests passed.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the production documentation build and isolated installer fixtures.
+- Ruff lint and format checks for both changed Python files passed; project-wide mypy passed across 28 source files; `git diff --check` passed.
+
+The sandboxed mise shims failed, so checks used installed uv and Node binaries through PATH. Tests used isolated fixtures; no personal installation was changed. Live Claude Code, Codex, and Hermes discovery or agent behavior were not rerun. The count check deliberately covers current README/homepage catalog wording, and source-link checking covers current-repository file targets rather than remote availability or heading fragments. Historical records and Cursor command/model inventories remain outside these new checks.
+
 ## Python best-practices skill — 2026-10-17
 
 Latest review follow-up: updated the documentation landing page to 53 skills (the README was already corrected), and explicitly labeled the Codex 48-skill discovery result as historical. Structural validation (53 skills, zero problems), all four documentation tests including the production build, and `git diff --check` passed. Fresh-host discovery was not rerun, so the guide does not claim discovery of the current 53-skill package.
