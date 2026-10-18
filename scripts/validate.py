@@ -14,7 +14,7 @@ import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import cast
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import yaml
 from rich.console import Console
@@ -148,7 +148,19 @@ def validate_agent(file: Path, relative: str, fail: Fail) -> None:
 
 
 def markdown_prose(text: str) -> str:
-    return re.sub(r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE)
+    lines = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        if fence is not None:
+            if re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*(?:\r?\n)?", line):
+                fence = None
+            continue
+        opening = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if opening and (opening[1][0] == "~" or "`" not in opening[2]):
+            fence = opening[1]
+        else:
+            lines.append(line)
+    return "".join(lines)
 
 
 def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
@@ -192,6 +204,9 @@ def validate_helpers(root: Path, fail: Fail) -> None:
 
 
 def validate_catalog(root: Path, fail: Fail) -> None:
+    word_counts: dict[str, int] = dict(
+        zip(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"], range(1, 11), strict=True)
+    )
     counts = {
         "skills": sum(1 for _ in (root / "skills").glob("*/SKILL.md")),
         "engineering principles": sum(1 for _ in (root / "skills").glob("principle-*/SKILL.md")),
@@ -208,9 +223,11 @@ def validate_catalog(root: Path, fail: Fail) -> None:
             continue
         prose = markdown_prose(file.read_text(encoding="utf-8"))
         for match in re.finditer(
-            r"\b(\d+|two) (skills|engineering principles|workflow playbooks|native agent roles)\b", prose
+            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten) "
+            r"(skills|engineering principles|workflow playbooks|native agent roles)\b",
+            prose,
         ):
-            claimed = 2 if match[1] == "two" else int(match[1])
+            claimed = int(match[1]) if match[1].isdigit() else word_counts[match[1]]
             if claimed != counts[match[2]]:
                 fail(relative, f"Catalog says {match[0]}, but the tree has {counts[match[2]]}")
     # These links point at this checkout's current source, not arbitrary GitHub history.
@@ -219,11 +236,11 @@ def validate_catalog(root: Path, fail: Fail) -> None:
         if not file.is_file():
             continue
         prose = markdown_prose(file.read_text(encoding="utf-8"))
-        for match in re.finditer(
-            r"\]\(https://github\.com/fullerzz/agent-skills/blob/main/([^\s)#]+)(?:#[^)]*)?\)", prose
-        ):
-            if not (root / unquote(match[1], errors="strict")).is_file():
-                fail(file.relative_to(root).as_posix(), f"Broken current-source link: {match[1]}")
+        for match in re.finditer(r"\]\((https://github\.com/fullerzz/agent-skills/blob/main/[^\s)]+)\)", prose):
+            path = urlsplit(match[1]).path.removeprefix("/fullerzz/agent-skills/blob/main/")
+            target = (root / unquote(path, errors="strict")).resolve()
+            if not target.is_relative_to(root.resolve()) or not target.is_file():
+                fail(file.relative_to(root).as_posix(), f"Broken current-source link: {path}")
 
 
 def validate_plugin(root: Path, fail: Fail) -> None:

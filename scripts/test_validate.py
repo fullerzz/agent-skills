@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from validate import frontmatter, load_yaml, validate, validate_catalog
+from validate import frontmatter, load_yaml, markdown_prose, validate, validate_catalog
 
 
 class ValidateTests(unittest.TestCase):
@@ -109,6 +109,66 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(
             failures, ["docs/reference/workflow-skills.md: Broken current-source link: skills/example/SKILL.md"]
         )
+
+    def test_source_links_parse_query_fragment_and_encoded_path(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("skills/file name.md", "")
+        self.write("README.md", f"[source]({source}skills/file%20name.md?plain=1#heading)\n")
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(message))
+        self.assertEqual(failures, [])
+
+    def test_source_links_reject_existing_targets_outside_checkout(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        failures: list[str] = []
+        with tempfile.TemporaryDirectory() as outside:
+            external = Path(outside) / "exists.md"
+            external.write_text("external")
+            (self.root / "escape.md").symlink_to(external)
+            for path in (
+                str(external),
+                str(external).replace("/", "%2F"),
+                f"../{Path(outside).name}/exists.md",
+                "escape.md",
+            ):
+                with self.subTest(path=path):
+                    self.write("README.md", f"[source]({source}{path})\n")
+                    failures.clear()
+                    validate_catalog(self.root, lambda file, message: failures.append(message))
+                    self.assertEqual(len(failures), 1)
+                    self.assertIn("Broken current-source link", failures[0])
+
+    def test_fenced_examples_allow_tildes_and_require_matching_closers(self) -> None:
+        for fence in ("```", "~~~~"):
+            with self.subTest(fence=fence):
+                other = "~~~" if fence[0] == "`" else "```"
+                text = f"before\n{fence}md\n99 skills\n{other}\n99 skills\n{fence[:-1]}\n99 skills\n{fence}\nafter\n"
+                self.assertEqual(markdown_prose(text), "before\nafter\n")
+        self.write(
+            "README.md",
+            "~~~md\n99 skills\n[source](https://github.com/fullerzz/agent-skills/blob/main/absent.md)\n~~~\n",
+        )
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(message))
+        self.assertEqual(failures, [])
+
+    def test_catalog_checks_all_small_word_counts(self) -> None:
+        failures: list[str] = []
+        for number, word in enumerate(
+            ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"], 1
+        ):
+            with self.subTest(word=word):
+                self.write(f"skills/example-{number}/SKILL.md", "")
+                for page in ("README.md", "docs/index.md"):
+                    self.write(page, f"{word} skills\n")
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(message))
+                self.assertEqual(failures, [])
+                self.write("README.md", f"{word} native agent roles\n")
+                self.write("docs/index.md", f"{word} native agent roles\n")
+                validate_catalog(self.root, lambda file, message: failures.append(message))
+                self.assertEqual(len(failures), 2)
+                self.assertTrue(all(f"Catalog says {word} native agent roles" in failure for failure in failures))
 
     def test_skill_slug_metadata_rejects_nonportable_names_and_lengths(self) -> None:
         for name in ("Mixed-Case", "has space", "under_score", "-leading", "trailing-", "double--dash", "x" * 65):

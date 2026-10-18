@@ -6,6 +6,8 @@ outline: [2, 3]
 
 ## Upstream documentation consistency adaptation — 2026-10-17
 
+PR #56 review follow-up: source links now parse query and fragment components separately, decode only the path, and reject resolved targets outside the checkout, including escaping symlinks. Prose extraction excludes both backtick and tilde fences with matching markers and sufficient closing length. Overview counts recognize words one through ten as well as digits. The new regressions reproduced the reported failures before the fixes; all 129 Python tests and 15 Node tests passed afterward. The 21 focused validator tests passed again after test typing cleanup, along with structural validation (53 skills, zero problems), Ruff lint/format, project-wide mypy (28 files), and diff whitespace checks. Live host behavior was not rerun.
+
 Reviewed pstack #702, #705, and #704 against zstack's current native-host contracts. The selective #704 adaptation adds tree-backed overview counts and current-source link checks to the existing validator. Three regression tests cover stale counts, missing source targets, fenced examples, historical records, native-role deduplication, and invalid skill slugs. Existing rendered-reference-anchor tests continue to cover the documentation catalog.
 
 Checks on this macOS host:
