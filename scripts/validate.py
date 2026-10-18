@@ -236,10 +236,18 @@ def validate_catalog(root: Path, fail: Fail) -> None:
         if not file.is_file():
             continue
         prose = markdown_prose(file.read_text(encoding="utf-8"))
-        for match in re.finditer(r"\]\((https://github\.com/fullerzz/agent-skills/blob/main/[^\s)]+)\)", prose):
+        for match in re.finditer(
+            r"\]\((https://github\.com/fullerzz/agent-skills/blob/main/[^\s)]+)"
+            r"(?:\s+(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\((?:\\.|[^)\\])*\)))?\s*\)",
+            prose,
+        ):
             path = urlsplit(match[1]).path.removeprefix("/fullerzz/agent-skills/blob/main/")
-            target = (root / unquote(path, errors="strict")).resolve()
-            if not target.is_relative_to(root.resolve()) or not target.is_file():
+            try:
+                target = (root / unquote(path, errors="strict")).resolve()
+                valid = target.is_relative_to(root.resolve()) and target.is_file()
+            except (OSError, ValueError):
+                valid = False
+            if not valid:
                 fail(file.relative_to(root).as_posix(), f"Broken current-source link: {path}")
 
 

@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from validate import frontmatter, load_yaml, markdown_prose, validate, validate_catalog
 
@@ -117,6 +118,69 @@ class ValidateTests(unittest.TestCase):
         failures: list[str] = []
         validate_catalog(self.root, lambda file, message: failures.append(message))
         self.assertEqual(failures, [])
+
+    def test_source_links_with_optional_titles_check_only_the_destination(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("exists.md", "")
+        failures: list[str] = []
+        for title in (
+            '"source"',
+            "'source'",
+            "(source)",
+            r'"a \"quoted\" source"',
+            r"'a \'quoted\' source'",
+            r"(a \) source)",
+        ):
+            with self.subTest(title=title):
+                self.write(
+                    "README.md",
+                    f"[valid]({source}exists.md?plain=1#heading {title})\n"
+                    f"[missing]({source}absent.md?plain=1#heading {title})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent.md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_invalid_encoded_source_paths_fail_without_skipping_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("\ufffd.md", "")
+        failures: list[str] = []
+        for path in ("%FF.md", "%00.md"):
+            with self.subTest(path=path):
+                self.write("README.md", f"[invalid]({source}{path})\n[later]({source}later.md)\n")
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = [
+                    f"README.md: Broken current-source link: {path}",
+                    "README.md: Broken current-source link: later.md",
+                ]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_source_path_resolution_errors_do_not_skip_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("README.md", f"[invalid]({source}invalid.md)\n[later]({source}later.md)\n")
+        original_resolve = Path.resolve
+        failures: list[str] = []
+        for error in (OSError("resolution failed"), ValueError("invalid path")):
+            with self.subTest(error=error):
+
+                def resolve(path: Path, strict: bool = False, error: OSError | ValueError = error) -> Path:
+                    if path.name == "invalid.md":
+                        raise error
+                    return original_resolve(path, strict=strict)
+
+                with patch.object(Path, "resolve", resolve):
+                    failures.clear()
+                    validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                    expected = [
+                        "README.md: Broken current-source link: invalid.md",
+                        "README.md: Broken current-source link: later.md",
+                    ]
+                    self.assertEqual(failures, expected)
+                    self.assertEqual(validate(self.root), (0, expected))
 
     def test_source_links_reject_existing_targets_outside_checkout(self) -> None:
         source = "https://github.com/fullerzz/agent-skills/blob/main/"
