@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 53 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 54 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -97,6 +97,7 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 - Design and review with architect, arena, swarm, interrogate, and no-comments.
 - Build with z-mode's bug, feature, refactoring, performance, and prototype playbooks.
 - Verify with project harnesses and create-verification-skill.
+- Check invariants with explicitly invoked [create-formal-verification-skill](docs/reference/workflow-skills.md#create-formal-verification-skill), which produces reusable checks with stated bounds and demonstrated failure detection.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.

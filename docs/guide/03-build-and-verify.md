@@ -40,6 +40,7 @@ Use the project's existing harness first.
 
 - [create-verification-skill](../../skills/create-verification-skill/SKILL.md) generates native project instructions from real launch, doctor, drive, evidence, and cleanup behavior, then executes one mapped path.
 - [maintain-verification-skill](../../skills/maintain-verification-skill/SKILL.md) stays within that skill directory and reports product regressions.
+- [create-formal-verification-skill](../../skills/create-formal-verification-skill/SKILL.md) creates reusable checks for a stated invariant, with explicit bounds, code correspondence, and isolated broken variants that demonstrate detection. Invoke it explicitly for properties that user-path tests do not adequately cover; it is separate from the feature-map maintenance loop.
 
 Ask for proof you can inspect: real command output, a screenshot of the changed flow, a trace, or a readback of stored state. Match it to the acceptance check. A passing build alone does not prove changed behavior.
 

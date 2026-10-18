@@ -30,6 +30,8 @@ Summarize the consequential results and current status of the requested work, in
 
 Give each action item enough context to decide: the call the user owns, feasible options and their tradeoffs, your recommendation and why, prerequisites or irreversible effects, and what happens with no answer. Briefly note an unasked irreversible step already waiting on the user without inventing a no-answer consequence. Write "unknown" for unknown parts; silence is not approval. Links support the summary rather than replace it.
 
+When one decision covers several items, enumerate every item with its identity and link where available, user impact, supporting evidence, and risk. State a shared recommendation once and call out any item whose recommendation differs. Counts and links cannot replace the individual items or their decision context; exceed the length target when needed to cover them all.
+
 Use a visual only when it clarifies status or a decision better than prose. A comparison should show the relevant options and their gains and costs. Avoid repeating the same facts in prose and a visual; a prose-only catch-up is fine.
 
 ## Visuals

@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 29 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 30 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -201,6 +201,29 @@ Uses scoped history access and the repository's existing checks. Missing history
 
 [Full correct instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/correct/SKILL.md)
 
+## Create a formal verification skill {#create-formal-verification-skill}
+
+A race, retry, parser, or state-machine invariant needs verification beyond the cases reached by ordinary tests.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$create-formal-verification-skill Verify that retries cannot apply this operation twice and leave a reusable project-local check.` |
+| Claude Code | `/create-formal-verification-skill Verify that retries cannot apply this operation twice and leave a reusable project-local check.` |
+
+### How it works
+
+Selects a property from the requested code and a suitable model checker, verifier, or proof tool. Maps the verification to real code and atomic steps, states bounds and assumptions, and creates a project-local skill with reproducible commands. Tests each property against an isolated broken variant and rechecks the baseline afterward. Model mutation alone does not establish detection of implementation regressions; code-to-model correspondence must also be checked.
+
+### Expected result
+
+A reusable skill, retained verification evidence, and a plain-language report of findings, counterexamples, limits, and how to rerun. Pre-existing findings remain visible and cannot substitute for detecting a new mutation.
+
+### Dependencies and limits
+
+Explicit-only. Uses a distinct `verify-formal-<area>` name and checks canonical destinations before writing; existing runtime skills remain separate. Uses Codex or Claude Code project discovery and preserves the user's invocation policy. Hermes, unavailable discovery contracts, and restricted discovery writes use an ordinary project source folder with registration pending. Missing tools, timeouts, inconclusive checks, or undetected mutations leave a draft or blocked result. Product fixes require their own request, and checks must not be weakened to hide findings. This verifies stated properties within the tool's scope, not the whole system, and is separate from the launch/drive feature-map maintenance workflow.
+
+[Full create-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/create-formal-verification-skill/SKILL.md)
+
 ## Create a verification skill {#create-verification-skill}
 
 The project lacks a reusable way to launch, drive, and prove real user behavior.
@@ -391,6 +414,8 @@ Persists until you say stop z-mode or choose another style, subject to retained 
 ## Ketchup {#ketchup}
 
 You want to catch up on this chat since your last message and decide anything still awaiting you.
+
+When one decision covers several items, each item retains its identity, user impact, evidence, risk, and any differing recommendation. A count or link cannot replace this context; the reply grows to cover the whole batch.
 
 | Host | Example invocation |
 | --- | --- |

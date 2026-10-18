@@ -1,5 +1,13 @@
 # Upstream provenance
 
+## Ketchup batch coverage and formal verification — 2026-10-18
+
+Selectively adapted pstack [#692](https://github.com/cursor/plugins/pull/692), merged as `16541c6bc1ed6c8d808b2f78a33364003e82b967`, [#708](https://github.com/cursor/plugins/pull/708), merged as `bc1443790cc980d0ea857663260a831299884508`, and [#709](https://github.com/cursor/plugins/pull/709), merged as `4382e687a50b8d2c5ce4d141d001186589cff8d5`.
+
+Ketchup already allowed replies beyond 150 words. The port makes coverage of each constituent item in a grouped decision explicit, including evidence, risk, and differing recommendations. It retains zstack's flexible length target, scoped read-only evidence gathering, and existing visual/table guidance instead of importing upstream presentation budgets.
+
+The new formal-verification generator retains property selection, code correspondence, counterexamples, reproducible checks, stated limits, and deliberately broken variants. Local adaptations add native discovery and resource conventions, explicit invocation policy, isolated mutations, baseline comparison, model-versus-implementation limits, and honest draft/blocked outcomes. It remains separate from user-path verification and feature-map maintenance. The three native manifests advance together from `0.13.0` to `0.14.0` for the added skill. The MIT license and Lauren Tan attribution remain intact. This is a selective adaptation; upstream evaluations are not local behavior evidence.
+
 ## pstack naming, host compatibility, and documentation review — 2026-10-17
 
 Reviewed three merged updates from pstack `0.15.25`: [#702](https://github.com/cursor/plugins/pull/702) at `a968159326d1fc6b7d483491ec5c457986a20af2`, [#705](https://github.com/cursor/plugins/pull/705) at `1b800800583ee8ff7f2676caf7a5cb7f0804be85`, and [#704](https://github.com/cursor/plugins/pull/704) at `019a6a20592c10bf92869e5740368f578a9997fd`.
