@@ -163,6 +163,15 @@ def markdown_prose(text: str) -> str:
     return "".join(lines)
 
 
+def markdown_destinations(prose: str) -> Iterator[str]:
+    for match in re.finditer(
+        r"\]\(\s*(?:<([^<>\r\n]*)>|([^\s<>)]+))"
+        r"(?:\s+(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\((?:\\.|[^)\\])*\)))?\s*\)",
+        prose,
+    ):
+        yield match[1] if match[1] is not None else match[2]
+
+
 def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
     text = file.read_text(encoding="utf-8")
     if re.search(r"[ \t]+$", text, re.MULTILINE):
@@ -236,12 +245,9 @@ def validate_catalog(root: Path, fail: Fail) -> None:
         if not file.is_file():
             continue
         prose = markdown_prose(file.read_text(encoding="utf-8"))
-        for match in re.finditer(
-            r"\]\((https://github\.com/fullerzz/agent-skills/blob/main/[^\s)]+)"
-            r"(?:\s+(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\((?:\\.|[^)\\])*\)))?\s*\)",
-            prose,
-        ):
-            path = urlsplit(match[1]).path.removeprefix("/fullerzz/agent-skills/blob/main/")
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        for link in (link for link in markdown_destinations(prose) if link.startswith(source)):
+            path = urlsplit(link).path.removeprefix("/fullerzz/agent-skills/blob/main/")
             try:
                 target = (root / unquote(path, errors="strict")).resolve()
                 valid = target.is_relative_to(root.resolve()) and target.is_file()

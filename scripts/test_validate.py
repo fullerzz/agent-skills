@@ -143,6 +143,36 @@ class ValidateTests(unittest.TestCase):
                 self.assertEqual(failures, expected)
                 self.assertEqual(validate(self.root), (0, expected))
 
+    def test_angle_source_destinations_are_checked(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("file (name).md", "")
+        failures: list[str] = []
+        for spacing, title in (("", ""), (" ", ' "source"'), ("\n", r' "a \"quoted\" source"')):
+            with self.subTest(spacing=spacing, title=title):
+                self.write(
+                    "README.md",
+                    f"[valid]({spacing}<{source}file%20(name).md?plain=1#heading>{title}{spacing})\n"
+                    f"[missing]({spacing}<{source}absent(name).md?plain=1#heading>{title}{spacing})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent(name).md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_angle_source_decoding_failure_keeps_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        for path in ("%FF.md", "%00.md"):
+            with self.subTest(path=path):
+                self.write(
+                    "README.md", f'[invalid](<{source}{path}?plain=1#heading> "source")\n[later](<{source}later.md>)\n'
+                )
+                expected = [
+                    f"README.md: Broken current-source link: {path}",
+                    "README.md: Broken current-source link: later.md",
+                ]
+                self.assertEqual(validate(self.root), (0, expected))
+
     def test_invalid_encoded_source_paths_fail_without_skipping_later_links(self) -> None:
         source = "https://github.com/fullerzz/agent-skills/blob/main/"
         self.write("\ufffd.md", "")
