@@ -6,6 +6,10 @@ outline: [2, 3]
 
 ## Ketchup batch coverage and formal verification — 2026-10-18
 
+PR #57 review follow-up: the default generated name is now `verify-formal-<area>`, with a preflight of canonical files and symlinks before writing. Unrelated destinations are preserved; an occupied exact requested path is reported rather than overwritten. Hermes and hosts without a known discovery contract use an ordinary project source folder and report registration pending. The workflow-reference overview now correctly reports 30 workflow/style skills. The earlier counter evaluation below predates this path-only correction; it establishes the verification loop, not the final generated name or Hermes discovery behavior.
+
+A fresh read-only reviewer checked runtime-skill coexistence, unrelated destination files and symlinks, occupied exact requested paths, explicitly requested formal-skill updates, and Hermes without project discovery; no actionable gaps remained. Structural validation, all 15 Node tests, all 137 Python tests, packaging with byte comparison of the revised skill, and diff whitespace checks passed after the corrections. The path review is instruction-level evidence, not live discovery or registration.
+
 Added explicit constituent-item coverage to ketchup and an explicit-only formal-verification generator. The three native manifests advance to `0.14.0`. Two bounded implementation workers owned separate skill files; a fresh independent source reviewer found no actionable issues. Model identity was unavailable. The coordinator inspected the resulting diff and evaluation artifacts.
 
 Checks on this macOS host:

@@ -27,7 +27,9 @@ If current code violates the property, retain the finding and explain the counte
 
 ## Generate the reusable skill
 
-Honor a requested source location. Otherwise write `verify-<area>/SKILL.md` in the selected host's project discovery directory: `.agents/skills/` for Codex or `.claude/skills/` for Claude Code. For both hosts, keep one canonical folder and link it into the other directory only after checking for collisions; preserve existing files and links. When permissions block discovery-directory writes, prepare the canonical folder in an allowed ordinary source directory and report registration pending.
+Honor a requested source location. Otherwise use `verify-formal-<area>/SKILL.md` in the selected host's project discovery directory: `.agents/skills/` for Codex or `.claude/skills/` for Claude Code. For Hermes, or when the host's project discovery contract is unavailable, use an ordinary project source folder such as `verification/skills/verify-formal-<area>/` and report registration pending; do not guess another host's discovery path or install globally. The same fallback applies when permissions block discovery-directory writes.
+
+Before writing, inspect the canonical destination, including existing files and symlinks. Update an existing skill only when the request targets that same formal-verification skill. Otherwise preserve it and choose an unused descriptive name; if the user requires an occupied exact path, report the collision before writing. Never merge into or replace a runtime feature-map skill. For both Codex and Claude Code, keep one canonical folder and link it into the other directory only after checking for collisions; preserve existing files and links.
 
 Use valid YAML frontmatter with a matching kebab-case name and a description naming the guarded area and relevant changes. Preserve an existing skill's invocation policy. For a new skill, retain this workflow's explicit-only policy with `disable-model-invocation: true` and `agents/openai.yaml` containing `policy.allow_implicit_invocation: false`, unless the user requests otherwise.
 

@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 29 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 30 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -220,7 +220,7 @@ A reusable skill, retained verification evidence, and a plain-language report of
 
 ### Dependencies and limits
 
-Explicit-only. Uses the selected host's discovery conventions and preserves the user's invocation policy; restricted discovery writes leave registration pending. Missing tools, timeouts, inconclusive checks, or undetected mutations leave a draft or blocked result. Product fixes require their own request, and checks must not be weakened to hide findings. This verifies stated properties within the tool's scope, not the whole system, and is separate from the launch/drive feature-map maintenance workflow.
+Explicit-only. Uses a distinct `verify-formal-<area>` name and checks canonical destinations before writing; existing runtime skills remain separate. Uses Codex or Claude Code project discovery and preserves the user's invocation policy. Hermes, unavailable discovery contracts, and restricted discovery writes use an ordinary project source folder with registration pending. Missing tools, timeouts, inconclusive checks, or undetected mutations leave a draft or blocked result. Product fixes require their own request, and checks must not be weakened to hide findings. This verifies stated properties within the tool's scope, not the whole system, and is separate from the launch/drive feature-map maintenance workflow.
 
 [Full create-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/create-formal-verification-skill/SKILL.md)
 
