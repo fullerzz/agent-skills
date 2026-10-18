@@ -1,6 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
+#     "markdown-it-py>=4.0.0",
 #     "rich>=15.0.0",
 #     "pyyaml>=6.0.3",
 # ]
@@ -17,6 +18,7 @@ from typing import cast
 from urllib.parse import unquote, urlsplit
 
 import yaml
+from markdown_it import MarkdownIt
 from rich.console import Console
 
 # Codex opts in these skills; Claude retains explicit invocation.
@@ -163,13 +165,12 @@ def markdown_prose(text: str) -> str:
     return "".join(lines)
 
 
-def markdown_destinations(prose: str) -> Iterator[str]:
-    for match in re.finditer(
-        r"\]\(\s*(?:<([^<>\r\n]*)>|([^\s<>)]+))"
-        r"(?:\s+(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\((?:\\.|[^)\\])*\)))?\s*\)",
-        prose,
-    ):
-        yield match[1] if match[1] is not None else match[2]
+def markdown_destinations(text: str) -> Iterator[str]:
+    for token in MarkdownIt("commonmark").parse(text):
+        for child in token.children or []:
+            attribute = "href" if child.type == "link_open" else "src" if child.type == "image" else None
+            if attribute is not None and isinstance(destination := child.attrGet(attribute), str):
+                yield destination
 
 
 def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
@@ -244,9 +245,9 @@ def validate_catalog(root: Path, fail: Fail) -> None:
     for file in files:
         if not file.is_file():
             continue
-        prose = markdown_prose(file.read_text(encoding="utf-8"))
+        text = file.read_text(encoding="utf-8")
         source = "https://github.com/fullerzz/agent-skills/blob/main/"
-        for link in (link for link in markdown_destinations(prose) if link.startswith(source)):
+        for link in (link for link in markdown_destinations(text) if link.startswith(source)):
             path = urlsplit(link).path.removeprefix("/fullerzz/agent-skills/blob/main/")
             try:
                 target = (root / unquote(path, errors="strict")).resolve()

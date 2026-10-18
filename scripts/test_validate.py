@@ -160,6 +160,71 @@ class ValidateTests(unittest.TestCase):
                 self.assertEqual(failures, expected)
                 self.assertEqual(validate(self.root), (0, expected))
 
+    def test_bare_source_destinations_follow_commonmark_punctuation(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        failures: list[str] = []
+        for destination, path in (
+            ("file(name).md", "file(name).md"),
+            ("file(nested(name)).md", "file(nested(name)).md"),
+            (r"file\(escaped\)\!.md", "file(escaped)!.md"),
+        ):
+            with self.subTest(destination=destination):
+                self.write(path, "")
+                self.write(
+                    "README.md",
+                    f"[valid]({source}{destination})\n[missing]({source}absent{destination})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = [f"README.md: Broken current-source link: absent{path}"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_rendered_reference_source_destinations_are_checked(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("exists(name).md", "")
+        failures: list[str] = []
+        for rendered, definition in (
+            ("[source][target]", "[target]"),
+            ("[target][]", "[target]"),
+            ("[target]", "[target]"),
+            ("[source][ TARGET   name ]", "[target name]"),
+            ("![source][target]", "[target]"),
+        ):
+            with self.subTest(rendered=rendered):
+                self.write(
+                    "README.md",
+                    f'{rendered}\n\n{definition}: <{source}exists(name).md> "source"\n',
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                self.assertEqual(failures, [])
+                self.assertEqual(validate(self.root), (0, []))
+                self.write(
+                    "README.md",
+                    f'{rendered}\n\n{definition}: <{source}absent(name).md> "source"\n',
+                )
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent(name).md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_source_checks_ignore_unrendered_links_and_code_examples(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write(
+            "README.md",
+            f"[unused]: {source}unused.md\n\n[undefined][missing]\n\n"
+            f"`[inline]({source}inline.md)`\n\n"
+            f"    [indented]({source}indented.md)\n\n"
+            f"~~~md\n[fenced]({source}fenced.md)\n~~~\n\n"
+            f"`[reference][unused]`\n\n    [reference][unused]\n\n"
+            f"~~~md\n[reference][unused]\n~~~\n",
+        )
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        self.assertEqual(validate(self.root), (0, []))
+
     def test_angle_source_decoding_failure_keeps_later_links(self) -> None:
         source = "https://github.com/fullerzz/agent-skills/blob/main/"
         for path in ("%FF.md", "%00.md"):
