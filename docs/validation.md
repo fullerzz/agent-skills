@@ -4,6 +4,27 @@ outline: [2, 3]
 
 # Validation
 
+## Upstream documentation consistency adaptation — 2026-10-17
+
+CommonMark review follow-up: replaced source-destination regex extraction with markdown-it-py's CommonMark tokens, using the parser already installed through Rich and declaring it explicitly in the validator's inline dependencies. Existing bare destinations with balanced/nested parentheses and Markdown escapes are accepted; rendered full, collapsed, and shortcut reference links and images receive the same path checks. Unused definitions and inline, indented, or fenced code examples are excluded. Nine regression subcases failed before the repair. All 137 Python tests and 15 Node tests passed afterward, including the documentation build; structural validation (53 skills, zero problems), Ruff lint/format, project mypy (28 files), and diff whitespace checks also passed. Generic local-link validation and packaged plugin behavior remain unchanged; live host behavior was not rerun.
+
+Angle-destination review follow-up: current-source checks now extract and unwrap paired angle-bracket destinations, including paths with parentheses, optional titles, and query/fragment components. Generic local-link validation remains unchanged. Five source regression cases failed before the fix; all 134 Python tests and 15 Node tests now pass, including the documentation build. Structural validation (53 skills, zero problems), Ruff lint/format, project-wide mypy (28 files), and diff whitespace checks passed. Live host behavior was not rerun.
+
+Second PR #56 review follow-up: current-source links accept optional double-quoted, single-quoted, and parenthesized titles, including escaped delimiters. Strict decoding and path-resolution errors now produce a broken-link failure for that link and continue to later links. Regression tests reproduce the title bypass and decoding/resolution crashes through both the catalog helper and the complete validator; they also keep a real replacement-character filename from masking invalid UTF-8. All 132 Python tests and 15 Node tests passed; the 24 focused validator tests passed again after adding escaped-title cases. Structural validation, Ruff lint/format, project-wide mypy, and diff whitespace checks passed. Live host behavior was not rerun.
+
+PR #56 review follow-up: source links now parse query and fragment components separately, decode only the path, and reject resolved targets outside the checkout, including escaping symlinks. Prose extraction excludes both backtick and tilde fences with matching markers and sufficient closing length. Overview counts recognize words one through ten as well as digits. The new regressions reproduced the reported failures before the fixes; all 129 Python tests and 15 Node tests passed afterward. The 21 focused validator tests passed again after test typing cleanup, along with structural validation (53 skills, zero problems), Ruff lint/format, project-wide mypy (28 files), and diff whitespace checks. Live host behavior was not rerun.
+
+Reviewed pstack #702, #705, and #704 against zstack's current native-host contracts. The selective #704 adaptation adds tree-backed overview counts and current-source link checks to the existing validator. Three regression tests cover stale counts, missing source targets, fenced examples, historical records, native-role deduplication, and invalid skill slugs. Existing rendered-reference-anchor tests continue to cover the documentation catalog.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 53 skills, zero structural problems.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 125 tests passed.
+- `node --test scripts/*.test.mjs`: 15 tests passed, including the production documentation build and isolated installer fixtures.
+- Ruff lint and format checks for both changed Python files passed; project-wide mypy passed across 28 source files; `git diff --check` passed.
+
+The sandboxed mise shims failed, so checks used installed uv and Node binaries through PATH. Tests used isolated fixtures; no personal installation was changed. Live Claude Code, Codex, and Hermes discovery or agent behavior were not rerun. The count check deliberately covers current README/homepage catalog wording, and source-link checking covers current-repository file targets rather than remote availability or heading fragments. Historical records and Cursor command/model inventories remain outside these new checks.
+
 ## Python best-practices skill — 2026-10-17
 
 Latest review follow-up: updated the documentation landing page to 53 skills (the README was already corrected), and explicitly labeled the Codex 48-skill discovery result as historical. Structural validation (53 skills, zero problems), all four documentation tests including the production build, and `git diff --check` passed. Fresh-host discovery was not rerun, so the guide does not claim discovery of the current 53-skill package.

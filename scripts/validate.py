@@ -1,6 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
+#     "markdown-it-py>=4.0.0",
 #     "rich>=15.0.0",
 #     "pyyaml>=6.0.3",
 # ]
@@ -14,9 +15,10 @@ import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import cast
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import yaml
+from markdown_it import MarkdownIt
 from rich.console import Console
 
 # Codex opts in these skills; Claude retains explicit invocation.
@@ -147,11 +149,35 @@ def validate_agent(file: Path, relative: str, fail: Fail) -> None:
             fail(relative, "Agent name/model mismatch")
 
 
+def markdown_prose(text: str) -> str:
+    lines = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        if fence is not None:
+            if re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*(?:\r?\n)?", line):
+                fence = None
+            continue
+        opening = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if opening and (opening[1][0] == "~" or "`" not in opening[2]):
+            fence = opening[1]
+        else:
+            lines.append(line)
+    return "".join(lines)
+
+
+def markdown_destinations(text: str) -> Iterator[str]:
+    for token in MarkdownIt("commonmark").parse(text):
+        for child in token.children or []:
+            attribute = "href" if child.type == "link_open" else "src" if child.type == "image" else None
+            if attribute is not None and isinstance(destination := child.attrGet(attribute), str):
+                yield destination
+
+
 def validate_markdown(file: Path, relative: str, fail: Fail) -> None:
     text = file.read_text(encoding="utf-8")
     if re.search(r"[ \t]+$", text, re.MULTILINE):
         fail(relative, "Trailing whitespace")
-    prose = re.sub(r"^```[^\n]*\n[\s\S]*?^```[^\n]*$", "", text, flags=re.MULTILINE)
+    prose = markdown_prose(text)
     for match in re.finditer(r"\]\(([^)]+)\)", prose):
         link = match[1]
         if re.match(r"(?:https?:|mailto:|#)", link) or re.search(r"[<>]", link):
@@ -185,6 +211,51 @@ def validate_helpers(root: Path, fail: Fail) -> None:
     for path in (".cursor-plugin", "automations/benny", "skills/make-bot-ui"):
         if (root / path).exists():
             fail(path, "Retired content remains")
+
+
+def validate_catalog(root: Path, fail: Fail) -> None:
+    word_counts: dict[str, int] = dict(
+        zip(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"], range(1, 11), strict=True)
+    )
+    counts = {
+        "skills": sum(1 for _ in (root / "skills").glob("*/SKILL.md")),
+        "engineering principles": sum(1 for _ in (root / "skills").glob("principle-*/SKILL.md")),
+        "workflow playbooks": sum(1 for _ in (root / "skills/z-mode/playbooks").glob("*.md")),
+        "native agent roles": len(
+            {path.stem for path in (root / "agents/codex").glob("*.toml")}
+            | {path.stem for path in (root / "agents/claude").glob("*.md")}
+        ),
+    }
+    # Only these pages advertise whole-library totals; guides can describe subsets.
+    for relative in ("README.md", "docs/index.md"):
+        file = root / relative
+        if not file.is_file():
+            continue
+        prose = markdown_prose(file.read_text(encoding="utf-8"))
+        for match in re.finditer(
+            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten) "
+            r"(skills|engineering principles|workflow playbooks|native agent roles)\b",
+            prose,
+        ):
+            claimed = int(match[1]) if match[1].isdigit() else word_counts[match[1]]
+            if claimed != counts[match[2]]:
+                fail(relative, f"Catalog says {match[0]}, but the tree has {counts[match[2]]}")
+    # These links point at this checkout's current source, not arbitrary GitHub history.
+    files = [root / "README.md", *(root / "docs/guide").glob("*.md"), *(root / "docs/reference").glob("*.md")]
+    for file in files:
+        if not file.is_file():
+            continue
+        text = file.read_text(encoding="utf-8")
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        for link in (link for link in markdown_destinations(text) if link.startswith(source)):
+            path = urlsplit(link).path.removeprefix("/fullerzz/agent-skills/blob/main/")
+            try:
+                target = (root / unquote(path, errors="strict")).resolve()
+                valid = target.is_relative_to(root.resolve()) and target.is_file()
+            except (OSError, ValueError):
+                valid = False
+            if not valid:
+                fail(file.relative_to(root).as_posix(), f"Broken current-source link: {path}")
 
 
 def validate_plugin(root: Path, fail: Fail) -> None:
@@ -287,6 +358,7 @@ def validate(root: Path) -> tuple[int, list[str]]:
     validate_plugin(root, fail)
     validate_claude_plugin(root, fail)
     validate_hermes_plugin(root, fail)
+    validate_catalog(root, fail)
     return len(names), failures
 
 

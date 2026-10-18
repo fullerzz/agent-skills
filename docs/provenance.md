@@ -1,5 +1,17 @@
 # Upstream provenance
 
+## pstack naming, host compatibility, and documentation review — 2026-10-17
+
+Reviewed three merged updates from pstack `0.15.25`: [#702](https://github.com/cursor/plugins/pull/702) at `a968159326d1fc6b7d483491ec5c457986a20af2`, [#705](https://github.com/cursor/plugins/pull/705) at `1b800800583ee8ff7f2676caf7a5cb7f0804be85`, and [#704](https://github.com/cursor/plugins/pull/704) at `019a6a20592c10bf92869e5740368f578a9997fd`.
+
+Adapted #704's documentation consistency checking into the existing structural validator: current overview totals are compared with the skill, principle, playbook, and agent inventory, and current-source GitHub links in the README, guide, and reference pages must resolve inside the checkout. Existing local-link and rendered-reference-anchor checks remain responsible for their respective contracts. Regression fixtures cover stale counts and missing source targets while preserving historical links, examples, and guide subsets. This is a selective adaptation, not a copy of the upstream checker or a complete upstream update; the MIT license and Lauren Tan attribution remain intact.
+
+No port is needed for #702: the validator already enforces folder/name equality, lowercase hyphenated identifiers, and the 64-character limit, with regression coverage. `poteto-mode` became `z-mode`, and `make-bot-ui` was retired. #704's reduced review frequency after minor follow-up changes already appears in the local autopilot-full playbook; Cursor's `/autopilot` command correction does not apply to this native-host library.
+
+#705's persistent role-rule file would duplicate zstack's native model configuration and inheritance. Claude loads the checkout in place, and there is no help skill requiring the upstream generated guide bundle; Codex deliberately packages the skills and hooks needed by its resource contract. Native resource resolution and forge fallbacks already exist. Blanket skips with placeholders are not adopted because required acceptance checks must remain visible as gaps. No host behavior or packaged instructions change, so the native plugin version remains `0.13.0` under the repository's versioning policy.
+
+## Earlier adaptations
+
 zstack, Zach's updated skillset, adapts Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack), copied from the Cursor plugins repository. The copied manifest declared version `0.15.5`. The exact copied commit was not recorded and has not been established. The MIT license and original copyright are retained in [LICENSE](../LICENSE).
 
 Adapted [pstack PR #633](https://github.com/cursor/plugins/pull/633), merged as [e5136d8](https://github.com/cursor/plugins/commit/e5136d8), on 2026-10-15. The four principles now use observable contracts, legitimate-state handling, direct premise tests, and state reconciliation with reliable staleness evidence. Correct and the principles reference use the same criteria. The port retains zstack's explicit invocation policies, scope limits, required validation, safe failure handling, and separate publication authority. It changes guidance only; upstream's evaluation is not a local behavior result. The existing MIT license and Lauren Tan attribution remain intact.

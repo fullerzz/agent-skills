@@ -4,8 +4,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from validate import frontmatter, load_yaml, validate
+from validate import frontmatter, load_yaml, markdown_prose, validate, validate_catalog
 
 
 class ValidateTests(unittest.TestCase):
@@ -71,6 +72,269 @@ class ValidateTests(unittest.TestCase):
             "skills/on/SKILL.md: Explicit-only Codex policy missing",
             validate(self.root)[1],
         )
+
+    def test_catalog_counts_follow_the_tree_and_deduplicate_native_roles(self) -> None:
+        self.write("skills/example/SKILL.md", "")
+        self.write("skills/principle-example/SKILL.md", "")
+        self.write("skills/z-mode/playbooks/example.md", "")
+        for host, suffix in (("codex", "toml"), ("claude", "md")):
+            self.write(f"agents/{host}/reviewer.{suffix}", "")
+            self.write(f"agents/{host}/worker.{suffix}", "")
+        self.write("README.md", "2 skills, 1 engineering principles, 1 workflow playbooks, two native agent roles.\n")
+        self.write("docs/index.md", "details: 2 skills, 1 engineering principles, and 1 workflow playbooks.\n")
+        failures = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        self.write("README.md", "3 skills, 2 engineering principles, 2 workflow playbooks, 3 native agent roles.\n")
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(len(failures), 4)
+        self.assertTrue(all("Catalog says" in failure for failure in failures))
+        self.write("docs/index.md", "details: 99 skills.\n")
+        failures.clear()
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertIn("docs/index.md: Catalog says 99 skills, but the tree has 2", failures)
+
+    def test_catalog_checks_current_source_links_without_policing_examples_or_history(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("skills/example/SKILL.md", "")
+        self.write("docs/reference/workflow-skills.md", f"[source]({source}skills/example/SKILL.md#example)\n")
+        self.write("README.md", f"```md\n99 skills\n[example]({source}absent.md)\n```\n")
+        self.write("docs/guide/example.md", "Three workflow playbooks cover this subset.\n")
+        self.write("docs/provenance.md", f"99 skills previously. [old]({source}retired.md)\n")
+        self.write("docs/reference/other.md", "[external](https://github.com/other/repo/blob/main/absent.md)\n")
+        failures = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        (self.root / "skills/example/SKILL.md").unlink()
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(
+            failures, ["docs/reference/workflow-skills.md: Broken current-source link: skills/example/SKILL.md"]
+        )
+
+    def test_source_links_parse_query_fragment_and_encoded_path(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("skills/file name.md", "")
+        self.write("README.md", f"[source]({source}skills/file%20name.md?plain=1#heading)\n")
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(message))
+        self.assertEqual(failures, [])
+
+    def test_source_links_with_optional_titles_check_only_the_destination(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("exists.md", "")
+        failures: list[str] = []
+        for title in (
+            '"source"',
+            "'source'",
+            "(source)",
+            r'"a \"quoted\" source"',
+            r"'a \'quoted\' source'",
+            r"(a \) source)",
+        ):
+            with self.subTest(title=title):
+                self.write(
+                    "README.md",
+                    f"[valid]({source}exists.md?plain=1#heading {title})\n"
+                    f"[missing]({source}absent.md?plain=1#heading {title})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent.md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_angle_source_destinations_are_checked(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("file (name).md", "")
+        failures: list[str] = []
+        for spacing, title in (("", ""), (" ", ' "source"'), ("\n", r' "a \"quoted\" source"')):
+            with self.subTest(spacing=spacing, title=title):
+                self.write(
+                    "README.md",
+                    f"[valid]({spacing}<{source}file%20(name).md?plain=1#heading>{title}{spacing})\n"
+                    f"[missing]({spacing}<{source}absent(name).md?plain=1#heading>{title}{spacing})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent(name).md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_bare_source_destinations_follow_commonmark_punctuation(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        failures: list[str] = []
+        for destination, path in (
+            ("file(name).md", "file(name).md"),
+            ("file(nested(name)).md", "file(nested(name)).md"),
+            (r"file\(escaped\)\!.md", "file(escaped)!.md"),
+        ):
+            with self.subTest(destination=destination):
+                self.write(path, "")
+                self.write(
+                    "README.md",
+                    f"[valid]({source}{destination})\n[missing]({source}absent{destination})\n",
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = [f"README.md: Broken current-source link: absent{path}"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_rendered_reference_source_destinations_are_checked(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("exists(name).md", "")
+        failures: list[str] = []
+        for rendered, definition in (
+            ("[source][target]", "[target]"),
+            ("[target][]", "[target]"),
+            ("[target]", "[target]"),
+            ("[source][ TARGET   name ]", "[target name]"),
+            ("![source][target]", "[target]"),
+        ):
+            with self.subTest(rendered=rendered):
+                self.write(
+                    "README.md",
+                    f'{rendered}\n\n{definition}: <{source}exists(name).md> "source"\n',
+                )
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                self.assertEqual(failures, [])
+                self.assertEqual(validate(self.root), (0, []))
+                self.write(
+                    "README.md",
+                    f'{rendered}\n\n{definition}: <{source}absent(name).md> "source"\n',
+                )
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = ["README.md: Broken current-source link: absent(name).md"]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_source_checks_ignore_unrendered_links_and_code_examples(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write(
+            "README.md",
+            f"[unused]: {source}unused.md\n\n[undefined][missing]\n\n"
+            f"`[inline]({source}inline.md)`\n\n"
+            f"    [indented]({source}indented.md)\n\n"
+            f"~~~md\n[fenced]({source}fenced.md)\n~~~\n\n"
+            f"`[reference][unused]`\n\n    [reference][unused]\n\n"
+            f"~~~md\n[reference][unused]\n~~~\n",
+        )
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+        self.assertEqual(failures, [])
+        self.assertEqual(validate(self.root), (0, []))
+
+    def test_angle_source_decoding_failure_keeps_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        for path in ("%FF.md", "%00.md"):
+            with self.subTest(path=path):
+                self.write(
+                    "README.md", f'[invalid](<{source}{path}?plain=1#heading> "source")\n[later](<{source}later.md>)\n'
+                )
+                expected = [
+                    f"README.md: Broken current-source link: {path}",
+                    "README.md: Broken current-source link: later.md",
+                ]
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_invalid_encoded_source_paths_fail_without_skipping_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("\ufffd.md", "")
+        failures: list[str] = []
+        for path in ("%FF.md", "%00.md"):
+            with self.subTest(path=path):
+                self.write("README.md", f"[invalid]({source}{path})\n[later]({source}later.md)\n")
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                expected = [
+                    f"README.md: Broken current-source link: {path}",
+                    "README.md: Broken current-source link: later.md",
+                ]
+                self.assertEqual(failures, expected)
+                self.assertEqual(validate(self.root), (0, expected))
+
+    def test_source_path_resolution_errors_do_not_skip_later_links(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        self.write("README.md", f"[invalid]({source}invalid.md)\n[later]({source}later.md)\n")
+        original_resolve = Path.resolve
+        failures: list[str] = []
+        for error in (OSError("resolution failed"), ValueError("invalid path")):
+            with self.subTest(error=error):
+
+                def resolve(path: Path, strict: bool = False, error: OSError | ValueError = error) -> Path:
+                    if path.name == "invalid.md":
+                        raise error
+                    return original_resolve(path, strict=strict)
+
+                with patch.object(Path, "resolve", resolve):
+                    failures.clear()
+                    validate_catalog(self.root, lambda file, message: failures.append(f"{file}: {message}"))
+                    expected = [
+                        "README.md: Broken current-source link: invalid.md",
+                        "README.md: Broken current-source link: later.md",
+                    ]
+                    self.assertEqual(failures, expected)
+                    self.assertEqual(validate(self.root), (0, expected))
+
+    def test_source_links_reject_existing_targets_outside_checkout(self) -> None:
+        source = "https://github.com/fullerzz/agent-skills/blob/main/"
+        failures: list[str] = []
+        with tempfile.TemporaryDirectory() as outside:
+            external = Path(outside) / "exists.md"
+            external.write_text("external")
+            (self.root / "escape.md").symlink_to(external)
+            for path in (
+                str(external),
+                str(external).replace("/", "%2F"),
+                f"../{Path(outside).name}/exists.md",
+                "escape.md",
+            ):
+                with self.subTest(path=path):
+                    self.write("README.md", f"[source]({source}{path})\n")
+                    failures.clear()
+                    validate_catalog(self.root, lambda file, message: failures.append(message))
+                    self.assertEqual(len(failures), 1)
+                    self.assertIn("Broken current-source link", failures[0])
+
+    def test_fenced_examples_allow_tildes_and_require_matching_closers(self) -> None:
+        for fence in ("```", "~~~~"):
+            with self.subTest(fence=fence):
+                other = "~~~" if fence[0] == "`" else "```"
+                text = f"before\n{fence}md\n99 skills\n{other}\n99 skills\n{fence[:-1]}\n99 skills\n{fence}\nafter\n"
+                self.assertEqual(markdown_prose(text), "before\nafter\n")
+        self.write(
+            "README.md",
+            "~~~md\n99 skills\n[source](https://github.com/fullerzz/agent-skills/blob/main/absent.md)\n~~~\n",
+        )
+        failures: list[str] = []
+        validate_catalog(self.root, lambda file, message: failures.append(message))
+        self.assertEqual(failures, [])
+
+    def test_catalog_checks_all_small_word_counts(self) -> None:
+        failures: list[str] = []
+        for number, word in enumerate(
+            ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"], 1
+        ):
+            with self.subTest(word=word):
+                self.write(f"skills/example-{number}/SKILL.md", "")
+                for page in ("README.md", "docs/index.md"):
+                    self.write(page, f"{word} skills\n")
+                failures.clear()
+                validate_catalog(self.root, lambda file, message: failures.append(message))
+                self.assertEqual(failures, [])
+                self.write("README.md", f"{word} native agent roles\n")
+                self.write("docs/index.md", f"{word} native agent roles\n")
+                validate_catalog(self.root, lambda file, message: failures.append(message))
+                self.assertEqual(len(failures), 2)
+                self.assertTrue(all(f"Catalog says {word} native agent roles" in failure for failure in failures))
+
+    def test_skill_slug_metadata_rejects_nonportable_names_and_lengths(self) -> None:
+        for name in ("Mixed-Case", "has space", "under_score", "-leading", "trailing-", "double--dash", "x" * 65):
+            with self.subTest(name=name):
+                file = self.write("skills/example/SKILL.md", f"---\nname: {name}\ndescription: Example\n---\n")
+                with self.assertRaisesRegex(ValueError, "Invalid identifier"):
+                    frontmatter(file)
 
     def test_reports_structural_failures_and_ignores_fenced_links(self) -> None:
         self.write(
