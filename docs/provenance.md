@@ -90,7 +90,7 @@ Reviewed the October 13 pstack changes that reached manifest `0.15.23`: PRs [#59
 
 ## Optional formal-verification setup offer
 
-Selectively adapted [pstack PR #715](https://github.com/cursor/plugins/pull/715), reviewed at `abe6307fd058da7f29714ed2fff5e13b926fe0d4`. Setup checks existing formal-verification tooling and skills before offering the existing generator once when relevant; generation requires acceptance. The guides add the offer, an invariant example with bounded-proof limits, and the existing helper and evidence-retention requirements. Missing skill files alone do not establish missing formal checks. Cursor model rules, poteto-help, Origin support, generated harness trees, and references to the unshipped sharpen skill are excluded. Native manifests advance to `0.15.0` for the added setup behavior; invocation policies remain unchanged.
+Selectively adapted [pstack PR #715](https://github.com/cursor/plugins/pull/715), reviewed at `abe6307fd058da7f29714ed2fff5e13b926fe0d4`. Setup checks existing formal-verification tooling and skills before offering the existing generator once when relevant; acceptance leads to a user-invoked handoff through the host, not automatic generation. The guides add the offer, an invariant example with bounded-proof limits, and the existing helper and evidence-retention requirements. Missing skill files alone do not establish missing formal checks. Cursor model rules, poteto-help, Origin support, generated harness trees, and references to the unshipped sharpen skill are excluded. Native manifests advance to `0.15.0` for the added setup behavior; invocation policies remain unchanged.
 
 ## Selective pstack orchestration cleanup {#pstack-orchestration-cleanup}
 

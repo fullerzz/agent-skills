@@ -6,7 +6,9 @@ outline: [2, 3]
 
 ## Optional formal-verification setup offer — 2026-10-18
 
-Two workers requested with `gpt-6.1-sol` separately updated setup and the guides for the selective PR #715 port. Setup inspects formal tooling and skills, offers generation once when relevant coverage is absent, and requires acceptance before invoking the generator. The guides retain bounded-model limits and describe the existing helper and evidence-retention requirements. Native manifests advance together to `0.15.0`.
+PR #58 review follow-up: both invocation comments identified the same blocked handoff. Setup now directs an accepting user to explicitly invoke the generator through their host and forbids loading it directly to bypass invocation restrictions. The setup guide and PR description match that handoff. After this correction, structural validation (54 skills, zero problems), all 15 Node tests, all 137 Python tests, and whitespace checks passed; live host invocation remains untested.
+
+Two workers requested with `gpt-6.1-sol` separately updated setup and the guides for the selective PR #715 port. Setup inspects formal tooling and skills, offers generation once when relevant coverage is absent, and hands accepted offers back to the user for explicit invocation through the host. The guides retain bounded-model limits and describe the existing helper and evidence-retention requirements. Native manifests advance together to `0.15.0`.
 
 Checks on this macOS host: structural validation passed (54 skills, zero problems), all 15 Node tests passed (including the documentation build and isolated installer fixtures), and all 137 Python tests passed. The skill-creator quick validator passed with PyYAML supplied through uv, and `git diff --check` passed. An independent reviewer requested with `gpt-6.1-sol` found no actionable issues in the source diff. Homebrew binaries bypassed the sandbox-incompatible mise shims; no personal configuration was changed.
 
