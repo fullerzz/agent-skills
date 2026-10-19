@@ -115,6 +115,8 @@ $how explain how this command parses arguments; read-only, cite the source
 
 Skills remain linked to this checkout. Native agents are owned copies; model overrides use the host's configuration. [setup-zstack](../../skills/setup-zstack/SKILL.md) checks installation and requested settings without inventing model IDs.
 
+Setup inspects existing verification tooling and skills. When a consequential invariant would benefit from formal verification and suitable coverage is missing, it offers [create-formal-verification-skill](../../skills/create-formal-verification-skill/SKILL.md) once and generates a skill only after you accept. The absence of a formal-verification skill does not mean the project lacks formal checks.
+
 Confirm the response uses the intended skill and cites the target command's source. An installer preview proves the file plan, not host discovery or behavior. If discovery fails, check the [host locations](#host-differences), restart the session, and follow the relevant host setup page.
 
 ## Update
