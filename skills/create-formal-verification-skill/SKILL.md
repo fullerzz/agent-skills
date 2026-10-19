@@ -14,7 +14,7 @@ Resolve resources from the real loaded skill location, independently of the targ
 
 Start at the user's named code or bug. Otherwise identify a promise whose violation would harm users and whose failure cases are hard to reach with ordinary tests. Read the actual callers and state transitions before choosing a target. State the property and the harm in plain language; keep the initial scope small enough to rerun routinely.
 
-Choose the least costly tool that answers the question. A model checker can explore event orderings; a verifier operating on source can check memory safety, arithmetic, or data-structure invariants; an unbounded claim may need a proof assistant. Prefer existing project tooling where it fits. Record why the tool fits, its reproducible version, the exact command, prerequisites, and a run budget. Do not prescribe a tool or install one globally merely because it is customary.
+Choose the least costly tool that answers the question. For event-order questions, default to TLA+ to model the design regardless of the implementation language; prefer existing project tooling where it fits. A verifier operating on source can check memory safety, arithmetic, or data-structure invariants; an unbounded claim may need a proof assistant. If no verifier supports the implementation language, disclose that limitation and test the real code with generated inputs, not a handwritten model of the function. Label this fallback as testing, not formal proof, and record the input scope and any random seed so the evidence can be reproduced. Record why the tool fits, its reproducible version, the exact command, prerequisites, and a run budget. Do not install tools globally without authorization.
 
 For each property, record:
 

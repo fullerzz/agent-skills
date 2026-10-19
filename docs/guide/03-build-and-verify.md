@@ -58,6 +58,8 @@ $create-formal-verification-skill check that at most one worker holds a job's le
 
 A passing bounded model establishes the property within its modeled states and assumptions; it does not guarantee the implementation satisfies it. Review the code correspondence and retain those limits beside the result.
 
+For event-order questions, the generator defaults to TLA+ regardless of implementation language, while retaining suitable existing project tooling. If no verifier supports the implementation language, it discloses the limitation and tests the real code with generated inputs instead of a handwritten function model. That fallback supplies reproducible test evidence, not formal proof.
+
 Generated runtime verification skills already require a **Helpers** section with portable commands and an end-to-end run that confirms evidence survives cleanup. Check both when reviewing the generated skill.
 
 Ask for proof you can inspect: real command output, a screenshot of the changed flow, a trace, or a readback of stored state. Match it to the acceptance check. A passing build alone does not prove changed behavior.
