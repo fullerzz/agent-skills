@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Optional formal-verification setup offer — 2026-10-18
+
+Workflow-reference follow-up: the setup entry now documents inspection of formal tooling and skills, the conditional one-time offer, and explicit user invocation after acceptance in its process and expected-result sections. The repeated invocation finding was already fixed in `a1f09bf`. Structural validation (54 skills, zero problems), all 15 Node tests including the documentation build, and whitespace checks passed for this documentation-only correction. Python tests and live host behavior were not rerun.
+
+Tool-selection follow-up: reviewed PR #721 at `5bd8f4a2ae7c0ca0b9a2bd937839e847dd8ab534` and adapted its TLA+ default and no-verifier fallback. The generator and guide require real-code generated-input testing when a language lacks a verifier and distinguish that evidence from formal proof. Structural validation (54 skills, zero problems), all 15 Node tests, all 137 Python tests, and whitespace checks passed after the change. No TLA+ run, generated-input workflow, or upstream behavioral evaluation was reproduced; these results establish local source consistency and regressions only.
+
+PR #58 review follow-up: both invocation comments identified the same blocked handoff. Setup now directs an accepting user to explicitly invoke the generator through their host and forbids loading it directly to bypass invocation restrictions. The setup guide and PR description match that handoff. After this correction, structural validation (54 skills, zero problems), all 15 Node tests, all 137 Python tests, and whitespace checks passed; live host invocation remains untested.
+
+Two workers requested with `gpt-6.1-sol` separately updated setup and the guides for the selective PR #715 port. Setup inspects formal tooling and skills, offers generation once when relevant coverage is absent, and hands accepted offers back to the user for explicit invocation through the host. The guides retain bounded-model limits and describe the existing helper and evidence-retention requirements. Native manifests advance together to `0.15.0`.
+
+Checks on this macOS host: structural validation passed (54 skills, zero problems), all 15 Node tests passed (including the documentation build and isolated installer fixtures), and all 137 Python tests passed. The skill-creator quick validator passed with PyYAML supplied through uv, and `git diff --check` passed. An independent reviewer requested with `gpt-6.1-sol` found no actionable issues in the source diff. Homebrew binaries bypassed the sandbox-incompatible mise shims; no personal configuration was changed.
+
+These are source and local regression checks. The setup offer, acceptance/decline flow, and generator handoff were not exercised in a live Codex, Claude Code, or Hermes session; no formal-verification generator run was needed for this instruction change.
+
 ## Ketchup batch coverage and formal verification — 2026-10-18
 
 PR #57 review follow-up: the default generated name is now `verify-formal-<area>`, with a preflight of canonical files and symlinks before writing. Unrelated destinations are preserved; an occupied exact requested path is reported rather than overwritten. Hermes and hosts without a known discovery contract use an ordinary project source folder and report registration pending. The workflow-reference overview now correctly reports 30 workflow/style skills. The earlier counter evaluation below predates this path-only correction; it establishes the verification loop, not the final generated name or Hermes discovery behavior.

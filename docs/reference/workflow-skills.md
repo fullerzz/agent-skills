@@ -498,9 +498,11 @@ You need to inspect zstack discovery or configure requested native agent models.
 
 The agent checks the selected host’s discovery and installation collisions. For a requested model change, it verifies current native configuration and documentation, previews exact fields, and preserves unrelated settings. A fresh session checks explicit invocation and a delegated read-only investigation.
 
+It also inspects project formal tooling (models, proofs, and verifier commands) and skills. When relevant races, retries, or state invariants lack suitable coverage, it offers [create-formal-verification-skill](#create-formal-verification-skill) once. Acceptance leads to instructions for the user to explicitly invoke the generator through the selected host; declining continues setup.
+
 ### Expected result
 
-An installed-versus-loaded report, requested configuration changes, collision reports, and actual host verification or its gap.
+An installed-versus-loaded report, requested configuration changes, collision reports, and actual host verification or its gap, plus a conditional formal-verification offer and user-invocation handoff. Setup does not generate the verification skill merely because the offer was accepted.
 
 ### Dependencies and limits
 

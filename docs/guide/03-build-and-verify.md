@@ -42,6 +42,26 @@ Use the project's existing harness first.
 - [maintain-verification-skill](../../skills/maintain-verification-skill/SKILL.md) stays within that skill directory and reports product regressions.
 - [create-formal-verification-skill](../../skills/create-formal-verification-skill/SKILL.md) creates reusable checks for a stated invariant, with explicit bounds, code correspondence, and isolated broken variants that demonstrate detection. Invoke it explicitly for properties that user-path tests do not adequately cover; it is separate from the feature-map maintenance loop.
 
+For example, check that two workers cannot both hold the same queue job's lease:
+
+::: code-group
+
+```text [Claude Code]
+/create-formal-verification-skill check that at most one worker holds a job's lease; start with two workers and one job, and record the code correspondence and excluded behavior
+```
+
+```text [Codex]
+$create-formal-verification-skill check that at most one worker holds a job's lease; start with two workers and one job, and record the code correspondence and excluded behavior
+```
+
+:::
+
+A passing bounded model establishes the property within its modeled states and assumptions; it does not guarantee the implementation satisfies it. Review the code correspondence and retain those limits beside the result.
+
+For event-order questions, the generator defaults to TLA+ regardless of implementation language, while retaining suitable existing project tooling. If no verifier supports the implementation language, it discloses the limitation and tests the real code with generated inputs instead of a handwritten function model. That fallback supplies reproducible test evidence, not formal proof.
+
+Generated runtime verification skills already require a **Helpers** section with portable commands and an end-to-end run that confirms evidence survives cleanup. Check both when reviewing the generated skill.
+
 Ask for proof you can inspect: real command output, a screenshot of the changed flow, a trace, or a readback of stored state. Match it to the acceptance check. A passing build alone does not prove changed behavior.
 
 If the project already has a `verify-<app>` skill, name its real installed skill in the request. For example, with `verify-export` installed:
