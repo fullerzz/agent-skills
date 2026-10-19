@@ -6,6 +6,8 @@ outline: [2, 3]
 
 ## Optional formal-verification setup offer — 2026-10-18
 
+Workflow-reference follow-up: the setup entry now documents inspection of formal tooling and skills, the conditional one-time offer, and explicit user invocation after acceptance in its process and expected-result sections. The repeated invocation finding was already fixed in `a1f09bf`. Structural validation (54 skills, zero problems), all 15 Node tests including the documentation build, and whitespace checks passed for this documentation-only correction. Python tests and live host behavior were not rerun.
+
 Tool-selection follow-up: reviewed PR #721 at `5bd8f4a2ae7c0ca0b9a2bd937839e847dd8ab534` and adapted its TLA+ default and no-verifier fallback. The generator and guide require real-code generated-input testing when a language lacks a verifier and distinguish that evidence from formal proof. Structural validation (54 skills, zero problems), all 15 Node tests, all 137 Python tests, and whitespace checks passed after the change. No TLA+ run, generated-input workflow, or upstream behavioral evaluation was reproduced; these results establish local source consistency and regressions only.
 
 PR #58 review follow-up: both invocation comments identified the same blocked handoff. Setup now directs an accepting user to explicitly invoke the generator through their host and forbids loading it directly to bypass invocation restrictions. The setup guide and PR description match that handoff. After this correction, structural validation (54 skills, zero problems), all 15 Node tests, all 137 Python tests, and whitespace checks passed; live host invocation remains untested.
