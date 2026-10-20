@@ -1,5 +1,11 @@
 # Upstream provenance
 
+## Sharpen prompt rewriting — 2026-10-20
+
+Selectively adapted [pstack PR #729](https://github.com/cursor/plugins/pull/729), merged at `88d47514b82e7c44f00f2b2a72ff6dd12158038c` in pstack `0.15.29`. The new shared sharpen skill retains the four asks: expert approach, original source material, specific methods and tools, and an independent check, followed by a rewritten prompt with user choices left open. Zstack makes the no-execution boundary explicit, preserves stated constraints, and keeps unknown inputs conditional. Both native invocation flags remain explicit-only.
+
+There was no existing zstack sharpen skill. Codex packaging, Claude Code, and Hermes discover the shared skill; upstream generated Claude harness copies, Cursor packaging, and poteto-help routing are not imported. The guides and reference catalog describe the separate review-and-send handoff. All three native manifests advance to `0.17.0` for the added skill. The MIT license and Lauren Tan attribution remain intact. Upstream evaluation scores are not local behavior evidence.
+
 ## Formal-verification maintenance — 2026-10-19
 
 Selectively adapted [pstack PR #716](https://github.com/cursor/plugins/pull/716), reviewed at `011ef53277caad816e4fcf89929f3b47fdb4a050` (merge `7b353f78f6ec193bdbe48ed8059444eb09b6878e`): verification drift review, per-check coverage and last verified commits, counterexample triage, and blocked-check checkpoint retention. Zstack keeps explicit invocation, isolated real-code mutations, manual model-translation limits, and verification-only edits. Dirty snapshots are recorded separately from commit checkpoints, and inferred legacy bases are not treated as prior proof. The MIT license and Lauren Tan attribution remain intact.

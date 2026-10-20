@@ -29,6 +29,24 @@ $why does the retry path back off twice? cite the commits
 Missing verified transcripts get a labeled digest, not a claim of historical coverage.
 :::
 
+## Sharpen a prompt before sending it
+
+Use [sharpen](../reference/workflow-skills.md#sharpen) to identify the expert approach, original source material, specific methods and tools, and an independent check, then get a complete rewritten prompt.
+
+::: code-group
+
+```text [Claude Code]
+/sharpen write a migration guide for the v2 config format; leave the rollout strategy open
+```
+
+```text [Codex]
+$sharpen write a migration guide for the v2 config format; leave the rollout strategy open
+```
+
+:::
+
+Sharpen preserves your goal, constraints, and open choices. It stops after the rewrite without doing the task. Review the prompt, then send it separately when ready, optionally with z-mode.
+
 ## Design and review
 
 | Skill | Use it to |

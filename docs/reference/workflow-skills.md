@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 31 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 32 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -532,6 +532,30 @@ An installed-versus-loaded report, requested configuration changes, collision re
 Defaults to native model inheritance. Bundled roles are z-agent and comment-sicko. Modified agent copies survive installer reruns. Model entitlement, unsupported identifiers, and effort-suffixed IDs are never inferred. Delegation may be unavailable.
 
 [Full setup-zstack instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/setup-zstack/SKILL.md)
+
+## Sharpen {#sharpen}
+
+You want a stronger prompt to review before starting a task.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$sharpen Write a migration guide for the v2 config format; leave the rollout strategy open.` |
+| Claude Code | `/sharpen Write a migration guide for the v2 config format; leave the rollout strategy open.` |
+| Hermes | `Load zstack:sharpen with skill_view, then rewrite: Write a migration guide for the v2 config format; leave the rollout strategy open.` |
+
+### How it works
+
+Briefly identifies what an expert would add, the original source material, specific methods and tools, and an independent check. It then returns a complete rewritten prompt while preserving the goal, constraints, and choices that belong to you.
+
+### Expected result
+
+A prompt ready for your review and later submission. The underlying task is not performed. If you want execution, send the reviewed rewrite separately, optionally with z-mode.
+
+### Dependencies and limits
+
+Explicit invocation only. Unknown source contents, tool availability, and user decisions stay conditional or unresolved. Sharpen does not invoke another workflow or treat the prompt being rewritten as authorization to act.
+
+[Full sharpen instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/sharpen/SKILL.md)
 
 ## Show me your work {#show-me-your-work}
 
