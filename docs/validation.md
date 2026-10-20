@@ -4,6 +4,22 @@ outline: [2, 3]
 
 # Validation
 
+## Sharpen prompt rewriting — 2026-10-20
+
+Added the shared explicit-only sharpen skill and its Codex invocation policy, documented the review-and-send handoff, and advanced all three native manifests to `0.17.0`. Reviewed upstream PR #729 and its merge commit `88d47514b82e7c44f00f2b2a72ff6dd12158038c`, including the skill, guides, help text, and generated Claude copies. Local integration uses one shared skill instead of importing the upstream harness tree.
+
+Checks on this macOS host:
+
+- `uv run scripts/validate.py`: 56 skills, zero structural problems.
+- `node --test scripts/*.test.mjs`: all 15 tests passed, including the documentation build and isolated installer fixtures.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 137 tests passed.
+- `uv run scripts/package_plugin.py`: succeeded; the sharpen entrypoint and Codex policy byte-match their generated copies in `dist/zstack`.
+- `git diff --check`: passed.
+
+The successful commands used Homebrew binaries ahead of sandbox-incompatible mise shims and access to the existing uv dependency cache. An initial sandboxed Node run passed the four documentation checks but failed the eleven helper/installer checks; the rerun with cache access passed all fifteen. The installed skill-creator quick validator rejects `disable-model-invocation`, a required repository-standard Claude field; the repository validator accepts and checks both host invocation policies.
+
+Source review checked the four asks, preservation of constraints and open choices, conditional handling of unknown inputs, and the explicit stop before execution. These are source, packaging, and regression checks, not a live sharpen behavior result. Fresh Codex, Claude Code, and Hermes invocation and upstream model evaluations were not run. No personal installation or settings changed.
+
 ## Formal-verification maintenance — 2026-10-19
 
 PR #59 review follow-up: clarified that each generator checkpoint advances independently after its own evidence completes; a blocked sibling stays unchanged. Structural validation and whitespace checks passed for this wording correction. The earlier mixed-success behavioral fixture directly exercises this rule; the fixture and full test suites were not rerun for the clarification.

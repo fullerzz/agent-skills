@@ -20,6 +20,8 @@ State the goal, a pass/fail done check, the proof you want to inspect, known fac
 
 Save z-mode for work that needs rigor. Use verified native model and effort settings when requesting a smaller budget, and bound review panels to useful independent coverage under the [native host contract](../../skills/z-mode/references/native-hosts.md#delegation). Installed skills do not create a separate model-routing configuration.
 
+For help rewriting an ask, explicitly invoke [sharpen](../reference/workflow-skills.md#sharpen). It adds expert methods, original sources, and an independent check while leaving your choices open. It returns the prompt without doing the task; review and send the rewrite separately.
+
 ## Recipes
 
 ::: code-group
@@ -27,6 +29,7 @@ Save z-mode for work that needs rigor. Use verified native model and effort sett
 ```text [Claude Code]
 /how trace argument parsing; read-only
 /in-your-own-words <long or messy ask>
+/sharpen <the prompt you are about to send>
 /z-mode read this report; restate the underlying issue and investigate the evidence; don't change any code yet
 /interrogate this diff; findings only
 /swarm check these three packages; one owned report per package
@@ -37,6 +40,7 @@ Save z-mode for work that needs rigor. Use verified native model and effort sett
 ```text [Codex]
 $how trace argument parsing; read-only
 $in-your-own-words <long or messy ask>
+$sharpen <the prompt you are about to send>
 $z-mode read this report; restate the underlying issue and investigate the evidence; don't change any code yet
 $interrogate this diff; findings only
 $swarm check these three packages; one owned report per package
