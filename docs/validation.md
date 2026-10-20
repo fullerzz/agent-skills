@@ -4,6 +4,14 @@ outline: [2, 3]
 
 # Validation
 
+## Formal-verification maintenance — 2026-10-19
+
+Added explicit-only maintenance, per-check generator coverage/checkpoints, and matching guides; all three native manifests advance to `0.16.0`. Structural validation passed (55 skills, zero problems), all 15 Node tests passed including the documentation build and isolated installer fixtures, all 137 Python tests passed, and `git diff --check` passed. Packaging succeeded and the new entrypoint and Codex invocation policy byte-match their packaged copies. Initial test subprocesses hit sandbox-incompatible mise shims; the successful runs prepended `/opt/homebrew/bin` to PATH. The installed skill-creator quick validator rejects the repository-standard `disable-model-invocation` field; the repository validator accepts and checks the native invocation contract.
+
+An independent agent manually exercised the skill in `/tmp/zstack-formal-eval-kW2RmR`: a bounded queue model remained green after source capacity changed from two to three, then correspondence was updated. Removing the real enqueue guard in a disposable copy triggered correspondence review; translating that change into the handwritten model produced a capacity counterexample, and direct implementation replay failed at four items. An unavailable second verifier returned executable-not-found (recorded as 127) and retained its earlier checkpoint while the successful check advanced. A second scenario preserved a staged caller edit and unstaged capacity change to four byte-for-byte, recorded a separate source digest, and retained both commit checkpoints. The translated mutation and implementation replay failed at five items; restored baselines and the next-agent rerun passed. Evidence and the evaluation script remain in that temporary directory; the coordinator inspected checkpoint records and failure/rerun outputs.
+
+A separate independent read-only review found no actionable instruction or integration defects. These are synthetic bounded Python-model and manual workflow results, not TLA+, concurrency, automatic code/model equivalence, or live Codex/Claude/Hermes plugin discovery. No upstream evaluation scores were reproduced, and no personal plugin configuration was changed.
+
 ## Optional formal-verification setup offer — 2026-10-18
 
 Workflow-reference follow-up: the setup entry now documents inspection of formal tooling and skills, the conditional one-time offer, and explicit user invocation after acceptance in its process and expected-result sections. The repeated invocation finding was already fixed in `a1f09bf`. Structural validation (54 skills, zero problems), all 15 Node tests including the documentation build, and whitespace checks passed for this documentation-only correction. Python tests and live host behavior were not rerun.

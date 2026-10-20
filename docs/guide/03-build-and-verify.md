@@ -60,6 +60,8 @@ A passing bounded model establishes the property within its modeled states and a
 
 For event-order questions, the generator defaults to TLA+ regardless of implementation language, while retaining suitable existing project tooling. If no verifier supports the implementation language, it discloses the limitation and tests the real code with generated inputs instead of a handwritten function model. That fallback supplies reproducible test evidence, not formal proof.
 
+Generated formal checks record covered files and functions and a last verified commit per check. After merges or refactors that skipped verification, explicitly invoke [maintain-formal-verification-skill](../../skills/maintain-formal-verification-skill/SKILL.md) to review correspondence, update and rerun checks, and separate stale verification from real bugs. Blocked checks keep their previous checkpoint; dirty source gets separate snapshot evidence rather than a false HEAD checkpoint. Mutations stay in disposable copies, and product findings do not authorize product fixes.
+
 Generated runtime verification skills already require a **Helpers** section with portable commands and an end-to-end run that confirms evidence survives cleanup. Check both when reviewing the generated skill.
 
 Ask for proof you can inspect: real command output, a screenshot of the changed flow, a trace, or a readback of stored state. Match it to the acceptance check. A passing build alone does not prove changed behavior.
