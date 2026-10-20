@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 30 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the 31 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -223,6 +223,29 @@ A reusable skill, retained verification evidence, and a plain-language report of
 Explicit-only. Uses a distinct `verify-formal-<area>` name and checks canonical destinations before writing; existing runtime skills remain separate. Uses Codex or Claude Code project discovery and preserves the user's invocation policy. Hermes, unavailable discovery contracts, and restricted discovery writes use an ordinary project source folder with registration pending. Missing tools, timeouts, inconclusive checks, or undetected mutations leave a draft or blocked result. Product fixes require their own request, and checks must not be weakened to hide findings. This verifies stated properties within the tool's scope, not the whole system, and is separate from the launch/drive feature-map maintenance workflow.
 
 [Full create-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/create-formal-verification-skill/SKILL.md)
+
+## Maintain a formal verification skill {#maintain-formal-verification-skill}
+
+Covered code changed without rerunning its formal checks, so a passing result may describe an old implementation.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$maintain-formal-verification-skill Refresh the lease checks after the refactor and distinguish drift from bugs.` |
+| Claude Code | `/maintain-formal-verification-skill Refresh the lease checks after the refactor and distinguish drift from bugs.` |
+
+### How it works
+
+Finds checks by behavior, baselines them, and reviews history from each check's last verified commit, including moved functions, new state writers, and uncommitted changes. Updates correspondence from code, reruns, and demonstrates detection using isolated mutations. Changes a property only with evidence that the promise intentionally changed.
+
+### Expected result
+
+Verification-only changes and per-check outcomes: in sync, updated, bug, or blocked. Records covered files and functions, evidence, and each check's checkpoint. Blocked checks retain their old checkpoint; dirty snapshots are recorded separately. A checkpoint confirms correspondence, not that the code is bug-free.
+
+### Dependencies and limits
+
+Explicit-only. Uses existing project tooling and preserves invocation policy. Missing history requires disclosed full correspondence review before a new checkpoint; unavailable tools or incomplete detection leave affected checks blocked. Product fixes and publication need separate authorization. Generated-input fallbacks remain testing rather than formal proof.
+
+[Full maintain-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/maintain-formal-verification-skill/SKILL.md)
 
 ## Create a verification skill {#create-verification-skill}
 

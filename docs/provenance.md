@@ -1,5 +1,11 @@
 # Upstream provenance
 
+## Formal-verification maintenance — 2026-10-19
+
+Selectively adapted [pstack PR #716](https://github.com/cursor/plugins/pull/716), reviewed at `011ef53277caad816e4fcf89929f3b47fdb4a050` (merge `7b353f78f6ec193bdbe48ed8059444eb09b6878e`): verification drift review, per-check coverage and last verified commits, counterexample triage, and blocked-check checkpoint retention. Zstack keeps explicit invocation, isolated real-code mutations, manual model-translation limits, and verification-only edits. Dirty snapshots are recorded separately from commit checkpoints, and inferred legacy bases are not treated as prior proof. The MIT license and Lauren Tan attribution remain intact.
+
+Reviewed [PR #724](https://github.com/cursor/plugins/pull/724) at `b2a3fd3ebb23846e1c02daf55357254db984be19` (merge `d457567332aa6989e753ea289f30ea2bfbc80bc0`). Its TLA+ default and real-code generated-input fallback already match zstack’s generator and guide from #721. Cursor manifests, generated Claude harness copies, poteto-help routing, and upstream version numbers are excluded; the new shared skill advances all three native zstack manifests to `0.16.0` under local versioning policy. Upstream evaluation scores are not local validation.
+
 ## Ketchup batch coverage and formal verification — 2026-10-18
 
 Selectively adapted pstack [#692](https://github.com/cursor/plugins/pull/692), merged as `16541c6bc1ed6c8d808b2f78a33364003e82b967`, [#708](https://github.com/cursor/plugins/pull/708), merged as `bc1443790cc980d0ea857663260a831299884508`, and [#709](https://github.com/cursor/plugins/pull/709), merged as `4382e687a50b8d2c5ce4d141d001186589cff8d5`.
