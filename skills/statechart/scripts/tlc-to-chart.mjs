@@ -21,11 +21,14 @@ import {
   parseTraces,
   productOf,
   ruleSentences,
-  stateKey,
+  stateKey as rawStateKey,
   tlcOutputWarning,
   wrap,
   STATUS_CLASSES,
 } from "./lib.mjs";
+
+const rawValues = new WeakMap();
+const stateKey = (vars) => rawStateKey(rawValues.get(vars) ?? vars);
 
 const USAGE = "Usage: node tlc-to-chart.mjs --dot FILE --map FILE [options]";
 const HELP = `${USAGE}
@@ -347,7 +350,7 @@ function guard(vars, paths, at = "v") {
   for (const [k, ...rest] of paths)
     if (!rest.length) missing.add(k);
     else deeper.set(k, [...(deeper.get(k) ?? []), rest]);
-  return new Proxy(vars, {
+  const guarded = new Proxy(vars, {
     get(target, k) {
       if (missing.has(k) && !(k in target)) {
         const name = `${at}.${k}`.slice(2);
@@ -358,6 +361,8 @@ function guard(vars, paths, at = "v") {
       return deeper.has(k) ? guard(target[k], deeper.get(k), `${at}.${k}`) : target[k];
     },
   });
+  rawValues.set(guarded, vars);
+  return guarded;
 }
 
 function modelOf(graph) {

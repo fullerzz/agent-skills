@@ -388,6 +388,9 @@ test("comparison guards cover later states, alternate starts, and non-record par
     assert.notEqual(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stderr, /has no user.name|non-record.*user/);
   }
+  writeFileSync(join(dir, "map.mjs"), 'export const state = () => "Same";\nexport const step = a => a;\n');
+  const ignored = run(dir, "tlc-to-chart.mjs", "--dot", "main.dot", "--against-dot", "other.dot", "--map", "map.mjs", "--highlight", "0", "--out", "chart.mmd");
+  assert.equal(ignored.status, 0, ignored.stdout + ignored.stderr);
 });
 
 test("expected-break metadata edits, additions, removals, and module changes block publication", { skip }, (t) => {
