@@ -14,6 +14,8 @@ Requires Node, Java 11+, and `TLA2TOOLS` pointing to a local [tla2tools.jar](htt
 
 The value parser refuses integers outside JavaScript's safe integer range and function keys that collide when represented as object keys. Such inputs are unsupported evidence, not chartable states; do not round or rename values to force a pass.
 
+Mappings receive sequences and sets as arrays, records and functions as objects, and model values as `{ modelValue: "Foo" }`. Internal keys retain value kinds, typed function domains, and set membership order independence, including when comparing projected models. Unrecognized value syntax stops the run instead of becoming an ambiguous string.
+
 ## Pick the direction
 
 Use `from-spec` when a TLA+ model exists or the code is concrete enough to model. Use `from-chart` when there is no model and the PM should agree on the behavior before anyone writes or changes the code.

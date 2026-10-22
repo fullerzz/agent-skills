@@ -9,6 +9,7 @@ import {
   LEGEND_ID,
   PLAIN_FILL,
   checkTlcOutput,
+  cloneTlcValue,
   compareCharts,
   groupClassDef,
   groupColorProblem,
@@ -285,7 +286,7 @@ function lacking(a, b, prefix = []) {
 const holder = (o, p) => p.slice(0, -1).reduce((x, k) => (isRecord(x?.[k]) ? x[k] : null), o);
 function omit(vars, paths) {
   if (!paths.length) return vars;
-  const out = structuredClone(vars);
+  const out = cloneTlcValue(vars);
   for (const p of paths) {
     const o = holder(out, p);
     if (o) delete o[p.at(-1)];
@@ -294,10 +295,10 @@ function omit(vars, paths) {
 }
 function fill(vars, paths, from) {
   if (!paths.length) return vars;
-  const out = structuredClone(vars);
+  const out = cloneTlcValue(vars);
   for (const p of paths) {
     const [o, f] = [holder(out, p), holder(from, p)];
-    if (o && f && p.at(-1) in f) o[p.at(-1)] = structuredClone(f[p.at(-1)]);
+    if (o && f && p.at(-1) in f) o[p.at(-1)] = cloneTlcValue(f[p.at(-1)]);
   }
   return out;
 }

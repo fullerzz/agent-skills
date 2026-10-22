@@ -366,6 +366,7 @@ const SCAFFOLD = (name, graph) => {
   return `// Chart labels for ${name}, for statechart.mjs. Write labels in plain words, not variable or action names.
 // v, before, and after map each variable to its value. Strings, numbers, and booleans keep their kind.
 // Sequences, tuples, and sets become arrays, indexed from 0. Records and functions become objects.
+// Model values become { modelValue: "Foo" }. Internal state keys retain collection and key kinds.
 // Variables: ${vars.join(", ")}.
 
 // The actions the reader takes. facts.settled is true when only these are enabled, and the overview

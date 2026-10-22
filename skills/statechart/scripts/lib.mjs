@@ -12,6 +12,9 @@ export function findTlc() {
 }
 
 export class UnsupportedTlcValue extends Error {}
+const KIND = Symbol("TLC kind");
+const KEYS = Symbol("TLC function keys");
+const tagged = (value, kind) => Object.defineProperty(value, KIND, { value: kind });
 
 export function parseValue(text) {
   const src = text.trim();
@@ -51,7 +54,7 @@ export function parseValue(text) {
     }
     if (peek("{")) {
       i++;
-      return list("}", value);
+      return tagged(list("}", value), "set");
     }
     if (peek("[")) {
       i++;
@@ -68,12 +71,15 @@ export function parseValue(text) {
     if (peek("(")) {
       i++;
       const fn = {};
+      const keys = new Map();
+      Object.defineProperty(fn, KEYS, { value: keys });
       for (;;) {
         const k = value();
         eat(":>");
         const key = typeof k === "string" ? k : JSON.stringify(k);
         if (Object.hasOwn(fn, key)) throw new UnsupportedTlcValue(`TLC function keys collide at ${key}`);
         Object.defineProperty(fn, key, { value: value(), enumerable: true });
+        keys.set(key, k);
         ws();
         if (peek("@@")) {
           i += 2;
@@ -84,21 +90,22 @@ export function parseValue(text) {
       }
     }
     if (peek('"')) {
+      const start = i;
       i++;
-      let s = "";
       while (i < src.length && src[i] !== '"') {
         if (src[i] === "\\") i++;
-        s += src[i++];
+        i++;
       }
+      if (src[i] !== '"') throw new Error("unterminated TLC string");
       i++;
-      return s;
+      return JSON.parse(src.slice(start, i));
     }
     const m = /^-?\d+|^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
     if (!m) throw new Error(`bad value at ${i} in ${src}`);
     i += m[0].length;
     if (m[0] === "TRUE") return true;
     if (m[0] === "FALSE") return false;
-    if (!/^-?\d+$/.test(m[0])) return m[0];
+    if (!/^-?\d+$/.test(m[0])) return tagged({ modelValue: m[0] }, "model");
     const number = Number(m[0]);
     if (!Number.isSafeInteger(number))
       throw new UnsupportedTlcValue(`TLC integer ${m[0]} is outside JavaScript's safe range; cannot chart it losslessly`);
@@ -107,10 +114,11 @@ export function parseValue(text) {
   try {
     const v = value();
     ws();
-    return i === src.length ? v : src;
+    if (i !== src.length) throw new Error("trailing input");
+    return v;
   } catch (e) {
     if (e instanceof UnsupportedTlcValue) throw e;
-    return src;
+    throw new UnsupportedTlcValue(`cannot parse TLC value ${src}: ${e.message}`);
   }
 }
 
@@ -132,18 +140,33 @@ function parseState(text) {
   return vars;
 }
 
-export const isRecord = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
-const canon = (v) =>
-  Array.isArray(v)
-    ? v.map(canon)
-    : isRecord(v)
-      ? Object.fromEntries(
-          Object.keys(v)
-            .sort()
-            .map((k) => [k, canon(v[k])]),
-        )
-      : v;
+export const isRecord = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && v[KIND] !== "model";
+const sorted = (values) => values.sort((a, b) => {
+  const x = JSON.stringify(a), y = JSON.stringify(b);
+  return x < y ? -1 : x > y ? 1 : 0;
+});
+const canon = (v) => {
+  if (v?.[KIND] === "model") return ["model", v.modelValue];
+  if (v?.[KIND] === "set") return ["set", sorted(v.map(canon))];
+  if (Array.isArray(v))
+    return ["function", sorted(v.map((item, i) => [canon(i + 1), canon(item)]))];
+  if (isRecord(v))
+    return ["function", sorted(Object.keys(v).map((k) => [canon(v[KEYS]?.has(k) ? v[KEYS].get(k) : k), canon(v[k])]))];
+  return [typeof v, v];
+};
 export const stateKey = (vars) => JSON.stringify(canon(vars));
+
+// Projection must retain value kinds that structuredClone drops with symbol properties.
+export function cloneTlcValue(v) {
+  if (v === null || typeof v !== "object") return v;
+  const copy = Array.isArray(v) ? v.map(cloneTlcValue)
+    : Object.fromEntries(Object.entries(v).map(([k, item]) => [k, cloneTlcValue(item)]));
+  if (v[KIND]) tagged(copy, v[KIND]);
+  if (v[KEYS]) Object.defineProperty(copy, KEYS, {
+    value: new Map([...v[KEYS]].map(([k, key]) => [k, cloneTlcValue(key)])),
+  });
+  return copy;
+}
 
 export function ruleSentences(tla) {
   const out = new Map();

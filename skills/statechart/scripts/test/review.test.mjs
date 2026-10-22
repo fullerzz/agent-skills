@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { findTlc, parseValue } from "../lib.mjs";
+import { cloneTlcValue, findTlc, parseValue, stateKey } from "../lib.mjs";
 import { state, group } from "../model/OutputFolder.map.mjs";
 
 const scripts = fileURLToPath(new URL("../", import.meta.url));
@@ -33,6 +33,39 @@ test("unsafe TLC integers and colliding function keys cannot silently change a s
   const fn = parseValue('("__proto__" :> 1 @@ "constructor" :> 2)');
   assert.equal(Object.hasOwn(fn, "__proto__"), true);
   assert.equal(fn.__proto__, 1);
+});
+
+test("TLC state keys distinguish model values, collections, function domains, and escaped strings", () => {
+  const key = (text) => stateKey({ x: parseValue(text) });
+  for (const [a, b] of [["Foo", '"Foo"'], ["{1, 2}", "<<1, 2>>"], ['(1 :> TRUE)', '("1" :> TRUE)'], ['"\\n"', '"n"']])
+    assert.notEqual(key(a), key(b), `${a} and ${b}`);
+  assert.equal(key("{1, 2}"), key("{2, 1}"));
+  assert.equal(key('[a |-> 1]'), key('("a" :> 1)'));
+  assert.equal(key('<<1, 2>>'), key('(1 :> 1 @@ 2 :> 2)'));
+  const nested = parseValue('[s |-> {1, 2}, t |-> <<Foo, "Foo">>, f |-> (1 :> TRUE)]');
+  assert.equal(stateKey(cloneTlcValue(nested)), stateKey(nested));
+  assert.throws(() => parseValue("{1, 2} trailing"), /cannot parse TLC value/);
+});
+
+test("collection kinds retain separate enabled-action facts during spec projection", (t) => {
+  const dir = scratch(t);
+  const dot = (extra) => `strict digraph DiskGraph {
+1 [label="r = [x |-> {1, 2}${extra ? ", extra |-> 0" : ""}]",style = filled]
+2 [label="r = [x |-> <<1, 2>>${extra ? ", extra |-> 0" : ""}]"]
+1 -> 2 [label="Go"];
+2 -> 1 [label="Back"];
+}`;
+  writeFileSync(join(dir, "now.dot"), dot(true));
+  writeFileSync(join(dir, "spec.dot"), dot(false));
+  writeFileSync(join(dir, "map.mjs"), 'export const state = (v, facts) => facts.enabled.has("Go") ? "Ready" : "Done";\nexport const step = a => a;\n');
+  const result = run(dir, "tlc-to-chart.mjs", "--dot", "now.dot", "--against-dot", "spec.dot", "--map", "map.mjs", "--highlight", "0", "--out", "chart.mmd", "--summary", "summary.json");
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
+  assert.equal(summary.chartStates, 2);
+  assert.deepEqual(summary.second.lacks, ["r.extra"]);
+  const output = readFileSync(join(dir, "chart.mmd"), "utf8");
+  assert.match(output, /state "Ready"/);
+  assert.match(output, /state "Done"/);
 });
 
 test("TLA keywords in chart labels generate executable actions", { skip }, (t) => {
