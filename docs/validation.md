@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Statechart and Pele — 2026-10-22 {#statechart}
+
+Added the explicit-only statechart skill from the final merged pstack #741 tree, with local Pele SVG rendering and real-code reproduction requirements. Shared native manifests are `0.18.0`. Validation used Node `26.12.0`, Java `25.0.2`, TLC `1.7.4`, Pele `1.8.0`, and Mermaid CLI `12.0.0` on macOS. Renderer packages and the TLC jar were installed only in an owned temporary workspace; personal host configuration was untouched.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems.
+- `node --test scripts/*.test.mjs` with `TLA2TOOLS` and `JAVA` configured: 73 passed, zero failures, two Linux-only tests skipped. The collision regression first failed against the imported implementation, then passed after the fix; the final full suite includes it. Linux PID namespaces and `LD_PRELOAD` rename fault injection are unavailable on this macOS host; path comparisons now account for macOS's canonical temporary-directory alias.
+- `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 137 passed, including isolated installer/packaging and host registration fixtures.
+- `uv run scripts/package_plugin.py`: the new skill's 15 resources byte-matched the package. The packaged entrypoint ran from a different working directory and loaded Pele from that caller's local dependency, not the plugin cache.
+- The sync fixture ran through chart-to-TLA+ generation, TLC checking, and chart comparison. It found the expected `NeverSyncedWhileOffline` model counterexample and drew the agreed chart back unchanged. One run with both `--png --pele` produced the overview and numbered trace in both formats; all four images were visually inspected. A second `from-spec` exercise verified the nested-box fallback and Pele output. Existing TLC regressions exercise `--fixed`, `--against`, guarded parallel regions, model mutations, stale inputs, interruption, and overlapping output publication.
+- Missing or failed Pele rendering returns 2, retains Mermaid/model evidence and successful images, and removes stale SVGs on a later run without `--pele`. A blocked sandbox browser launch likewise returned 2 while preserving the successful SVGs; a permitted isolated headless Chrome run then rendered both PNGs successfully.
+- Skeleton generation now refuses existing configs/mappings and dangling symlinks when the spec is absent; exclusive file creation also refuses a path occupied after preflight. The regression failed against the imported implementation and passed with the fix.
+
+The live diagram scenario is an invented model, not a reproduced application bug. Fresh Codex, Claude Code, and Hermes discovery/invocation, Linux-only cases, and an independent agent evaluation were not run. These are local helper, packaging, rendering, and regression results; they do not establish arbitrary-model correctness or remote CI status.
+
 ## Sharpen prompt rewriting — 2026-10-20
 
 Added the shared explicit-only sharpen skill and its Codex invocation policy, documented the review-and-send handoff, and advanced all three native manifests to `0.17.0`. Reviewed upstream PR #729 and its merge commit `88d47514b82e7c44f00f2b2a72ff6dd12158038c`, including the skill, guides, help text, and generated Claude copies. Local integration uses one shared skill instead of importing the upstream harness tree.

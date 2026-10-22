@@ -247,6 +247,30 @@ Explicit-only. Uses existing project tooling and preserves invocation policy. Mi
 
 [Full maintain-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/maintain-formal-verification-skill/SKILL.md)
 
+## Statechart {#statechart}
+
+Make a TLA+ model and its counterexamples readable to someone deciding what the app should do.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$statechart Draw the sync model and its counterexamples with Pele; reproduce findings in the code before calling them bugs.` |
+| Claude Code | `/statechart Compare the code-derived model with the agreed specification and render Mermaid PNGs.` |
+| Hermes | Load `zstack:statechart` with `skill_view` and provide the model or agreed chart. |
+
+### How it works
+
+`from-spec` checks invariants separately with TLC, projects reachable states into readable Mermaid diagrams, and draws numbered counterexample paths. `--fixed` compares a proposed fix; `--against` compares with an unchanged specification. `from-chart` generates a TLA+ skeleton, config, and mapping, then compares the checked model's chart with the original. It supports nested states and top-level parallel regions within its documented chart subset.
+
+### Expected result
+
+Mermaid sources, stories, summary counts, TLC evidence, and optional Mermaid PNG (`--png`) or Pele SVG (`--pele`) files. Findings remain model counterexamples until an isolated test or live reproduction establishes the actual code behavior. Model comparisons and generated skeletons do not prove implementation correctness.
+
+### Dependencies and limits
+
+Explicit-only on all three hosts. Requires Node, Java 11+, and a local TLC jar through `TLA2TOOLS`; `JAVA` can select the binary. Mermaid PNG uses npm/Mermaid CLI and Chromium; Pele SVG uses the `pele` package installed in the caller's working directory and needs no browser. Neither renderer is a required plugin dependency. Inspect the rendered charts because layout differs. Missing tools or a failed requested render exit 2; model evidence is retained on rendering failure. Use an owned scratch folder, review executable mapping modules, and keep user annotations outside generated output folders. Product edits and publication need their own authorization.
+
+[Full statechart instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/statechart/SKILL.md)
+
 ## Create a verification skill {#create-verification-skill}
 
 The project lacks a reusable way to launch, drive, and prove real user behavior.
