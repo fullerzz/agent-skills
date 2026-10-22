@@ -4,6 +4,14 @@ outline: [2, 3]
 
 # Validation
 
+## Additional GitHub Pages deployment — 2026-10-22
+
+Added a Pages workflow that builds pull requests and deploys `main`, alongside the existing Docker/nginx setup. `DOCS_BASE` selects the repository subpath; the default remains `/`. The favicon, footer notice link, and sidebar notice link respect that base. This follows the [VitePress deployment guide](https://vuejs.github.io/vitepress/v1/guide/deploy).
+
+On this macOS host, both root and `/agent-skills/` production builds passed. The new regression test checks every generated HTML page for root-relative links/assets escaping the Pages base and missing local targets, plus favicon and home-footer notice links. All five documentation tests and eleven helper/installer tests passed; structural validation reports 56 skills and zero problems, and all 137 Python tests passed. Workflow YAML parsing and `git diff --check` passed.
+
+GitHub's API confirmed Pages is enabled with `build_type: workflow` at `https://fullerzz.github.io/agent-skills/`. Deployment remains pending until the workflow reaches `main`; these local build checks do not establish a live Pages deployment, browser interaction, or a Docker rebuild.
+
 ## Sharpen prompt rewriting — 2026-10-20
 
 Added the shared explicit-only sharpen skill and its Codex invocation policy, documented the review-and-send handoff, and advanced all three native manifests to `0.17.0`. Reviewed upstream PR #729 and its merge commit `88d47514b82e7c44f00f2b2a72ff6dd12158038c`, including the skill, guides, help text, and generated Claude copies. Local integration uses one shared skill instead of importing the upstream harness tree.

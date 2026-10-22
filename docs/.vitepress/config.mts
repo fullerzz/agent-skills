@@ -4,6 +4,7 @@ import { loadCatalog, repo, repoRoot } from './skills'
 import { docsNotices } from '../../scripts/docs-notices.mjs'
 
 const docsDir = path.join(repoRoot, 'docs')
+const base = process.env.DOCS_BASE || '/'
 
 const escape = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -33,12 +34,13 @@ function catalogSearchHtml() {
 }
 
 export default defineConfig({
+  base,
   title: "zstack",
   description: 'A personal engineering skill library for Codex, Claude Code, and Hermes Agent.',
   cleanUrls: true,
   lastUpdated: true,
   vite: { plugins: [docsNotices()] },
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }]],
   rewrites: { 'guide/README.md': 'guide/index.md' },
   markdown: {
     theme: { light: 'catppuccin-latte', dark: 'catppuccin-macchiato' },
@@ -118,14 +120,14 @@ export default defineConfig({
         items: [
           { text: 'Validation', link: '/validation' },
           { text: 'Provenance', link: '/provenance' },
-          { text: 'License notices', link: '/third-party-notices.txt' },
+          { text: 'License notices', link: `${base}third-party-notices.txt` },
           { text: 'Adaptation plan', link: '/adaptation-plan' },
         ],
       },
     ],
     socialLinks: [{ icon: 'github', link: repo }],
     footer: {
-      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode). <a href="/third-party-notices.txt">License notices</a>.`,
+      message: `Released under the MIT License. Adapted from Lauren Tan's <a href="https://github.com/cursor/plugins/tree/main/pstack">pstack</a>. Styled with the <a href="https://catppuccin.com/">Catppuccin</a> Macchiato theme (Latte in light mode). <a href="${base}third-party-notices.txt">License notices</a>.`,
       copyright: 'Copyright © 2026 Zach Fuller (zstack adaptations and documentation). Upstream pstack © 2026 Lauren Tan.',
     },
     search: {
