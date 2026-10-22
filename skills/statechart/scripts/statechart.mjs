@@ -31,6 +31,7 @@ const FROM_SPEC = `from-spec SPEC.tla
   --fixed FIXED.tla  The model of the open fix. It is a copy of the spec with its own file and
                      module name, such as SpecFixed.tla with MODULE SpecFixed. The command checks
                      it the same way, with FIXED.cfg, or with SPEC.cfg when there is no FIXED.cfg.
+                     FIXED.cfg must include every INVARIANT from SPEC.cfg.
                      The charts then mark each bad state fixed or still wrong.
   --against AGREED.tla
                      The spec that SPEC.tla must follow, when SPEC.tla models the code. It needs
@@ -714,6 +715,11 @@ async function fromSpec(input, { "expect-broken": expected, ...flags }) {
   const second = secondModel(input, flags);
   const tools = findTools();
   const model = readInput(input, expected);
+  if (second?.role === "fixed") {
+    const missing = model.rules.filter((rule) => !second.model.rules.includes(rule));
+    if (missing.length)
+      throw new CannotFinish(`${rel(second.model.cfgFile)} is missing original invariants: ${missing.join(", ")}. Check every rule from ${rel(model.cfgFile)} before comparing the fix.`);
+  }
   const out = outDir(flags.out, input, name);
   return inWorkFolder(async (work) => {
     const now = check(tools, model, work, expected);

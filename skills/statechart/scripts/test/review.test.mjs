@@ -94,6 +94,23 @@ test("mapping scaffolds refuse dangling symlinks", { skip }, (t) => {
   assert.match(result.stderr, /occupied/);
 });
 
+test("a fixed model cannot omit an original invariant and claim the bug is fixed", { skip }, (t) => {
+  const dir = scratch(t);
+  assert.equal(generate(dir, chart + "  %% never NeverB: B\n").status, 0);
+  writeFileSync(join(dir, "Fixed.tla"), readFileSync(join(dir, "Flow.tla"), "utf8").replace("MODULE Flow", "MODULE Fixed"));
+  writeFileSync(join(dir, "Fixed.cfg"), "SPECIFICATION Spec\nINVARIANT TypeOK\n");
+  const args = ["from-spec", "Flow.tla", "--fixed", "Fixed.tla", "--expect-broken", "NeverB"];
+  const incomplete = run(dir, "statechart.mjs", ...args);
+  assert.equal(incomplete.status, 2, incomplete.stdout + incomplete.stderr);
+  assert.match(incomplete.stderr, /Fixed.cfg.*missing.*NeverB/);
+  assert.equal(existsSync(join(dir, "Flow-statechart")), false);
+  writeFileSync(join(dir, "Fixed.cfg"), readFileSync(join(dir, "Flow.cfg")));
+  const complete = run(dir, "statechart.mjs", ...args);
+  assert.equal(complete.status, 0, complete.stdout + complete.stderr);
+  const summary = JSON.parse(readFileSync(join(dir, "Flow-statechart/summary.json"), "utf8"));
+  assert.equal(summary.classes[0].fix, "unchanged");
+});
+
 test("reruns preserve foreign TLC files and generated-name directories", { skip }, (t) => {
   const dir = scratch(t);
   assert.equal(generate(dir).status, 0);
