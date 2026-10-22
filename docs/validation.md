@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Statechart upstream fixes — 2026-10-22 {#statechart-upstream-fixes}
+
+Ported pstack #776 and #779 while retaining zstack's parser, output-safety, explicit-invocation, and Pele adaptations. All native manifests are `0.18.1`. Checks used Node `26.12.0`, Java `25.0.2`, and the existing isolated TLC `1.7.4` jar on macOS.
+
+- Structural validation: 57 skills, zero problems.
+- `node --test scripts/*.test.mjs` with TLC configured: 97 passed, zero failures, three Linux-only tests skipped (100 total). This includes temporal properties, separate configs, missing-field rejection, unchecked-rule reporting, retained diagnostics, shortest paths, concurrent atomic publication, and the output-folder model with deliberate mutations. The subsequently added portable copy-fallback test passed separately. `git diff --check` passed.
+- Python discovery: all 137 tests passed. The first sandboxed run failed when child commands resolved the blocked mise shim; rerunning with the installed uv binary directory on `PATH` passed without modifying personal configuration.
+- Without TLC, 38 tests passed and 46 were explicitly skipped before the portable copy-fallback test was added. Parser fixtures cover TLC 1.8's named temporal violation while continuing to reject unrelated errors. Preflight tests reject unsafe property filenames and fixed configs that omit or change original rule categories.
+- Three focused live-TLC tests passed for changed inputs, foreign output files, and refusing rendering after input changes. New upstream assertions were adapted for macOS's `/var` versus `/private/var` temporary paths; retained chart evidence is still read and checked.
+- A portable live-TLC test injected `ENOSYS`, `EXDEV`, and `EISDIR` from directory rename: initial copy publication and repeated replacements passed, and foreign output notes survived refusal. This is fault injection on a local filesystem, not a real FUSE mount. Concurrent copying is not atomic and may mix files; the output-folder model explicitly excludes that fallback.
+- Packaging succeeded. From a separate temporary working directory, the packaged `from-chart sync.mmd --pele` found the expected `NeverSyncedWhileOffline` counterexample, returned 1, compared the chart back unchanged, and wrote both overview and bug SVGs alongside model evidence. Renderer dependency resolution remained local to the caller; images were not visually re-reviewed.
+
+TLC 1.8 itself, a real FUSE mount, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised. Linux namespace and preload-only tests remain platform-limited. No commit or publication was performed.
+
 ## Statechart and Pele — 2026-10-22 {#statechart}
 
 Added the explicit-only statechart skill from the final merged pstack #741 tree, with local Pele SVG rendering and real-code reproduction requirements. Shared native manifests are `0.18.0`. Validation used Node `26.12.0`, Java `25.0.2`, TLC `1.7.4`, Pele `1.8.0`, and Mermaid CLI `12.0.0` on macOS. Renderer packages and the TLC jar were installed only in an owned temporary workspace; personal host configuration was untouched.

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { cloneTlcValue, findTlc, parseValue, stateKey } from "../lib.mjs";
+import { BROKEN_PROPERTY, cloneTlcValue, findTlc, parseValue, stateKey, tlcOutputWarning } from "../lib.mjs";
 import { state, group } from "../model/OutputFolder.map.mjs";
 
 const scripts = fileURLToPath(new URL("../", import.meta.url));
@@ -217,4 +217,61 @@ test("output model labels orphaned TLC as running", () => {
   const v = { pc: ["orphanTlc", "idle"], aside: [], out: { exists: false } };
   assert.equal(state(v), "One run going: no folder");
   assert.equal(group(v), "Running");
+});
+
+
+test("named TLC temporal violations are broken properties, not tool failures", () => {
+  for (const message of ["Temporal properties were violated.", "Temporal property EventuallyPaid was violated."]) {
+    const output = `Error: ${message}\nError: The following behavior constitutes a counter-example:\n`;
+    assert.match(output, BROKEN_PROPERTY);
+    assert.equal(tlcOutputWarning(output, "temporal.out"), null);
+    assert.throws(() => tlcOutputWarning(`${output}Error: Parsing or semantic analysis failed.\n`, "temporal.out"), /not a broken rule/);
+  }
+});
+
+test("property references and fixed rule categories are validated before TLC runs", (t) => {
+  const dir = scratch(t);
+  writeFileSync(join(dir, "Flow.tla"), "---- MODULE Flow ----\n====\n");
+  writeFileSync(join(dir, "Fixed.tla"), "---- MODULE Fixed ----\n====\n");
+  writeFileSync(join(dir, "victim.cfg"), "retained");
+  writeFileSync(join(dir, "Flow.cfg"), "SPECIFICATION Spec\nPROPERTY ../../victim\n");
+  const unsafe = run(dir, "statechart.mjs", "from-spec", "Flow.tla");
+  assert.equal(unsafe.status, 2, unsafe.stderr);
+  assert.match(unsafe.stderr, /invalid property reference/);
+  assert.equal(readFileSync(join(dir, "victim.cfg"), "utf8"), "retained");
+  for (const [original, fixed] of [["INVARIANT Safe", "PROPERTY Safe"], ["PROPERTY Eventually", "INVARIANT Eventually"], ["PROPERTY Eventually", ""]]) {
+    writeFileSync(join(dir, "Flow.cfg"), `SPECIFICATION Spec\n${original}\n`);
+    writeFileSync(join(dir, "Fixed.cfg"), `SPECIFICATION Spec\n${fixed}\n`);
+    const result = run(dir, "statechart.mjs", "from-spec", "Flow.tla", "--fixed", "Fixed.tla");
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /missing original invariants\/properties/);
+    assert.equal(existsSync(join(dir, "Flow-statechart")), false);
+  }
+});
+
+test("copy publication handles unsupported directory renames and preserves foreign files", { skip }, (t) => {
+  const dir = scratch(t);
+  assert.equal(generate(dir).status, 0);
+  const preload = join(dir, "rename.mjs");
+  writeFileSync(preload, `import fs from "node:fs";
+import path from "node:path";
+const rename = fs.renameSync;
+fs.renameSync = (from, to) => {
+  if (path.basename(to) === "shared") throw Object.assign(new Error("unsupported rename"), { code: process.env.RENAME_ERROR });
+  return rename(from, to);
+};
+`);
+  const invoke = (code) => spawnSync(process.execPath, ["--import", preload, join(scripts, "statechart.mjs"), "from-spec", "Flow.tla", "--out", "shared"], {
+    cwd: dir, encoding: "utf8", timeout: 120_000, env: { ...process.env, RENAME_ERROR: code },
+  });
+  for (const code of ["ENOSYS", "EXDEV", "EISDIR"]) {
+    const result = invoke(code);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(readFileSync(join(dir, "shared/chart.mmd"), "utf8"), /stateDiagram-v2/);
+    assert.ok(existsSync(join(dir, "shared/tlc/Flow.out")));
+  }
+  writeFileSync(join(dir, "shared/notes.md"), "retain me");
+  const refused = invoke("ENOSYS");
+  assert.equal(refused.status, 2, refused.stderr);
+  assert.equal(readFileSync(join(dir, "shared/notes.md"), "utf8"), "retain me");
 });
