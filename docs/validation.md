@@ -9,7 +9,7 @@ outline: [2, 3]
 Added the explicit-only statechart skill from the final merged pstack #741 tree, with local Pele SVG rendering and real-code reproduction requirements. Shared native manifests are `0.18.0`. Validation used Node `26.12.0`, Java `25.0.2`, TLC `1.7.4`, Pele `1.8.0`, and Mermaid CLI `12.0.0` on macOS. Renderer packages and the TLC jar were installed only in an owned temporary workspace; personal host configuration was untouched.
 
 - `uv run scripts/validate.py`: 57 skills, zero structural problems.
-- `node --test scripts/*.test.mjs` with `TLA2TOOLS` and `JAVA` configured: 85 passed, zero failures, two Linux-only tests skipped. The collision regression first failed against the imported implementation, then passed after the fix; the final full suite includes it. Linux PID namespaces and `LD_PRELOAD` rename fault injection are unavailable on this macOS host; path comparisons now account for macOS's canonical temporary-directory alias.
+- `node --test scripts/*.test.mjs` with `TLA2TOOLS` and `JAVA` configured: 87 passed, zero failures, two Linux-only tests skipped on the merged tree with Node `26.12.1`. The collision regression first failed against the imported implementation, then passed after the fix; the final full suite includes it. Linux PID namespaces and `LD_PRELOAD` rename fault injection are unavailable on this macOS host; path comparisons now account for macOS's canonical temporary-directory alias.
 - `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: all 137 passed, including isolated installer/packaging and host registration fixtures.
 - `uv run scripts/package_plugin.py`: the new skill's 16 resources byte-matched the package. The packaged entrypoint ran from a different working directory and loaded Pele from that caller's local dependency, not the plugin cache.
 - The sync fixture ran through chart-to-TLA+ generation, TLC checking, and chart comparison. It found the expected `NeverSyncedWhileOffline` model counterexample and drew the agreed chart back unchanged. One run with both `--png --pele` produced the overview and numbered trace in both formats; all four images were visually inspected. A second `from-spec` exercise verified the nested-box fallback and Pele output. Existing TLC regressions exercise `--fixed`, `--against`, guarded parallel regions, model mutations, stale inputs, interruption, and overlapping output publication.
@@ -24,7 +24,19 @@ A further parser regression reproduced value-kind collisions in state keys. Inte
 
 An independent native verifier ran the original statechart suite (58 passed, two skipped), exercised real Pele output, and reproduced the mapping-symlink write. A fresh verifier reviewed the remediation, caught a reverse-order generated-name collision and two comparison-path gaps, and independently confirmed their corrections. A final scoped verifier independently checked missing, empty, complete, and fallback fixed configs. Another scoped verifier checked the value-kind fix using real TLC: twelve distinct typed initial states retained twelve distinct keys, and all twelve initial counterexamples matched their graph keys. These were local native reviews, not cross-provider consensus.
 
+A thirteenth targeted regression reproduced an invariant token overwriting a file outside the TLC work directory. Config parsing now rejects characters outside ASCII letters, digits, and underscores before writing evidence. Real TLC accepts local wrappers for qualified expressions and digit-leading operator names; both survive reruns. An independent verifier confirmed rejection of traversal and malformed names in both primary and comparison configs while preserving an outside file.
+
+The merge from `main` at `3297b77` conflicted only where both branches added validation entries. Both entries are retained, along with the Pages workflow, base-aware links, and its documentation regression test.
+
 The live diagram scenario is an invented model, not a reproduced application bug. Fresh Codex, Claude Code, and Hermes discovery/invocation and Linux-only cases were not run. These are local helper, packaging, rendering, and regression results; they do not establish arbitrary-model correctness or remote CI status.
+
+## Additional GitHub Pages deployment — 2026-10-22
+
+Added a Pages workflow that builds pull requests and deploys `main`, alongside the existing Docker/nginx setup. `DOCS_BASE` selects the repository subpath; the default remains `/`. The favicon, footer notice link, and sidebar notice link respect that base. This follows the [VitePress deployment guide](https://vuejs.github.io/vitepress/v1/guide/deploy).
+
+On this macOS host, both root and `/agent-skills/` production builds passed. The new regression test checks every generated HTML page for root-relative links/assets escaping the Pages base and missing local targets, plus favicon and home-footer notice links. All five documentation tests and eleven helper/installer tests passed; structural validation reports 56 skills and zero problems, and all 137 Python tests passed. Workflow YAML parsing and `git diff --check` passed.
+
+GitHub's API confirmed Pages is enabled with `build_type: workflow` at `https://fullerzz.github.io/agent-skills/`. Deployment remains pending until the workflow reaches `main`; these local build checks do not establish a live Pages deployment, browser interaction, or a Docker rebuild.
 
 ## Sharpen prompt rewriting — 2026-10-20
 

@@ -40,6 +40,7 @@ test('published docs ship license texts and the personal-use policy without an e
   execFileSync(process.execPath, [fileURLToPath(new URL('node_modules/vitepress/bin/vitepress.js', root)), 'build', 'docs'], {
     cwd: fileURLToPath(root),
     encoding: 'utf8',
+    env: { ...process.env, DOCS_BASE: '/' },
   });
   const notices = read('docs/.vitepress/dist/third-party-notices.txt');
   for (const source of [
@@ -63,6 +64,30 @@ test('published docs ship license texts and the personal-use policy without an e
     assert.ok(content.includes('do not provide user support'));
   }
   assert.ok(!read('docs/.vitepress/dist/guide/index.html').includes('Edit this page on GitHub'));
+});
+
+test('Pages builds keep navigation, assets, and notices under the repository subpath', () => {
+  const base = '/agent-skills/';
+  execFileSync(process.execPath, [fileURLToPath(new URL('node_modules/vitepress/bin/vitepress.js', root)), 'build', 'docs'], {
+    cwd: fileURLToPath(root),
+    encoding: 'utf8',
+    env: { ...process.env, DOCS_BASE: base },
+  });
+  const dist = new URL('docs/.vitepress/dist/', root);
+  for (const file of readdirSync(dist, { recursive: true }).filter(file => file.endsWith('.html'))) {
+    const html = readFileSync(new URL(file, dist), 'utf8');
+    for (const [, url] of html.matchAll(/(?:href|src)="(\/[^\"]*)"/g)) {
+      if (url.startsWith('//')) continue;
+      assert.ok(url.startsWith(base), `${file} escapes Pages base: ${url}`);
+      const target = decodeURIComponent(url.slice(base.length).split(/[?#]/)[0]);
+      assert.ok(
+        [target, `${target}.html`, `${target}/index.html`].some(candidate => existsSync(new URL(candidate, dist))),
+        `${file} links to missing output: ${url}`,
+      );
+    }
+    assert.ok(html.includes(`href="${base}logo.svg"`), `${file} has no favicon`);
+    if (file === 'index.html') assert.ok(html.includes(`href="${base}third-party-notices.txt"`));
+  }
 });
 
 test('notice generation refuses missing and empty license texts, including loaded CSS', () => {

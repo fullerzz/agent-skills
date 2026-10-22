@@ -146,6 +146,15 @@ docker compose up -d --build
 
 Set `DOCS_PORT` to use a different host port, for example `DOCS_PORT=3000 docker compose up -d`.
 
+GitHub Pages also serves the docs at <https://fullerzz.github.io/agent-skills/>. The `Deploy documentation to GitHub Pages` workflow builds pull requests and deploys pushes to `main` (or a manual run on `main`). In repository Settings → Pages, select **GitHub Actions** as the source. The existing Docker/nginx deployment continues to use `/`.
+
+To build and preview the Pages subpath locally:
+
+```sh
+DOCS_BASE=/agent-skills/ pnpm docs:build
+DOCS_BASE=/agent-skills/ pnpm docs:preview
+```
+
 Every docs build includes `third-party-notices.txt` with the repository license and full notices from bundled client dependencies, including the fonts. The build stops if a dependency's notice is missing or empty. Keep these notices with the published site.
 
 The [adaptation plan](docs/adaptation-plan.md) records the approved scope and oracle findings. [Provenance](docs/provenance.md) records the copied version and retired content. The [MIT license](LICENSE) retains Lauren Tan's copyright.
