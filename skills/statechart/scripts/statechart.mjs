@@ -245,7 +245,11 @@ function splitRules(cfg) {
   for (const w of words) {
     if (KEYWORD.test(w)) section = w;
     if (!/^INVARIANTS?$/.test(section)) kept.push(KEYWORD.test(w) && kept.length ? `\n${w}` : w);
-    else if (w !== section && !rules.includes(w)) rules.push(w);
+    else if (w !== section && !rules.includes(w)) {
+      if (!/^[A-Za-z0-9_]+$/.test(w))
+        throw new CannotFinish(`invalid invariant reference ${JSON.stringify(w)}; use a named TLA+ operator; define a local wrapper for qualified expressions.`);
+      rules.push(w);
+    }
   }
   return { cfgWithoutRules: `${kept.join(" ")}\n`, rules };
 }
@@ -579,7 +583,7 @@ function foreign(dir) {
     return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
       if (entry.name === "tlc" && entry.isDirectory()) {
         return fs.readdirSync(path.join(dir, "tlc"), { withFileTypes: true })
-          .filter((f) => !f.isFile() || !/^(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z_][A-Za-z0-9_]*)?\.(?:cfg|dot|out)|regions-(?:all|proof)\.mmd)$/.test(f.name))
+          .filter((f) => !f.isFile() || !/^(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)?\.(?:cfg|dot|out)|regions-(?:all|proof)\.mmd)$/.test(f.name))
           .map((f) => `tlc/${f.name}`);
       }
       return entry.isFile() && entry.name !== "tlc" && OWN.test(entry.name) ? [] : [entry.name];

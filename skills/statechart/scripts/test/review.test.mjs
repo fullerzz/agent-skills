@@ -144,6 +144,34 @@ test("a fixed model cannot omit an original invariant and claim the bug is fixed
   assert.equal(summary.classes[0].fix, "unchanged");
 });
 
+test("invariant references cannot write evidence outside the TLC directory", { skip }, (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-invariant-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  assert.equal(generate(dir).status, 0);
+  const victim = join(dir, "victim.cfg");
+  writeFileSync(victim, "retained config");
+  writeFileSync(join(dir, "Flow.cfg"), `SPECIFICATION Spec\nINVARIANT /../../../../../../../../${victim.slice(1, -4)}\n`);
+  const result = run(dir, "statechart.mjs", "from-spec", "Flow.tla");
+  assert.equal(result.status, 2, result.stdout + result.stderr);
+  assert.equal(readFileSync(victim, "utf8"), "retained config");
+  assert.match(result.stderr, /invalid invariant reference/);
+  assert.equal(existsSync(join(dir, "Flow-statechart")), false);
+  writeFileSync(join(dir, "Base.tla"), "---- MODULE Base ----\nInv == TRUE\n====\n");
+  writeFileSync(join(dir, "Flow.tla"), readFileSync(join(dir, "Flow.tla"), "utf8").replace("---- MODULE Flow ----", "---- MODULE Flow ----\nRules == INSTANCE Base\nRules_Inv == Rules!Inv\n9Inv == TRUE"));
+  writeFileSync(join(dir, "Flow.cfg"), "SPECIFICATION Spec\nINVARIANT Rules!Inv\n");
+  const qualified = run(dir, "statechart.mjs", "from-spec", "Flow.tla");
+  assert.equal(qualified.status, 2, qualified.stdout + qualified.stderr);
+  assert.match(qualified.stderr, /define a local wrapper/);
+  assert.equal(readFileSync(victim, "utf8"), "retained config");
+  writeFileSync(join(dir, "Flow.cfg"), "SPECIFICATION Spec\nINVARIANT Rules_Inv\nINVARIANT 9Inv\n");
+  for (let i = 0; i < 2; i++) {
+    const valid = run(dir, "statechart.mjs", "from-spec", "Flow.tla");
+    assert.equal(valid.status, 0, valid.stdout + valid.stderr);
+  }
+  for (const name of ["Flow-Rules_Inv.cfg", "Flow-9Inv.cfg"])
+    assert.ok(existsSync(join(dir, "Flow-statechart/tlc", name)), name);
+});
+
 test("reruns preserve foreign TLC files and generated-name directories", { skip }, (t) => {
   const dir = scratch(t);
   assert.equal(generate(dir).status, 0);
