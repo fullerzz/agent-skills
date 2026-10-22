@@ -739,7 +739,10 @@ function outDir(flagged, input, name) {
 
 const fingerprint = (file) => {
   try {
-    const { ino, ctimeNs } = fs.statSync(file, { bigint: true });
+    const stat = fs.statSync(file, { bigint: true });
+    if (stat.isDirectory())
+      return JSON.stringify(fs.readdirSync(file).filter(metadataEntry).sort());
+    const { ino, ctimeNs } = stat;
     return `${ino} ${ctimeNs} ${fs.readFileSync(file, "base64")}`;
   } catch {
     return null;
@@ -823,8 +826,13 @@ function publish(work, out, inputs) {
     }
   } catch (e) {
     const back = !aside || putBack(old, out);
-    if (next) fs.rmSync(next, { recursive: true, force: true });
-    const why = e instanceof CannotFinish ? e.message : `cannot replace ${rel(out)}: ${e.message}.`;
+    let cleanup = "";
+    try {
+      if (next) fs.rmSync(next, { recursive: true, force: true });
+    } catch (error) {
+      cleanup = ` Staging cleanup failed: ${error.message}. Staged files remain in ${rel(next)}.`;
+    }
+    const why = (e instanceof CannotFinish ? e.message : `cannot replace ${rel(out)}: ${e.message}.`) + cleanup;
     if (!back)
       throw new NotPublished(
         `${why} This run moved the previous ${rel(out)} to ${rel(old)} and could not put it back.`,
@@ -833,7 +841,13 @@ function publish(work, out, inputs) {
       e instanceof CannotFinish ? why : `${why} The run left ${rel(out)} as it was.`,
     );
   }
-  if (aside) fs.rmSync(old, { recursive: true, force: true });
+  if (aside) {
+    try {
+      fs.rmSync(old, { recursive: true, force: true });
+    } catch (e) {
+      throw new NotPublished(`Published ${rel(out)}, but cleanup failed: ${e.message}. Previous files remain in ${rel(old)}.`);
+    }
+  }
 }
 
 function putBack(old, out) {
@@ -880,9 +894,13 @@ function warnUnchecked(now, other) {
     );
 }
 
-function listedBreaks(spec) {
+const metadataEntry = (name) => name.endsWith(".cfg") || (name.endsWith(".tla") && !name.includes("_TTrace_"));
+
+function listedBreaks(spec, inputs) {
   const dir = path.dirname(spec);
+  snapshot([dir], inputs);
   const files = fs.readdirSync(dir).sort();
+  snapshot(files.filter((f) => f.endsWith(".cfg")).map((f) => path.join(dir, f)), inputs);
   const modules = files.filter((f) => f.endsWith(".tla") && !f.includes("_TTrace_"));
   const only = modules.length === 1 ? path.basename(modules[0], ".tla") : undefined;
   const breaks = {};
@@ -951,12 +969,13 @@ async function fromSpec(input, { "expect-broken": expected, ...flags }) {
     );
   }
   const tools = findTools();
+  const listed = second?.role === "against" ? listedBreaks(second.model.spec, inputs) : undefined;
   return inWorkFolder(async (work) => {
     const now = check(tools, model, { work, out }, expected);
     const other = second && {
       role: second.role,
       label: second.label,
-      listed: second.role === "against" ? listedBreaks(second.model.spec) : undefined,
+      listed,
       ...check(tools, second.model, { work, out }, expected),
     };
     let uncited;

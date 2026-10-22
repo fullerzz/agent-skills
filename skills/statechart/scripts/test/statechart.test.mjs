@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve, sep } from "node:path";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -2894,7 +2894,7 @@ const changedMidRun = async ({ wrap = [], env = {} }) => {
   assert.equal(receipt.status, 0, receipt.stderr);
   assert.equal(paid.status, 2, paid.stderr);
   const [, kept] = paid.stderr.match(
-    /^Pay\.tla changed while this run read it, so the run left Pay-statechart as it was\. Run the command again\. The files that this run wrote are in ([^\n]*tmp-a\/statechart-\w+)\.\n$/,
+    /^Pay\.tla changed while this run read it, so the run left Pay-statechart as it was\. Run the command again\. The files that this run wrote are in ([^\n]*tmp-a[\\/]statechart-\w+)\.\n$/,
   );
   assert.match(readFileSync(resolve(dir, kept, "chart.mmd"), "utf8"), /Paid/);
   const chart = readFileSync(join(out, "chart.mmd"), "utf8");
@@ -2955,7 +2955,7 @@ test(
     assert.equal(r.status, 2);
     assert.match(
       r.stderr,
-      /^Pay-statechart has a file that this command did not write: notes\.md\. A run puts its files in place of the whole output folder, so pass --out with a new folder\. The files that this run wrote are in [^\n]*tmp\/statechart-\w+\.\n$/,
+      /^Pay-statechart has a file that this command did not write: notes\.md\. A run puts its files in place of the whole output folder, so pass --out with a new folder\. The files that this run wrote are in [^\n]*tmp[\\/]statechart-\w+\.\n$/,
     );
     assert.deepEqual(readdirSync(out), ["notes.md"]);
     assert.deepEqual(staged(dir), []);
@@ -3077,7 +3077,7 @@ test(
     const r = await run.done;
     assert.equal(r.status, 2, r.stderr);
     const [, kept] = r.stderr.match(
-      /^Pay\.map\.mjs changed while this run read it, so the run left Pay-statechart as it was\. Run the command again\. The files that this run wrote are in ([^\n]*tmp\/statechart-\w+)\.\n$/,
+      /^Pay\.map\.mjs changed while this run read it, so the run left Pay-statechart as it was\. Run the command again\. The files that this run wrote are in ([^\n]*tmp[\\/]statechart-\w+)\.\n$/,
     );
     assert.ok(existsSync(resolve(dir, kept, "chart.mmd")));
     assert.equal(existsSync(rendered), false);
@@ -3172,7 +3172,7 @@ exit $s
       const [folder, parsed] = line.split(": ");
       assert.ok(folder.startsWith(join(tmp, "tlc-")), line);
       const canonicalFolder = realpathSync(tmp) + folder.slice(tmp.length);
-      assert.ok(parsed.startsWith(`Parsing file ${canonicalFolder}/`), line);
+      assert.ok(parsed.startsWith(`Parsing file ${canonicalFolder}${sep}`), line);
       folders.add(folder);
     }
     assert.equal(folders.size, runs.length);

@@ -339,7 +339,9 @@ function omit(vars, paths) {
   return out;
 }
 function guard(vars, paths, at = "v") {
-  if (!paths.length || !isRecord(vars)) return vars;
+  if (!paths.length) return vars;
+  if (!isRecord(vars))
+    throw new Error(`${L} has a non-record value at ${at.slice(2)} where comparison fields are expected.`);
   const missing = new Set();
   const deeper = new Map();
   for (const [k, ...rest] of paths)
@@ -410,6 +412,18 @@ const secondGraph = secondDot ? parseDot(fs.readFileSync(secondDot, "utf8")) : n
 const secondInit = secondGraph && [...secondGraph.nodes.values()].find((n) => n.init).vars;
 const lacks = secondGraph ? lacking(mainInit, secondInit) : [];
 const extra = secondGraph ? lacking(secondInit, mainInit) : [];
+const comparisonFields = new Map();
+function collectFields(vars, prefix = []) {
+  for (const [key, value] of Object.entries(vars)) {
+    const field = [...prefix, key];
+    comparisonFields.set(JSON.stringify(field), field);
+    if (isRecord(value)) collectFields(value, field);
+  }
+}
+if (secondGraph)
+  for (const model of [graph, secondGraph])
+    for (const node of model.nodes.values()) collectFields(node.vars);
+const comparisonPaths = [...comparisonFields.values()];
 const second =
   secondGraph &&
   modelOf({
@@ -417,7 +431,7 @@ const second =
     nodes: new Map(
       [...secondGraph.nodes].map(([id, n]) => [
         id,
-        { ...n, raw: n.vars, vars: guard(n.vars, lacks) },
+        { ...n, raw: n.vars, vars: guard(n.vars, comparisonPaths) },
       ]),
     ),
   });
@@ -553,7 +567,7 @@ function firstBad(raw) {
 const rawTraces = readTraces(args.traces);
 const secondTraceFiles = role === "fix" ? args.fixedTraces : args.againstTraces;
 const secondRules = new Set(role === "fix" ? args.fixedRules : args.againstRules);
-const rawSecondTraces = readTraces(secondTraceFiles, lacks);
+const rawSecondTraces = readTraces(secondTraceFiles, comparisonPaths);
 const traces = firstBad(rawTraces);
 const secondTraces = firstBad(rawSecondTraces);
 function group(cuts, m) {

@@ -339,3 +339,77 @@ fs.cpSync = (from, to, options) => {
   assert.ok(existsSync(join(kept, "chart.mmd")));
   rmSync(kept, { recursive: true, force: true });
 });
+
+test("publication cleanup failures retain diagnostics and the original error", { skip }, (t) => {
+  const dir = scratch(t);
+  assert.equal(generate(dir).status, 0);
+  assert.equal(run(dir, "statechart.mjs", "from-spec", "Flow.tla", "--out", "shared").status, 0);
+  const preload = join(dir, "cleanup-failure.mjs");
+  writeFileSync(preload, `import fs from "node:fs";
+import path from "node:path";
+const copy = fs.cpSync, remove = fs.rmSync;
+fs.cpSync = (from, to, options) => {
+  if (process.env.FAIL_CLEANUP === "stage" && path.basename(to).startsWith(".shared-")) throw new Error("original copy failure");
+  return copy(from, to, options);
+};
+fs.rmSync = (name, options) => {
+  if (path.basename(name).startsWith(".shared-") && (process.env.FAIL_CLEANUP === "stage" || name.endsWith("-old"))) throw new Error("cleanup denied");
+  return remove(name, options);
+};
+`);
+  for (const mode of ["stage", "old"]) {
+    const result = spawnSync(process.execPath, ["--import", preload, join(scripts, "statechart.mjs"), "from-spec", "Flow.tla", "--out", "shared"], {
+      cwd: dir, encoding: "utf8", timeout: 120_000, env: { ...process.env, FAIL_CLEANUP: mode },
+    });
+    assert.equal(result.status, 2, result.stdout + result.stderr);
+    assert.match(result.stderr, /cleanup denied/);
+    if (mode === "stage") assert.match(result.stderr, /original copy failure/);
+    else assert.match(result.stderr, /Published shared/);
+    const kept = /The files that this run wrote are in (.+)\.\n/.exec(result.stderr)?.[1];
+    assert.ok(kept, result.stderr);
+    assert.ok(existsSync(join(kept, "tlc/Flow.out")));
+    assert.ok(existsSync(join(dir, "shared/chart.mmd")));
+    rmSync(kept, { recursive: true, force: true });
+  }
+});
+
+test("comparison guards cover later states, alternate starts, and non-record parents", (t) => {
+  const dir = scratch(t);
+  const dot = (values, initial = false) => `strict digraph DiskGraph {\n${values.map((v, i) => `${i + 1} [label="user = ${v}",${i === 0 || initial ? "style = filled" : ""}]`).join("\n")}\n${values.length > 1 ? '1 -> 2 [label="Go"];' : ""}\n}`;
+  writeFileSync(join(dir, "main.dot"), dot(['[name |-> 1]']));
+  writeFileSync(join(dir, "map.mjs"), 'export const state = v => String(v.user.name);\nexport const step = a => a;\n');
+  for (const [values, initial] of [
+    [['[name |-> 1]', '[other |-> 2]'], false],
+    [['[name |-> 1]', '[other |-> 2]'], true],
+    [['0'], false],
+  ]) {
+    writeFileSync(join(dir, "other.dot"), dot(values, initial));
+    const result = run(dir, "tlc-to-chart.mjs", "--dot", "main.dot", "--against-dot", "other.dot", "--map", "map.mjs", "--highlight", "0", "--out", "chart.mmd");
+    assert.notEqual(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stderr, /has no user.name|non-record.*user/);
+  }
+});
+
+test("expected-break metadata edits, additions, removals, and module changes block publication", { skip }, (t) => {
+  for (const mutation of [
+    'fs.writeFileSync("Evidence.cfg", "changed")',
+    'fs.writeFileSync("New.cfg", "added")',
+    'fs.rmSync("Evidence.cfg", { force: true })',
+    'fs.writeFileSync("New.tla", "new module")',
+  ]) {
+    const dir = scratch(t);
+    assert.equal(generate(dir).status, 0);
+    writeFileSync(join(dir, "Agreed.tla"), readFileSync(join(dir, "Flow.tla"), "utf8").replace("MODULE Flow", "MODULE Agreed"));
+    writeFileSync(join(dir, "Agreed.cfg"), readFileSync(join(dir, "Flow.cfg")));
+    writeFileSync(join(dir, "Evidence.cfg"), "\\* module: Agreed\n\\* expect: pass\n");
+    const map = join(dir, "Flow.map.mjs");
+    writeFileSync(map, `${readFileSync(map, "utf8")}\nimport fs from "node:fs";\n${mutation};\n`);
+    const result = run(dir, "statechart.mjs", "from-spec", "Flow.tla", "--against", "Agreed.tla");
+    assert.equal(result.status, 2, result.stdout + result.stderr);
+    assert.match(result.stderr, /changed while this run read it/);
+    assert.equal(existsSync(join(dir, "Flow-statechart")), false);
+    const kept = /The files that this run wrote are in (.+)\.\n/.exec(result.stderr)?.[1];
+    assert.ok(kept, result.stderr);
+    rmSync(kept, { recursive: true, force: true });
+  }
+});

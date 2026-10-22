@@ -18,7 +18,9 @@ Ported pstack #776 and #779 while retaining zstack's parser, output-safety, expl
 
 TLC 1.8 itself, a real FUSE mount, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised. Linux namespace and preload-only tests remain platform-limited. These checks preceded PR publication.
 
-Independent pre-merge review reproduced two publication failures against `b917e14`: staging setup errors discarded completed diagnostics, and failed fallback copies deleted concurrently created destination files. Both new regressions failed before repair. Parent/staging setup now uses `NotPublished` handling, and failed fallback copies retain the destination with an incomplete-output diagnostic. Three focused live-TLC publication tests passed after repair.
+Independent pre-merge review reproduced two publication failures against `b917e14`: staging setup errors discarded completed diagnostics, and failed fallback copies deleted concurrently created destination files. Both new regressions failed before repair. Parent/staging setup now uses `NotPublished` handling, and failed fallback copies retain the destination with an incomplete-output diagnostic. A fresh verifier confirmed both repairs and found that cleanup failures could still hide the original error; staging and post-publication backup cleanup now retain diagnostics too. Four focused live-TLC publication tests passed, and another verifier found no remaining cleanup issues.
+
+GitHub review follow-up added regressions for fields missing in later/alternate initial states, record-to-primitive comparison shapes, and changes to adjacent config metadata. Both regression groups failed against `a861cdb` and passed after repair. Guards now collect field paths across all model states and refuse incompatible record parents; metadata snapshots include adjacent config contents and relevant config/module directory entries. New retained-path assertions accept either path separator; Windows execution remains untested.
 
 ## Statechart and Pele — 2026-10-22 {#statechart}
 
