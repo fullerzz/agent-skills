@@ -12,6 +12,8 @@ Resolve this entrypoint to its real installed directory and follow the [native h
 
 Requires Node, Java 11+, and `TLA2TOOLS` pointing to a local [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases). `JAVA` optionally selects the Java binary. Read [rendering](references/rendering.md) for Mermaid PNG and Pele SVG prerequisites and commands. Missing tools or unfinished runs are blocked evidence, never passes.
 
+The value parser refuses integers outside JavaScript's safe integer range and function keys that collide when represented as object keys. Such inputs are unsupported evidence, not chartable states; do not round or rename values to force a pass.
+
 ## Pick the direction
 
 Use `from-spec` when a TLA+ model exists or the code is concrete enough to model. Use `from-chart` when there is no model and the PM should agree on the behavior before anyone writes or changes the code.

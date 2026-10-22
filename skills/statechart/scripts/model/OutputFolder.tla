@@ -1,13 +1,17 @@
 ---- MODULE OutputFolder ----
 EXTENDS Naturals
 
+\* This model covers input guards and folder publication, not the full CLI exit status.
+\* TLC, mapping, and rendering failures are outside its scope. In particular, a renderer
+\* may fail while the CLI still publishes evidence and exits 2.
+
 Runs == {1, 2}
 NoRun == 0
 NoFolder == [exists |-> FALSE, by |-> NoRun, read |-> {}, notes |-> FALSE]
 
-VARIABLES pc, inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode
+VARIABLES pc, inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit
 
-vars == <<pc, inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+vars == <<pc, inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Init ==
   /\ pc = [r \in Runs |-> "idle"]
@@ -20,12 +24,12 @@ Init ==
   /\ noted = FALSE
   /\ wrote = [r \in Runs |-> FALSE]
   /\ broke = [r \in Runs |-> FALSE]
-  /\ exitCode = [r \in Runs |-> "none"]
+  /\ publicationExit = [r \in Runs |-> "none"]
 
 Set(f, r, v) == [f EXCEPT ![r] = v]
 Going(r) == pc[r] \notin {"idle", "exited", "stopped", "orphanTlc"}
 Go(r, to) == pc' = Set(pc, r, to)
-Exit(r, code) == pc' = Set(pc, r, "exited") /\ exitCode' = Set(exitCode, r, code)
+Exit(r, code) == pc' = Set(pc, r, "exited") /\ publicationExit' = Set(publicationExit, r, code)
 
 Start(r) ==
   /\ pc[r] = "idle"
@@ -33,7 +37,7 @@ Start(r) ==
   /\ \E ok \in BOOLEAN : inputOk' = Set(inputOk, r, ok)
   /\ snap' = Set(snap, r, spec)
   /\ Go(r, "check")
-  /\ UNCHANGED <<read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Refuse(r) ==
   /\ pc[r] = "check"
@@ -46,12 +50,12 @@ Tlc(r) ==
      \/ pc[r] = "tlc"
   /\ read' = Set(read, r, read[r] \cup {spec})
   /\ Go(r, IF pc[r] = "check" THEN "tlc" ELSE "draw")
-  /\ UNCHANGED <<inputOk, snap, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Draw(r) ==
   /\ pc[r] = "draw"
   /\ Go(r, "publish")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Stale(r) ==
   /\ pc[r] = "publish" /\ spec # snap[r]
@@ -66,31 +70,31 @@ Foreign(r) ==
 Swap(r) ==
   /\ pc[r] = "publish" /\ spec = snap[r] /\ ~out.notes
   /\ Go(r, "swap")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 MoveIn(r) ==
   /\ pc[r] = "swap" /\ ~out.exists
   /\ out' = [exists |-> TRUE, by |-> r, read |-> read[r], notes |-> FALSE]
   /\ wrote' = Set(wrote, r, TRUE)
   /\ Go(r, "clean")
-  /\ UNCHANGED <<inputOk, snap, read, aside, spec, noted, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, aside, spec, noted, broke, publicationExit>>
 
 MoveAside(r) ==
   /\ pc[r] = "swap" /\ out.exists /\ ~aside[r].exists
   /\ aside' = Set(aside, r, out)
   /\ out' = NoFolder
   /\ Go(r, "aside")
-  /\ UNCHANGED <<inputOk, snap, read, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, spec, noted, wrote, broke, publicationExit>>
 
 Checked(r) ==
   /\ pc[r] = "aside" /\ ~aside[r].notes
   /\ Go(r, "swap")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Supersede(r) ==
   /\ pc[r] = "swap" /\ out.exists /\ aside[r].exists /\ ~out.notes
   /\ aside' = Set(aside, r, NoFolder)
-  /\ UNCHANGED <<pc, inputOk, snap, read, out, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<pc, inputOk, snap, read, out, spec, noted, wrote, broke, publicationExit>>
 
 Restore(r) ==
   /\ pc[r] = "aside" /\ aside[r].notes /\ ~out.exists
@@ -124,28 +128,28 @@ Clean(r) ==
 Stop(r) ==
   /\ Going(r)
   /\ Go(r, "stopped")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 KillNode(r) ==
   /\ pc[r] = "tlc"
   /\ Go(r, "orphanTlc")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 OrphanEnd(r) ==
   /\ pc[r] = "orphanTlc"
   /\ Go(r, "stopped")
-  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<inputOk, snap, read, out, aside, spec, noted, wrote, broke, publicationExit>>
 
 Edit ==
   /\ spec = 1
   /\ spec' = 2
-  /\ UNCHANGED <<pc, inputOk, snap, read, out, aside, noted, wrote, broke, exitCode>>
+  /\ UNCHANGED <<pc, inputOk, snap, read, out, aside, noted, wrote, broke, publicationExit>>
 
 Note ==
   /\ ~noted
   /\ noted' = TRUE
   /\ out' = [out EXCEPT !.exists = TRUE, !.notes = TRUE]
-  /\ UNCHANGED <<pc, inputOk, snap, read, aside, spec, wrote, broke, exitCode>>
+  /\ UNCHANGED <<pc, inputOk, snap, read, aside, spec, wrote, broke, publicationExit>>
 
 Next ==
   \/ Edit \/ Note
@@ -166,11 +170,11 @@ KeepsYourFiles == noted => out.notes \/ \E r \in Runs : aside[r].notes
 NeverLosesChart ==
   (\E r \in Runs : wrote[r]) => out.by # NoRun \/ \E r \in Runs : aside[r].by # NoRun
 
-\* A run that exits 2 did not write the folder.
-ExitTwoLeavesFolder == \A r \in Runs : exitCode[r] = "2" => ~wrote[r]
+\* A publication failure did not write the folder.
+PublicationFailureLeavesFolder == \A r \in Runs : publicationExit[r] = "2" => ~wrote[r]
 
-\* A run exits 2 only for a wrong input, an edited spec, a file that it did not write, or a failed
+\* Publication refuses only for a wrong input, an edited spec, a file that it did not write, or a failed
 \* rename, never because another run overlaps it.
-OverlapNeverRefuses ==
-  \A r \in Runs : exitCode[r] = "2" => ~inputOk[r] \/ spec # snap[r] \/ noted \/ broke[r]
+OverlapNeverRefusesPublication ==
+  \A r \in Runs : publicationExit[r] = "2" => ~inputOk[r] \/ spec # snap[r] \/ noted \/ broke[r]
 ====

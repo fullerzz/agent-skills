@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { checkTlcOutput, findTlc, parseDot } from "./lib.mjs";
+import { checkTlcOutput, findTlc, parseDot, UnsupportedTlcValue } from "./lib.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -423,6 +423,8 @@ export function step(action, before, after) {
 
 async function draw({ now, other, map, work, out, title, comparing }) {
   const shown = published(work, out);
+  if (!fs.existsSync(map))
+    throw new CannotFinish(`${rel(map)} does not exist. Restore it or run from-spec to write it, then run this command again.`);
   const mapping = await import(pathToFileURL(path.resolve(map)).href);
   const from = ["--dot", now.dot, "--map", map, "--spec", now.spec];
   from.push(...now.traces.flatMap((t) => ["--traces", t.file]));
@@ -572,10 +574,14 @@ const OWN =
 
 function foreign(dir) {
   try {
-    return fs
-      .readdirSync(dir)
-      .filter((f) => !OWN.test(f))
-      .sort();
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.name === "tlc" && entry.isDirectory()) {
+        return fs.readdirSync(path.join(dir, "tlc"), { withFileTypes: true })
+          .filter((f) => !f.isFile() || !/^(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z_][A-Za-z0-9_]*)?\.(?:cfg|dot|out)|regions-(?:all|proof)\.mmd)$/.test(f.name))
+          .map((f) => `tlc/${f.name}`);
+      }
+      return entry.isFile() && entry.name !== "tlc" && OWN.test(entry.name) ? [] : [entry.name];
+    }).sort();
   } catch (e) {
     if (e.code === "ENOENT") return [];
     throw new CannotFinish(`cannot use ${rel(dir)} as the output folder: ${e.message}`);
@@ -712,7 +718,13 @@ async function fromSpec(input, { "expect-broken": expected, ...flags }) {
   return inWorkFolder(async (work) => {
     const now = check(tools, model, work, expected);
     if (!fs.existsSync(map)) {
-      fs.writeFileSync(map, SCAFFOLD(name, parseDot(fs.readFileSync(now.dot, "utf8"))));
+      if (fs.lstatSync(map, { throwIfNoEntry: false }))
+        throw new CannotFinish(`${rel(map)} is occupied; restore the mapping or choose a new --map path.`);
+      try {
+        fs.writeFileSync(map, SCAFFOLD(name, parseDot(fs.readFileSync(now.dot, "utf8"))), { flag: "wx" });
+      } catch (e) {
+        throw new CannotFinish(`cannot create ${rel(map)}: ${e.message}`);
+      }
       throw new CannotFinish(
         `\nWrote ${rel(map)}. Fill in its labels, then run this command again.`,
       );
@@ -776,7 +788,7 @@ try {
   }
   process.exit(await COMMANDS[command].run(input, flags));
 } catch (e) {
-  if (!(e instanceof CannotFinish)) throw e;
+  if (!(e instanceof CannotFinish) && !(e instanceof UnsupportedTlcValue)) throw e;
   console.error(e.message);
   process.exit(2);
 }

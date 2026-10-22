@@ -1090,6 +1090,7 @@ TLC on SyncFixed.tla:
   NeverSyncedWhileOffline holds.
 
 Chart: 4 states and 9 transitions from 4 model states.
+It has no parallel regions, because a state label is not in the context: progress form.
 3 work today, 0 still wrong with the fix, 1 fixed or new with the fix.
 
 ${syncStory}
@@ -1366,6 +1367,7 @@ test(
   NoDoubleCharge is broken.
 
 Chart: 5 states and 4 transitions from 5 model states.
+It has no parallel regions, because a state label is not in the context: progress form.
 3 work, 2 break a rule.
 
 ## 1. Paying, charged twice
@@ -1686,6 +1688,7 @@ TLC on SaveAgreed.tla:
   NoFalseSaved holds.
 
 Chart: 4 states and 4 transitions from 10 model states.
+It has no parallel regions, because a state label is not in the context: progress form.
 3 work, 1 breaks a rule, 0 only in the agreed chart.
 
 ## 1. Saved, draft

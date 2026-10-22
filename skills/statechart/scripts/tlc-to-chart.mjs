@@ -536,14 +536,17 @@ const byOrder = (a, b) =>
 const inSecond = (l) => `${within} ${L}, ${l}`;
 const modelEdges = new Map(now.edges);
 if (secondQ)
-  for (const [id, e] of secondQ.edges)
-    if (!modelEdges.has(id))
-      modelEdges.set(id, {
+  for (const [id, e] of secondQ.edges) {
+    const current = modelEdges.get(id);
+    const labels = [...e.labels].filter((l) => !current?.labels.has(l));
+    if (!current || labels.length)
+      modelEdges.set(current ? `${id}${SEP}second` : id, {
         ...e,
-        labels: new Set([...e.labels].map(inSecond)),
-        guards: new Map([...e.guards].map(([l, words]) => [inSecond(l), words])),
+        labels: new Set(labels.map(inSecond)),
+        guards: new Map(labels.map((l) => [inSecond(l), e.guards.get(l)])),
         secondOnly: true,
       });
+  }
 function divergence(s) {
   if (s?.key === undefined) return s;
   const plain = edgeId(s.from, s.key);
@@ -681,6 +684,8 @@ function chartEdges() {
     const [from, to] = id.split(`${SEP}${SEP}`);
     edges.set(id, { from, to, labels: pathLabels.get(id) });
   }
+  for (const id of coverEdges)
+    if (modelEdges.has(`${id}${SEP}second`)) coverEdges.add(`${id}${SEP}second`);
   return { edges, pathNumbers, coverEdges };
 }
 const { edges, pathNumbers, coverEdges } = chartEdges();
@@ -818,7 +823,7 @@ function regionsChart({ states, starts, edges, classes, proofPath, allPath }) {
     return at > 0 && at + 2 < k.length ? [norm(k.slice(0, at)), norm(k.slice(at + 2))] : null;
   };
   const nodes = [...states].sort();
-  if (!nodes.every(split)) return null;
+  if (!nodes.every(split)) return { why: "a state label is not in the context: progress form" };
   const steps = [];
   for (const e of edges.values()) {
     if (e.labels.size === 0) return { why: "a step has no label" };

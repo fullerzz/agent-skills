@@ -1,4 +1,4 @@
-const QUIET = ["idle", "exited", "stopped", "orphanTlc"];
+const QUIET = ["idle", "exited", "stopped"];
 const going = (v) => v.pc.filter((p) => !QUIET.includes(p)).length;
 const changed = (before, after) =>
   after.pc.findIndex(
@@ -100,7 +100,7 @@ export function cause(v, facts, invariant) {
     ChartsOneSpec: "the run read the spec before and after an edit, and still wrote its chart",
     KeepsYourFiles: "a run deleted a folder that had your notes in it",
     NeverLosesChart: "a run deleted the last chart before another chart was in place",
-    ExitTwoLeavesFolder: "a run wrote the folder and then said it could not finish",
-    OverlapNeverRefuses: "a run stopped only because another run overlapped it",
+    PublicationFailureLeavesFolder: "a failed publication still wrote the folder",
+    OverlapNeverRefusesPublication: "a run stopped only because another run overlapped it",
   }[invariant];
 }

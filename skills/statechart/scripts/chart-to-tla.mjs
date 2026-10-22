@@ -53,7 +53,14 @@ if (!args.chart || !/^[A-Za-z][A-Za-z0-9_]*$/.test(args.module ?? "")) {
 const dir = args.dir ?? path.dirname(args.chart);
 const { regions, nevers } = parseMermaid(fs.readFileSync(args.chart, "utf8"));
 
-const RESERVED = new Set(["vars", "Init", "Next", "Spec", "TypeOK", "Settled"]);
+const RESERVED = new Set([
+  "vars", "Init", "Next", "Spec", "TypeOK", "Settled",
+  ...("ASSUME ASSUMPTION AXIOM BY CASE CHOOSE CONSTANT CONSTANTS COROLLARY DEF DEFINE DEFS " +
+    "DOMAIN ELSE ENABLED EXCEPT EXTENDS HAVE HIDE IF IN INSTANCE LAMBDA LEMMA LET LOCAL " +
+    "MODULE NEW OBVIOUS OMITTED ONLY OTHER PICK PROOF PROPOSITION PROVE QED RECURSIVE " +
+    "STATE SUBSET SUFFICES TAKE TEMPORAL THEN THEOREM UNCHANGED UNION USE VARIABLE " +
+    "VARIABLES WITH WITNESS TRUE FALSE BOOLEAN STRING").split(" "),
+]);
 const taken = new Set(RESERVED);
 function ident(words, lower) {
   const parts = words
@@ -68,7 +75,8 @@ function ident(words, lower) {
       .join("") || "Step";
   if (/^[0-9]/.test(id)) id = `${lower ? "r" : "S"}${id}`;
   let unique = id;
-  for (let n = 2; taken.has(unique); n++) unique = `${id}${n}`;
+  for (let n = 2; taken.has(unique) || (lower && taken.has(`${unique}States`)); n++)
+    unique = `${id}${n}`;
   taken.add(unique);
   return unique;
 }
@@ -78,7 +86,9 @@ const set = (xs) => `{${[...xs].map(str).join(", ")}}`;
 const vars = Object.entries(regions).map(([name, r]) => {
   if (r.states.size === 0) throw new Error(`region ${name} has no states`);
   if (r.initial.size === 0) throw new Error(`region ${name} has no [*] --> start`);
-  return { name, v: ident(name, true), ...r };
+  const v = ident(name, true);
+  taken.add(`${v}States`);
+  return { name, v, ...r };
 });
 
 function guardOf(g) {

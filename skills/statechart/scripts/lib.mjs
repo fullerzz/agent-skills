@@ -11,6 +11,8 @@ export function findTlc() {
   return { jar: TLA2TOOLS, java: JAVA || "java" };
 }
 
+export class UnsupportedTlcValue extends Error {}
+
 export function parseValue(text) {
   const src = text.trim();
   let i = 0;
@@ -69,7 +71,9 @@ export function parseValue(text) {
       for (;;) {
         const k = value();
         eat(":>");
-        fn[typeof k === "string" ? k : JSON.stringify(k)] = value();
+        const key = typeof k === "string" ? k : JSON.stringify(k);
+        if (Object.hasOwn(fn, key)) throw new UnsupportedTlcValue(`TLC function keys collide at ${key}`);
+        Object.defineProperty(fn, key, { value: value(), enumerable: true });
         ws();
         if (peek("@@")) {
           i += 2;
@@ -94,13 +98,18 @@ export function parseValue(text) {
     i += m[0].length;
     if (m[0] === "TRUE") return true;
     if (m[0] === "FALSE") return false;
-    return /^-?\d+$/.test(m[0]) ? Number(m[0]) : m[0];
+    if (!/^-?\d+$/.test(m[0])) return m[0];
+    const number = Number(m[0]);
+    if (!Number.isSafeInteger(number))
+      throw new UnsupportedTlcValue(`TLC integer ${m[0]} is outside JavaScript's safe range; cannot chart it losslessly`);
+    return number;
   };
   try {
     const v = value();
     ws();
     return i === src.length ? v : src;
-  } catch {
+  } catch (e) {
+    if (e instanceof UnsupportedTlcValue) throw e;
     return src;
   }
 }
