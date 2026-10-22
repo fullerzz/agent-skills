@@ -16,7 +16,9 @@ Ported pstack #776 and #779 while retaining zstack's parser, output-safety, expl
 - A portable live-TLC test injected `ENOSYS`, `EXDEV`, and `EISDIR` from directory rename: initial copy publication and repeated replacements passed, and foreign output notes survived refusal. This is fault injection on a local filesystem, not a real FUSE mount. Concurrent copying is not atomic and may mix files; the output-folder model explicitly excludes that fallback.
 - Packaging succeeded. From a separate temporary working directory, the packaged `from-chart sync.mmd --pele` found the expected `NeverSyncedWhileOffline` counterexample, returned 1, compared the chart back unchanged, and wrote both overview and bug SVGs alongside model evidence. Renderer dependency resolution remained local to the caller; images were not visually re-reviewed.
 
-TLC 1.8 itself, a real FUSE mount, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised. Linux namespace and preload-only tests remain platform-limited. No commit or publication was performed.
+TLC 1.8 itself, a real FUSE mount, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised. Linux namespace and preload-only tests remain platform-limited. These checks preceded PR publication.
+
+Independent pre-merge review reproduced two publication failures against `b917e14`: staging setup errors discarded completed diagnostics, and failed fallback copies deleted concurrently created destination files. Both new regressions failed before repair. Parent/staging setup now uses `NotPublished` handling, and failed fallback copies retain the destination with an incomplete-output diagnostic. Three focused live-TLC publication tests passed after repair.
 
 ## Statechart and Pele — 2026-10-22 {#statechart}
 

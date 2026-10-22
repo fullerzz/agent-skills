@@ -785,8 +785,9 @@ const moved = (from, to, ...missed) => {
   try {
     fs.cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
   } catch (e) {
-    fs.rmSync(to, { recursive: true, force: true });
-    throw e;
+    throw new NotPublished(
+      `cannot copy to ${rel(to)}: ${e.message}. The destination was retained and may be incomplete.`,
+    );
   }
   fs.rmSync(from, { recursive: true, force: true });
   return true;
@@ -802,11 +803,12 @@ function unchanged(inputs, out) {
 
 function publish(work, out, inputs) {
   const parent = path.dirname(path.resolve(out));
-  fs.mkdirSync(parent, { recursive: true });
-  const next = fs.mkdtempSync(path.join(parent, `.${path.basename(out)}-`));
-  const old = `${next}-old`;
+  let next, old;
   let aside = false;
   try {
+    fs.mkdirSync(parent, { recursive: true });
+    next = fs.mkdtempSync(path.join(parent, `.${path.basename(out)}-`));
+    old = `${next}-old`;
     fs.cpSync(work, next, { recursive: true });
     unchanged(inputs, out);
     refuseForeign(out);
@@ -821,7 +823,7 @@ function publish(work, out, inputs) {
     }
   } catch (e) {
     const back = !aside || putBack(old, out);
-    fs.rmSync(next, { recursive: true, force: true });
+    if (next) fs.rmSync(next, { recursive: true, force: true });
     const why = e instanceof CannotFinish ? e.message : `cannot replace ${rel(out)}: ${e.message}.`;
     if (!back)
       throw new NotPublished(
