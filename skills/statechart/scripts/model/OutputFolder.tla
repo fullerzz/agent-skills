@@ -1,7 +1,8 @@
 ---- MODULE OutputFolder ----
 EXTENDS Naturals
 
-\* This model covers input guards and folder publication, not the full CLI exit status.
+\* This model covers input guards and atomic-rename folder publication, not the full CLI exit status.
+\* Copy fallback on filesystems without directory rename is outside its scope; concurrent copies may mix files.
 \* TLC, mapping, and rendering failures are outside its scope. In particular, a renderer
 \* may fail while the CLI still publishes evidence and exits 2.
 

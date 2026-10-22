@@ -1,5 +1,13 @@
 # Upstream provenance
 
+## Statechart comparison and checking fixes — 2026-10-22
+
+Adapted pstack [PR #776](https://github.com/cursor/plugins/pull/776), merged at `7698375f92a729f8bb89d113c633dce9ff9dc6db`, and [PR #779](https://github.com/cursor/plugins/pull/779), merged at `4ec7ffa173eaa70d3d9467a627baf0954645a353`. Upstream still declares `0.15.30`; these exact merges identify the imported changes. The MIT license retains Lauren Tan's attribution.
+
+The shared statechart skill now selects separate model configs, rejects mapping reads of absent comparison fields, marks unchecked rules explicitly, checks temporal properties separately, uses multicore invariant checks with single-worker counterexample replay, retains diagnostics after checking/publication failures, and falls back to copying when directory rename is unsupported. It also records expected spec failures and uncited action conditions. Helper naming and shared regex cleanup from #779 are included.
+
+Zstack retains explicit invocation, Pele rendering, safe typed TLC values, exclusive scaffold creation, foreign-output protection, and its stronger requirement that fixed models retain original rules. That requirement now covers temporal properties and preserves each rule's category; property names receive the same filename-safety validation as invariants. A focused parser regression also covers TLC 1.8's named temporal-error wording, which upstream leaves unsupported. Generated Cursor/Claude duplicates, upstream packaging, and automatic TLC installation are excluded. All native manifests advance together to `0.18.1` for these fixes. See [validation](validation.md#statechart-upstream-fixes) for actual checks and limits.
+
 ## Statechart and code reproduction — 2026-10-22
 
 Adapted [pstack PR #741](https://github.com/cursor/plugins/pull/741), merged at `eb4db2b55b2b7dec3d9282754cddf0a56bf4ff10` in pstack `0.15.30` (2026-10-21 23:08:56 Arizona time). The shared skill retains TLC state-graph projection, per-invariant runs, counterexample stories, chart-to-TLA+ skeletons, model comparisons, guarded/parallel charts, and the final merged output-folder protection and regression fixtures. The repository's MIT license retains Lauren Tan's copyright.

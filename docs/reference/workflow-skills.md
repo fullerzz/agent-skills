@@ -259,7 +259,7 @@ Make a TLA+ model and its counterexamples readable to someone deciding what the 
 
 ### How it works
 
-`from-spec` checks invariants separately with TLC, projects reachable states into readable Mermaid diagrams, and draws numbered counterexample paths. `--fixed` compares a proposed fix; `--against` compares with an unchanged specification. `from-chart` generates a TLA+ skeleton, config, and mapping, then compares the checked model's chart with the original. It supports nested states and top-level parallel regions within its documented chart subset.
+`from-spec` checks invariants and temporal properties separately with TLC, projects reachable states into readable Mermaid diagrams, and draws numbered counterexample paths. `--fixed` compares a proposed fix; `--against` compares with an unchanged specification using its own config. Select configs with `--config`, `--fixed-config`, and `--against-config`. Missing comparison fields are not invented; unchecked rules are labeled explicitly. Multicore invariant checks replay failures with one worker for shortest paths. Temporal results name their TLC evidence and are not drawn as state counterexamples. `from-chart` generates a TLA+ skeleton, config, and mapping, then compares the checked model's chart with the original. It supports nested states and top-level parallel regions within its documented chart subset.
 
 ### Expected result
 
@@ -267,7 +267,7 @@ Mermaid sources, stories, summary counts, TLC evidence, and optional Mermaid PNG
 
 ### Dependencies and limits
 
-Explicit-only on all three hosts. Requires Node, Java 11+, and a local TLC jar through `TLA2TOOLS`; `JAVA` can select the binary. Mermaid PNG uses npm/Mermaid CLI and Chromium; Pele SVG uses the `pele` package installed in the caller's working directory and needs no browser. Neither renderer is a required plugin dependency. Inspect the rendered charts because layout differs. Missing tools or a failed requested render exit 2; model evidence is retained on rendering failure. Use an owned scratch folder, review executable mapping modules, and keep user annotations outside generated output folders. Product edits and publication need their own authorization.
+Explicit-only on all three hosts. Requires Node, Java 11+, and a local TLC jar through `TLA2TOOLS`; `JAVA` can select the binary. Mermaid PNG uses npm/Mermaid CLI and Chromium; Pele SVG uses the `pele` package installed in the caller's working directory and needs no browser. Neither renderer is a required plugin dependency. Inspect the rendered charts because layout differs. Missing tools or a failed requested render exit 2; model evidence is retained on rendering failure. Checking and publication failures retain diagnostic work. Filesystems without directory rename use copying; overlapping copy-based publications may mix files, so use distinct output directories there. Use an owned scratch folder, review executable mapping modules, and keep user annotations outside generated output folders. Product edits and publication need their own authorization.
 
 [Full statechart instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/statechart/SKILL.md)
 
