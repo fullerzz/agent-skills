@@ -23,6 +23,8 @@ For each property, record:
 - What a pass establishes and what remains unverified, including the trust placed in handwritten models, tool implementations, and external systems.
 - A per-check coverage record naming source files, functions, relevant callers, and the last verified commit where correspondence was confirmed. Retain the result and evidence beside that checkpoint; a confirmed bug does not imply stale correspondence. Use a source snapshot or digest to capture relevant uncommitted changes separately, never labeling dirty source as verified at HEAD. A changed digest means review required, not a proved bug.
 
+Before calling a model finding an actual software bug, reproduce the counterexample against the real code in an isolated test or live repro and retain the source identity, command, and observed result. A plausible code walkthrough or model-only mutation is insufficient. If reproduction is unavailable, mark the finding unconfirmed or blocked; correct demonstrated modeling errors without weakening the property.
+
 If current code violates the property, retain the finding and explain the counterexample as steps using the code's names. Do not weaken a property, narrow a bound, add an assumption, or alter the model just to obtain a pass. Correct demonstrated modeling errors with an explanation and rerun affected checks. Do not fix product code unless requested.
 
 ## Generate the reusable skill

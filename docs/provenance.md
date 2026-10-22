@@ -1,5 +1,13 @@
 # Upstream provenance
 
+## Statechart and code reproduction — 2026-10-22
+
+Adapted [pstack PR #741](https://github.com/cursor/plugins/pull/741), merged at `eb4db2b55b2b7dec3d9282754cddf0a56bf4ff10` in pstack `0.15.30` (2026-10-21 23:08:56 Arizona time). The shared skill retains TLC state-graph projection, per-invariant runs, counterexample stories, chart-to-TLA+ skeletons, model comparisons, guarded/parallel charts, and the final merged output-folder protection and regression fixtures. The repository's MIT license retains Lauren Tan's copyright.
+
+Zstack adds explicit Codex policy, portable installed-resource paths, optional local Pele SVG rendering alongside Mermaid PNG, renderer regressions in the standard Node test entrypoint, and a stricter distinction between model findings and reproduced software bugs. A reproduced upstream collision bug is also fixed: skeleton generation refuses occupied model/config/mapping paths, including dangling symlinks, and creates files exclusively. Upstream test assumptions about Linux preload support and canonical temporary paths are adapted for macOS. The existing formal-verification generator and maintenance skill receive that same reproduction requirement. Pele is resolved from the caller's directory rather than the installed plugin cache; it is not bundled. Its [API](https://pele.run/api), [compatibility](https://pele.run/compatibility), and [security](https://pele.run/security) documentation informed the integration.
+
+Cursor manifests, generated Claude harness duplicates, poteto-help, and upstream CI configuration are excluded. Native Codex, Claude Code, and Hermes continue discovering one shared skill folder. All three native manifests advance together to `0.18.0` for the new skill. See [validation](validation.md#statechart) for actual execution and remaining limits.
+
 ## Sharpen prompt rewriting — 2026-10-20
 
 Selectively adapted [pstack PR #729](https://github.com/cursor/plugins/pull/729), merged at `88d47514b82e7c44f00f2b2a72ff6dd12158038c` in pstack `0.15.29`. The new shared sharpen skill retains the four asks: expert approach, original source material, specific methods and tools, and an independent check, followed by a rewritten prompt with user choices left open. Zstack makes the no-execution boundary explicit, preserves stated constraints, and keeps unknown inputs conditional. Both native invocation flags remain explicit-only.
