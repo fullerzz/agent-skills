@@ -133,6 +133,7 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     helper = os.path.realpath(__file__)
     # A control may rerun outside a sandbox, so emit the base interpreter fixed at hook start: a working-directory
     # .venv that uv chose (symlinked or copied) stays writable by sandboxed commands. This also skips blocked shims.
+    # A .venv already present at hook start has run this hook unsandboxed, so it gains nothing new here.
     interpreter = getattr(sys, "_base_executable", None) or sys.executable
     if not interpreter:
         raise ValueError("Python executable unavailable")
