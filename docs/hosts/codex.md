@@ -35,7 +35,7 @@ Review and trust the bundled hook through Codex's hook trust flow. A trusted `Se
 
 Forked sessions receive new child-scoped controls that supersede inherited parent controls; activation is not copied from the parent. State lives in `PLUGIN_DATA/z-mode/<session-id>.json`; it is never shared between session IDs. Clearing a session removes its activation; a failed removal is reported because later resumes may still see stale state. Missing or corrupt state means inactive. Hook execution requires uv on the execution host. Without a trusted hook, mode persistence uses conversation context and resume notes. The hook does not authorize delegation or external actions.
 
-The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Both startup and emitted mode controls use the same isolated launch options.
+The hook uses only the Python standard library. Its launcher skips uv configuration discovery and Python site initialization, ignores Python environment customizations, and imports control-only modules only when needed. Emitted mode controls run the hook's resolved interpreter directly with the same isolation flags, so a `.venv` in the working directory cannot choose it. If a sandbox blocks a control's state write, the context asks for one rerun through Codex's approval flow, then hands you the command; Codex sandbox behavior has not been verified live.
 
 ### Herdr execution
 

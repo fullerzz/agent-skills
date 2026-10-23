@@ -131,13 +131,13 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     path = state_path(data_dir, session_id)
     active, execution, clear_error = restore_state(path, source)
     helper = os.path.realpath(__file__)
+    if not sys.executable:
+        raise ValueError("Python executable unavailable")
     # One template per shell keeps the context inside Codex's 4000-character limit with real paths.
     arguments = [
-        "uv",
-        "run",
-        "--no-project",
-        "--no-config",
-        "python",
+        # A control may rerun outside a sandbox, so the working directory must not choose its interpreter
+        # (uv would use a planted .venv); resolving a venv symlink also skips launcher shims the sandbox blocks.
+        os.path.realpath(sys.executable),
         "-I",
         "-S",
         helper,
@@ -161,6 +161,13 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         "When active z-mode stops or yields to another style, run Disable and record opt-out in resume notes; "
         "Herdr selected without z-mode stays until Native. Later user instructions override stored state. "
         "No added authority for delegation, commits, publication, messages, or tracker writes.\n"
+        # Claude Code's Bash sandbox write-protects plugin data under ~/.claude, and allowWrite cannot reopen it.
+        "If a sandbox blocks a control (Operation not permitted, Permission denied, or Read-only file system), "
+        "request one unsandboxed rerun through the host's permission flow. If refused or unavailable, stop retrying "
+        "controls this session and give the user the command to run "
+        f"{'with the ! prefix or outside Claude Code' if host == 'claude' else 'outside the agent'}. "
+        "Until then the selection is conversational only; a blocked Disable leaves stored activation that resume "
+        "restores, so keep the opt-out in resume notes.\n"
     )
     if active:
         skill = os.path.join(os.path.dirname(os.path.dirname(helper)), "skills/z-mode/SKILL.md")
@@ -221,7 +228,12 @@ def main() -> None:
         else:
             set_execution(path, args.action)
     except (ValueError, OSError) as error:
-        parser.exit(1, f"z-mode state not changed: {error}\n")
+        import errno
+
+        # The remedy lives only in trusted hook context; tool output must not instruct a sandbox bypass.
+        blocked = isinstance(error, OSError) and error.errno in (errno.EPERM, errno.EACCES, errno.EROFS)
+        remedy = "If a sandbox blocked this write, follow this session's z-mode guidance for blocked controls.\n"
+        parser.exit(1, f"z-mode state not changed: {error}\n{remedy if blocked else ''}")
 
 
 if __name__ == "__main__":
