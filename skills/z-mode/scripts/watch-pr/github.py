@@ -41,6 +41,17 @@ PR_CHECK_ROLLUP_QUERY = """query PrCheckRollup($owner: String!, $repo: String!, 
  commit { statusCheckRollup { contexts(first: 100, after: $after) { pageInfo { hasNextPage endCursor }
  nodes { __typename ... on CheckRun { name status conclusion detailsUrl }
  ... on StatusContext { context state targetUrl } } } } } } } } } }"""
+PR_COMMENTS_QUERY = """query PrComments($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+ repository(owner: $owner, name: $repo) { pullRequest(number: $pr) {
+ comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { body url author { login } } }
+ } } }"""
+# The Codex connector reports review progress by editing one PR comment, not through a check.
+CODEX_AUTHORS = ("chatgpt-codex-connector", "chatgpt-codex-connector[bot]")
+CODEX_MARKER = "<!-- codex-review-state:v1"
+# Observed statuses are "running" and "completed"; the rest of this set is assumed. Any other status
+# fails, so an unknown terminal state stops the watch instead of waiting without a bound.
+CODEX_ACTIVE = ("queued", "pending", "running", "in_progress")
+CODEX_REVIEWS = (("code_review", "Codex code review"), ("security_review", "Codex security review"))
 MISSING = object()
 
 
@@ -355,6 +366,52 @@ def parse_review_threads(value: object) -> list[Thread]:
     ]
 
 
+def codex_review_kind(sha: str | None, status: str | None, head: str) -> CheckKind | None:
+    if sha == head:
+        if status == "completed":
+            return None
+        return "pending" if status is None or status in CODEX_ACTIVE else "failed"
+    # A review queued before it records its commit is about to cover the head.
+    return "pending" if sha is None and status in CODEX_ACTIVE else None
+
+
+def parse_codex_state(body: str) -> list[tuple[str, str | None, str | None]]:
+    """Return (check name, commit sha, status) for each review in the comment's Codex marker."""
+    start = body.find(CODEX_MARKER)
+    if start < 0:
+        return []
+    payload, closed, _ = body[start + len(CODEX_MARKER) :].partition("-->")
+    try:
+        if not closed:
+            missing("codex-review-state", body[start:][:240])
+        state = record(parse_json(payload, "codex-review-state"), "codex-review-state")
+        reviews: list[tuple[str, str | None, str | None]] = []
+        for key, name in CODEX_REVIEWS:
+            if (value := state.get(key)) is not None:
+                review = record(value, "codex-review-state." + key)
+                sha = nullable_string(review.get("commit_sha"), f"codex-review-state.{key}.commit_sha")
+                reviews.append((name, sha, nullable_string(review.get("status"), f"codex-review-state.{key}.status")))
+        return reviews
+    except QueryError as error:
+        # The marker does not change between retries, so report it at once.
+        raise QueryError("codex-review-state", error.failure["detail"], False) from error
+
+
+def parse_comment_reviews(nodes: list[object], head: str) -> list[Check]:
+    reviews: list[Check] = []
+    for raw in nodes:
+        node = record(raw, "PR comment")
+        author = at(node, "author")
+        if author is None or nullable_string(at(author, "login"), "author.login") not in CODEX_AUTHORS:
+            continue
+        for name, sha, status in parse_codex_state(string(at(node, "body"), "comment.body")):
+            if (kind := codex_review_kind(sha, status, head)) is not None:
+                link = string(at(node, "url"), "comment.url")
+                details: CheckDetails = {"name": name, "description": "", "link": link, "workflow": ""}
+                reviews.append(check(details, kind, (status or "unknown").upper()))
+    return reviews
+
+
 def graphql_args(query: str, context: Context, after: str | None = None) -> list[str]:
     args = [
         "gh",
@@ -399,6 +456,7 @@ class Reader(Protocol):
     def open_pull_requests(self, context: Context) -> list[OpenPullRequest]: ...
     def checks(self, context: Context) -> ResolvedChecks: ...
     def review_threads(self, context: Context) -> list[Thread]: ...
+    def comment_reviews(self, context: Context, head: str | None) -> list[Check]: ...
     def commit_rollups(self, context: Context) -> list[CommitRollup]: ...
     def web_url(self, context: Context) -> str: ...
 
@@ -539,6 +597,21 @@ class GitHubReader:
             if after is None:
                 break
         return parse_review_threads({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}})
+
+    def comment_reviews(self, context: Context, head: str | None) -> list[Check]:
+        """Checks for review bots that report progress on the head commit in a PR comment."""
+        if head is None:
+            return []
+        nodes: list[object] = []
+        after: str | None = None
+        seen: set[str] = set()
+        while True:
+            value = self.query_json(graphql_args(PR_COMMENTS_QUERY, context, after))
+            connection = record(at(value, "data", "repository", "pullRequest", "comments"), "comments")
+            nodes.extend(array(at(connection, "nodes"), "comments.nodes"))
+            after = next_cursor(connection, seen)
+            if after is None:
+                return parse_comment_reviews(nodes, head)
 
     def commit_rollups(self, context: Context) -> list[CommitRollup]:
         value = self.query_json(graphql_args(PR_COMMIT_STATUS_QUERY, context))
