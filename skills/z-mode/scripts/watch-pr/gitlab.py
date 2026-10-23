@@ -395,5 +395,9 @@ class GitLabReader:
         nodes = [node for value in raw if (node := thread_node(value)) is not None]
         return parse_review_threads({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}})
 
+    def comment_reviews(self, context: Context, head: str | None) -> list[Check]:
+        # The comment-reporting review bots the GitHub reader recognizes do not post on GitLab.
+        return []
+
     def web_url(self, context: Context) -> str:
         return f"https://{self.host}/{context['owner']}/{context['repo']}/-/merge_requests/{context['number']}"

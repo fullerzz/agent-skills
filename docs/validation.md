@@ -4,6 +4,18 @@ outline: [2, 3]
 
 # Validation
 
+## Watcher thread policy and comment reviews — 2026-10-22 {#watcher-thread-policy}
+
+Issue #64: `watch-pr` ended watch mode on any unresolved review thread, even after the author replied and GitHub reported the PR `CLEAN`. It also ignored the Codex connector, which reports review progress in an edited PR comment rather than a check. `reviewAutomationRunning` only affected the status table and never held back READY.
+
+- `--threads warn` keeps watching past unresolved threads. They block only once CI is clean and the forge still reports `BLOCKED`, which is how a required conversation resolution appears. READY then lists them in `proof.threads`, and `--pretty` names the count. `--threads block` is the default and keeps the previous contract.
+- The GitHub reader pages PR comments and reads the `codex-review-state:v1` marker from `chatgpt-codex-connector`. A code or security review of the head SHA with any status other than `completed` becomes a pending check, so the watcher waits and `--timeout` bounds it. A malformed marker fails closed as a query error. GitLab reports no comment reviews.
+- Three new watcher tests and the expanded golden stream failed before the change and pass now. The golden diff is 22 added lines; existing scenario bytes are unchanged. The uv process test's fake `gh` now answers the comments query; it returns TIMEOUT while a Codex review of the head is running and READY once it completes. That case was added with the fix and was not run against the old code.
+- Live: the new comments query parsed fullerzz/herdr-plugin-sesh PR #157 and found the connector's marker. The completed review of `ce9ac81` produced no pending check, and the same comment with its status changed to `running` produced one. The original PR is merged, so the thread repro was not re-run live. On open PR #156, both thread modes ran end to end and stopped at its real failing lint check (exit 4).
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 55 passed, zero failures, 51 skipped because TLC is not installed. Python discovery: all 144 tests passed. Ruff check and format, and ty, pass on the watcher. The installed uv binary directory was put on `PATH` because the sandbox blocks the mise shim.
+
+Status values other than `running` and `completed` are not documented; an unknown terminal status waits until `--timeout`. Warn mode cannot tell a required conversation resolution from other `BLOCKED` causes while threads are open, so it reports the threads.
+
 ## Sandboxed mode controls — 2026-10-22 {#sandboxed-mode-controls}
 
 Issue #65: under Claude Code's Bash sandbox, z-mode controls could not write `~/.claude/plugins/data`. The sandbox documentation lists `~/.claude` as a protected path that `allowWrite` cannot reopen, and hooks run outside the sandbox. Shared native manifests are `0.18.2`.

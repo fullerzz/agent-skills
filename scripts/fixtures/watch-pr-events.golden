@@ -33,6 +33,28 @@ pr=1
 unresolved=2
 t1 app.py 3 cursor isBugBot=true bugbotReviewPasses=1 Bugbot RUN_ID: one
 t2 None None None isBugBot=false bugbotReviewPasses=1
+== threads-warn-ready exit=0
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"READY","terminal":true,"exitCode":0,"scope":{"kind":"single","pr":{"kind":"ready-pr","context":{"owner":"owner","repo":"repo","number":1},"proof":{"mergeability":"clear","threads":[{"id":"t1","firstComment":{"authorLogin":"cursor","body":"Bugbot RUN_ID: one\nsecond line","path":"app.py","line":3,"createdAt":"now"},"isBugbot":true,"bugbotReviewPasses":1}],"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""}],"failed":[],"pending":[],"hadPreviousPassingCi":false,"kind":"ci-clean","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}},"gate":{"state":"OPEN","reviewDecision":null,"draft":"not-draft"}}}}}
+== threads-warn-ready --pretty exit=0
+READY: no merge conflicts, 1 unresolved review thread left open (--threads warn), no failing or pending checks
+mergeStateStatus=CLEAN
+reviewDecision=null
+isDraft=false
+== threads-warn-blocked exit=3
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":3,"blocker":{"kind":"review-threads","pr":{"owner":"owner","repo":"repo","number":1},"threads":[{"id":"t1","firstComment":{"authorLogin":"cursor","body":"Bugbot RUN_ID: one\nsecond line","path":"app.py","line":3,"createdAt":"now"},"isBugbot":true,"bugbotReviewPasses":1}]}}
+== threads-warn-blocked --pretty exit=3
+BLOCKER: review-threads
+pr=1
+unresolved=1
+t1 app.py 3 cursor isBugBot=true bugbotReviewPasses=1 Bugbot RUN_ID: one
+== comment-review-timeout exit=5
+{"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"pending-checks","pending":[{"name":"Codex code review","kind":"pending","reportedState":"RUNNING","description":"","link":"","workflow":""}]}}
+{"schemaVersion":1,"sequence":2,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"WAITING","terminal":false,"frontier":{"owner":"owner","repo":"repo","number":1},"reason":{"kind":"pending-checks","pending":[{"name":"Codex code review","kind":"pending","reportedState":"RUNNING","description":"","link":"","workflow":""}]}}
+{"schemaVersion":1,"sequence":3,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"TIMEOUT","terminal":true,"exitCode":5,"reason":{"kind":"pending-checks","pending":[{"name":"Codex code review","kind":"pending","reportedState":"RUNNING","description":"","link":"","workflow":""}]}}
+== comment-review-timeout --pretty exit=5
+WAITING: frontier=#1; 1 check pending
+WAITING: frontier=#1; 1 check pending
+TIMEOUT: checks still pending
 == failing-checks exit=4
 {"schemaVersion":1,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":4,"blocker":{"kind":"failing-checks","pr":{"owner":"owner","repo":"repo","number":1},"ci":{"source":"gh-pr-checks","all":[{"name":"CI","kind":"passed","reportedState":"SUCCESS","description":"","link":"","workflow":""},{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""},{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"failed":[{"name":"CI","kind":"failed","reportedState":"FAILURE","description":"","link":"","workflow":""}],"pending":[{"name":"CI","kind":"pending","reportedState":"PENDING","description":"","link":"","workflow":""}],"hadPreviousPassingCi":false,"kind":"ci-failing","github":{"mergeStateStatus":"CLEAN","headRollupState":"SUCCESS","kind":"allowed","basis":"merge-state"}}}}
 == failing-checks --pretty exit=4

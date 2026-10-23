@@ -41,6 +41,14 @@ PR_CHECK_ROLLUP_QUERY = """query PrCheckRollup($owner: String!, $repo: String!, 
  commit { statusCheckRollup { contexts(first: 100, after: $after) { pageInfo { hasNextPage endCursor }
  nodes { __typename ... on CheckRun { name status conclusion detailsUrl }
  ... on StatusContext { context state targetUrl } } } } } } } } } }"""
+PR_COMMENTS_QUERY = """query PrComments($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+ repository(owner: $owner, name: $repo) { pullRequest(number: $pr) {
+ comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { body url author { login } } }
+ } } }"""
+# The Codex connector reports review progress by editing one PR comment, not through a check.
+CODEX_AUTHORS = ("chatgpt-codex-connector", "chatgpt-codex-connector[bot]")
+CODEX_STATE = re.compile(r"<!-- codex-review-state:v1 (\{.*?\}) -->", re.DOTALL)
+CODEX_REVIEWS = (("code_review", "Codex code review"), ("security_review", "Codex security review"))
 MISSING = object()
 
 
@@ -355,6 +363,32 @@ def parse_review_threads(value: object) -> list[Thread]:
     ]
 
 
+def parse_comment_reviews(nodes: list[object], head: str) -> list[Check]:
+    pending: list[Check] = []
+    for raw in nodes:
+        node = record(raw, "PR comment")
+        author = at(node, "author")
+        if author is None or nullable_string(at(author, "login"), "author.login") not in CODEX_AUTHORS:
+            continue
+        match = CODEX_STATE.search(string(at(node, "body"), "comment.body"))
+        if match is None:
+            continue
+        state = record(parse_json(match[1], "codex-review-state"), "codex-review-state")
+        for key, name in CODEX_REVIEWS:
+            if (review := state.get(key)) is None:
+                continue
+            review = record(review, "codex-review-state." + key)
+            sha = nullable_string(review.get("commit_sha"), f"codex-review-state.{key}.commit_sha")
+            status = nullable_string(review.get("status"), f"codex-review-state.{key}.status")
+            # Only "completed" is a known terminal status, so any other one waits; --timeout bounds it.
+            if sha == head and status is not None and status != "completed":
+                link = string(at(node, "url"), "comment.url")
+                pending.append(
+                    check({"name": name, "description": "", "link": link, "workflow": ""}, "pending", status.upper())
+                )
+    return pending
+
+
 def graphql_args(query: str, context: Context, after: str | None = None) -> list[str]:
     args = [
         "gh",
@@ -399,6 +433,7 @@ class Reader(Protocol):
     def open_pull_requests(self, context: Context) -> list[OpenPullRequest]: ...
     def checks(self, context: Context) -> ResolvedChecks: ...
     def review_threads(self, context: Context) -> list[Thread]: ...
+    def comment_reviews(self, context: Context, head: str | None) -> list[Check]: ...
     def commit_rollups(self, context: Context) -> list[CommitRollup]: ...
     def web_url(self, context: Context) -> str: ...
 
@@ -539,6 +574,21 @@ class GitHubReader:
             if after is None:
                 break
         return parse_review_threads({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}})
+
+    def comment_reviews(self, context: Context, head: str | None) -> list[Check]:
+        """Pending checks for review bots that report progress on the head commit in a PR comment."""
+        if head is None:
+            return []
+        nodes: list[object] = []
+        after: str | None = None
+        seen: set[str] = set()
+        while True:
+            value = self.query_json(graphql_args(PR_COMMENTS_QUERY, context, after))
+            connection = record(at(value, "data", "repository", "pullRequest", "comments"), "comments")
+            nodes.extend(array(at(connection, "nodes"), "comments.nodes"))
+            after = next_cursor(connection, seen)
+            if after is None:
+                return parse_comment_reviews(nodes, head)
 
     def commit_rollups(self, context: Context) -> list[CommitRollup]:
         value = self.query_json(graphql_args(PR_COMMIT_STATUS_QUERY, context))

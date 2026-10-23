@@ -90,6 +90,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--sweep-interval", type=number, default=300)
     parser.add_argument("--timeout", type=lambda v: number(v, True), default=0)
     parser.add_argument("--max-query-errors", type=integer, default=5)
+    parser.add_argument(
+        "--threads",
+        choices=("block", "warn"),
+        default="block",
+        help="warn: keep watching past unresolved review threads unless the merge stays blocked once CI is clean",
+    )
     for flag in ("status-only", "allow-draft", "pretty"):
         parser.add_argument("--" + flag, action="store_true")
     args = parser.parse_args(argv)
@@ -120,6 +126,7 @@ def main(
         timeout=args.timeout,
         max_query_errors=args.max_query_errors,
         allow_draft=args.allow_draft,
+        threads=args.threads,
     )
     render = partial(render_pretty, forge=reader) if args.pretty else render_json
 

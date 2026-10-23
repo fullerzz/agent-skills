@@ -111,6 +111,7 @@ class Reader:
         checks_by_pr: dict[int, list[schema.Check]] | None = None,
         open_prs: list[github.OpenPullRequest] | None = None,
         query_failures: int = 0,
+        comment_reviews: list[schema.Check] | None = None,
     ) -> None:
         self.facts = facts(**(overrides or {}))
         self.fast_checks = [check()] if checks is None else checks
@@ -123,6 +124,7 @@ class Reader:
         self.checks_by_pr = checks_by_pr or {}
         self.open_prs = open_prs or []
         self.query_failures = query_failures
+        self.bot_reviews = comment_reviews or []
         self.rollup_reads = 0
         self.pages: list[github.RollupPage] = []
         self.reads: list[int] = []
@@ -151,6 +153,9 @@ class Reader:
 
     def review_threads(self, context: schema.Context) -> list[schema.Thread]:
         return self.threads
+
+    def comment_reviews(self, context: schema.Context, head: str | None) -> list[schema.Check]:
+        return self.bot_reviews
 
     def commit_rollups(self, context: schema.Context) -> list[github.CommitRollup]:
         self.rollup_reads += 1
@@ -192,6 +197,24 @@ GOLDEN_SCENARIOS: list[tuple[str, list[str], Callable[[], Reader]]] = [
                 {"id": "t2", "firstComment": None, "isBugbot": False, "bugbotReviewPasses": 1},
             ]
         ),
+    ),
+    (
+        "threads-warn-ready",
+        ["--threads", "warn"],
+        lambda: Reader(threads=[{"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1}]),
+    ),
+    (
+        "threads-warn-blocked",
+        ["--threads", "warn"],
+        lambda: Reader(
+            overrides={"mergeStateStatus": "BLOCKED"},
+            threads=[{"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1}],
+        ),
+    ),
+    (
+        "comment-review-timeout",
+        ["--timeout", "100"],
+        lambda: Reader(comment_reviews=[{**check("pending", "Codex code review"), "reportedState": "RUNNING"}]),
     ),
     ("failing-checks", [], lambda: Reader(checks=[check(), check("failed"), check("pending")])),
     (
@@ -676,6 +699,85 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(rows[0]["bugbotReviewPasses"], 2)
         self.assertIn("after=next", calls[1])
 
+    def test_warned_threads_wait_for_ci_and_block_only_a_refused_merge(self) -> None:
+        self.options = dataclasses.replace(self.options, threads="warn")
+        self.reader.threads = [{"id": "t1", "firstComment": COMMENT, "isBugbot": False, "bugbotReviewPasses": 0}]
+        self.reader.fast_checks = [check("pending")]
+        self.options = dataclasses.replace(self.options, timeout=60)
+        self.assertEqual(self.run_simple()["kind"], "TIMEOUT")
+        self.assertEqual([e["kind"] for e in self.events], ["WAITING"])
+        self.reader.fast_checks = [check()]
+        result = self.run_simple()
+        if (
+            result["kind"] != "READY"
+            or result["scope"]["kind"] != "single"
+            or result["scope"]["pr"]["kind"] != "ready-pr"
+        ):
+            self.fail(f"unexpected verdict {result}")
+        self.assertEqual(result["scope"]["pr"]["proof"]["threads"], self.reader.threads)
+        self.reader.facts["mergeStateStatus"] = "BLOCKED"
+        self.assertEqual(self.run_simple()["exitCode"], 3)
+        self.options = dataclasses.replace(self.options, threads="block")
+        self.reader.facts["mergeStateStatus"] = "CLEAN"
+        self.reader.fast_checks = [check("pending")]
+        self.assertEqual(self.run_simple()["exitCode"], 3)
+
+    def test_running_comment_review_waits_like_a_pending_check(self) -> None:
+        self.reader.bot_reviews = [{**check("pending", "Codex code review"), "reportedState": "RUNNING"}]
+        row = self.snapshot()
+        if row["kind"] != "open":
+            self.fail(f"unexpected row {row}")
+        self.assertTrue(row["reviewAutomationRunning"])
+        self.assertEqual(row["ci"]["kind"], "ci-pending")
+        self.assertEqual(row["ci"]["pending"], self.reader.bot_reviews)
+
+    def test_codex_review_state_comment_maps_head_reviews(self) -> None:
+        def comment(state: dict[str, object], login: str = "chatgpt-codex-connector") -> dict[str, object]:
+            marker = "<!-- codex-review-state:v1 " + json.dumps(state) + " -->"
+            return {"author": {"login": login}, "body": "<!-- summary -->\n" + marker + "\n## Codex", "url": "u"}
+
+        def review(sha: str | None, status: str | None) -> dict[str, object]:
+            return {"commit_sha": sha, "has_any_findings": None, "status": status}
+
+        pages = [
+            {
+                "nodes": [
+                    comment({"code_review": review("head", "running"), "security_review": review(None, None)}),
+                    comment({"code_review": review("head", "running")}, login="someone"),
+                    {"author": None, "body": "plain", "url": "u"},
+                ],
+                "pageInfo": {"hasNextPage": True, "endCursor": "next"},
+            },
+            {
+                "nodes": [
+                    comment({"code_review": review("old", "running"), "security_review": review("head", "queued")}),
+                    comment({"code_review": review("head", "completed")}),
+                ],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+        ]
+        calls = []
+
+        def query(argv: list[str]) -> object:
+            calls.append(argv)
+            return {"data": {"repository": {"pullRequest": {"comments": pages.pop(0)}}}}
+
+        pending = github.GitHubReader(query).comment_reviews(CONTEXT, "head")
+        self.assertEqual(
+            [(c["name"], c["kind"], c["reportedState"], c["link"]) for c in pending],
+            [("Codex code review", "pending", "RUNNING", "u"), ("Codex security review", "pending", "QUEUED", "u")],
+        )
+        self.assertIn("after=next", calls[1])
+        self.assertEqual(
+            github.GitHubReader(lambda argv: self.fail("no head, no query")).comment_reviews(CONTEXT, None), []
+        )
+        broken = {"author": {"login": "chatgpt-codex-connector"}, "body": "<!-- codex-review-state:v1 {nope} -->"}
+        page = {"nodes": [{**broken, "url": "u"}], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+        with self.assertRaises(github.QueryError):
+            github.GitHubReader(
+                lambda argv: {"data": {"repository": {"pullRequest": {"comments": page}}}}
+            ).comment_reviews(CONTEXT, "head")
+
     def test_invalid_or_cyclic_pagination_is_rejected(self) -> None:
         for cursor in (None, ""):
 
@@ -788,6 +890,12 @@ elif args[:2] == ['api','graphql']:
  elif 'PrCheckRollup' in query:
   commit={'statusCheckRollup': None}
   value={'data': {'repository': {'pullRequest': {'commits': {'nodes': [{'commit': commit}]}}}}}
+ elif 'PrComments' in query:
+  review={'code_review': {'commit_sha': 'head', 'status': os.environ['CODEX_STATUS']}}
+  body='<!-- codex-review-state:v1 ' + json.dumps(review) + ' -->'
+  node={'body': body, 'url': 'u', 'author': {'login': 'chatgpt-codex-connector'}}
+  page={'nodes': [node], 'pageInfo': {'hasNextPage': False, 'endCursor': None}}
+  value={'data': {'repository': {'pullRequest': {'comments': page}}}}
  else: raise AssertionError(args)
 else: raise AssertionError(args)
 print(json.dumps(value))
@@ -795,11 +903,12 @@ print(json.dumps(value))
             )
             gh.chmod(0o755)
             env = os.environ | {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "EXPECTED_CWD": str(root)}
-            for state, code, kind, extra in [
-                ("SUCCESS", 0, "READY", []),
-                ("PENDING", 5, "TIMEOUT", []),
-                ("NONE", 0, "READY", []),
-                ("NONE", 0, "STATUS", ["--status-only"]),
+            for state, codex, code, kind, extra in [
+                ("SUCCESS", "completed", 0, "READY", []),
+                ("SUCCESS", "running", 5, "TIMEOUT", []),
+                ("PENDING", "completed", 5, "TIMEOUT", []),
+                ("NONE", "completed", 0, "READY", []),
+                ("NONE", "completed", 0, "STATUS", ["--status-only"]),
             ]:
                 result = subprocess.run(  # noqa: S603 - Local CLI fixtures use explicit argument vectors, never a shell.
                     [
@@ -817,7 +926,7 @@ print(json.dumps(value))
                         *extra,
                     ],
                     cwd=root,
-                    env=env | {"CHECK_STATE": state},
+                    env=env | {"CHECK_STATE": state, "CODEX_STATUS": codex},
                     capture_output=True,
                     text=True,
                 )

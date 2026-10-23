@@ -107,6 +107,12 @@ def plural(n: int) -> str:
 
 
 def render_ready(event: ReadyVerdict) -> str:
+    scope = event["scope"]
+    prs = [scope["pr"]] if scope["kind"] == "single" else scope["prs"]
+    n = sum(len(pr["proof"]["threads"]) for pr in prs if pr["kind"] == "ready-pr")
+    threads = (
+        f"{n} unresolved review thread{plural(n)} left open (--threads warn)" if n else "no unresolved review threads"
+    )
     detail = ""
     if event["scope"]["kind"] == "single" and event["scope"]["pr"]["kind"] == "ready-pr":
         proof = event["scope"]["pr"]["proof"]
@@ -118,7 +124,7 @@ def render_ready(event: ReadyVerdict) -> str:
         )
         if draft:
             detail += "\nnote=draft allowed (--allow-draft); leave draft — do not mark ready"
-    return "READY: no merge conflicts, no unresolved review threads, no failing or pending checks" + detail + "\n"
+    return f"READY: no merge conflicts, {threads}, no failing or pending checks" + detail + "\n"
 
 
 def render_timeout(event: TimeoutVerdict, forge: Forge) -> str:
