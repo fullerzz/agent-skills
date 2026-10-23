@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Sandboxed mode controls — 2026-10-22 {#sandboxed-mode-controls}
+
+Issue #65: under Claude Code's Bash sandbox, z-mode controls could not write `~/.claude/plugins/data`. The sandbox documentation lists `~/.claude` as a protected path that `allowWrite` cannot reopen, and hooks run outside the sandbox. Shared native manifests are `0.18.2`.
+
+- Reproduced on macOS in a live sandboxed Claude Code session: the hook's original `uv run` Enable control failed. With the mise `uv` shim, the sandbox blocked the shim before Python started. With Homebrew uv, the helper returned 1 with `[Errno 1] Operation not permitted` on its temporary state file.
+- An unsandboxed retry of the Enable control was refused by the auto mode classifier (`Safety Bypass Flag`). The `!` prefix fallback was not exercised live.
+- Controls now run the base interpreter fixed when the hook starts. In the same sandbox, the emitted Enable control started Python without uv or mise. It returned 1 with `[Errno 1] Operation not permitted` and pointed to the session's guidance for blocked controls.
+- Two independent Claude Opus 5.5 reviewers interrogated the first fix; a Codex reviewer could not start because its companion hit the same sandbox denial under `~/.claude/plugins/data`. A reviewer probe showed that `uv run --no-project python` selects a `.venv` in the working directory, so an unsandboxed rerun could execute a planted interpreter. Other findings covered retry budget, the sandboxed `!` cases, a blocked Disable, overstated docs, and remedy text in tool output.
+- Six hook tests failed against the original helper and pass now. They cover the planted `.venv`, EPERM/EACCES/EROFS versus EISDIR/ENOSPC errors, a read-only state directory, the per-host context guidance, and the interpreter in both shell templates.
+- PR #66 Codex review noted that `realpath` leaves a copied (non-symlink) `.venv` interpreter in place. A local probe confirmed it. Controls now use `sys._base_executable`, and the planted-venv regression covers symlinked and copied venvs. The copied case failed against the first PR head and passes now.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 55 passed, zero failures, 51 skipped because TLC is not installed (the same count as the baseline). Python discovery: all 141 tests passed. Homebrew uv bypassed the sandbox-blocked mise shim.
+
+Codex and Hermes sandbox behavior was not exercised. The SessionStart launchers still use `uv run --no-project` from the session's working directory, so a planted `.venv` there could still choose the hook's interpreter at the next session start or compaction. Through `pyvenv.cfg`, it would also choose the base interpreter that controls emit, as cubic noted on PR #66. Codex also noted that an in-place checkout writable by the session lets a sandboxed command change the helper before an approved rerun. The same checkout already supplies the hook that Claude Code runs unsandboxed, so the docs record that boundary instead of pinning only the control. That exposure predates this change and remains open.
+
 ## Statechart upstream fixes — 2026-10-22 {#statechart-upstream-fixes}
 
 Ported pstack #776 and #779 while retaining zstack's parser, output-safety, explicit-invocation, and Pele adaptations. All native manifests are `0.18.1`. Checks used Node `26.12.0`, Java `25.0.2`, and the existing isolated TLC `1.7.4` jar on macOS.

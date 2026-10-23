@@ -4,7 +4,6 @@ import inspect
 import os
 import shlex
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -30,9 +29,9 @@ class HermesHookTests(unittest.TestCase):
         template = next(line for line in context.splitlines() if line.startswith("POSIX sh control: "))
         argv = shlex.split(template.removeprefix("POSIX sh control: "))
         argv[-1] = action.lower()
-        # Exercise the exact generated helper arguments without invoking a second uv resolver.
+        # Exercise the exact generated control, interpreter included.
         result = subprocess.run(  # noqa: S603 - Generated isolated helper, explicit argv, no shell.
-            [sys.executable, *argv[argv.index("-I") :]],
+            argv,
             capture_output=True,
             text=True,
         )

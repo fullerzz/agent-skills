@@ -3,6 +3,7 @@
 """Exercise explicit Codex mode controls without personal configuration."""
 
 import contextlib
+import errno
 import io
 import json
 import os
@@ -13,11 +14,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import venv
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "hooks/session_start.py"
+# Controls name the base interpreter even when the hook runs inside a virtual environment.
+INTERPRETER = os.path.realpath(getattr(sys, "_base_executable", None) or sys.executable)
 
 
 class CodexHooksTests(unittest.TestCase):
@@ -229,7 +233,7 @@ class CodexHooksTests(unittest.TestCase):
             context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
             enable = self.command(context, "enable")
             self.assertEqual(shlex.split(enable)[-2:], [str(self.data), "enable"])
-            self.assertIn("PowerShell control: & 'uv'", context)
+            self.assertIn(f"PowerShell control: & '{INTERPRETER}'", context)
             self.assertTrue(self.command(context, "disable", "PowerShell").endswith(" 'disable'"))
         context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
         enable = self.command(context, "enable")
@@ -342,7 +346,7 @@ class CodexHooksTests(unittest.TestCase):
             )
             self.assertEqual("Herdr execution was explicitly enabled" in self.hook(session="child"), label == "Herdr")
             self.assertIn("Herdr execution was explicitly enabled", self.hook(session="parent"))
-        self.assertIn("PowerShell control: & 'uv'", context)
+        self.assertIn(f"PowerShell control: & '{INTERPRETER}'", context)
         self.hook(session="parent", source="clear")
         self.assertEqual(list((self.data / "z-mode").iterdir()), [])
 
@@ -389,6 +393,81 @@ class CodexHooksTests(unittest.TestCase):
         result = self.control("native", check=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("state not changed", result.stderr)
+
+    @unittest.skipIf(os.name != "posix" or os.geteuid() == 0, "needs POSIX permissions that bind the current user")
+    def test_blocked_state_write_names_the_sandbox_remedy(self) -> None:
+        # Claude Code's Bash sandbox write-protects plugin data; a read-only directory produces the same denial.
+        directory = self.data / "z-mode"
+        directory.mkdir()
+        directory.chmod(0o500)
+        self.addCleanup(directory.chmod, 0o700)
+        for action in ("enable", "herdr"):
+            result = self.control(action, check=False)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("state not changed", result.stderr)
+            self.assertIn("follow this session's z-mode guidance for blocked controls", result.stderr)
+            self.assertNotIn("outside the sandbox", result.stderr)
+        self.assertEqual(list(directory.iterdir()), [])
+        corrupt = self.control("enable", session="../outside", check=False)
+        self.assertNotIn("sandbox", corrupt.stderr)
+
+    def test_only_sandbox_like_write_errors_point_to_the_guidance(self) -> None:
+        # Seatbelt raises EPERM and bubblewrap EROFS; other write failures are not a sandbox remedy.
+        main = runpy.run_path(str(HELPER))["main"]
+        argv = ["session_start.py", "enable", "--session-id=session-a", "--data-dir", str(self.data)]
+        for code in (errno.EPERM, errno.EACCES, errno.EROFS, errno.EISDIR, errno.ENOSPC):
+            with (
+                self.subTest(errno=errno.errorcode[code]),
+                patch.object(sys, "argv", argv),
+                patch("os.makedirs", side_effect=OSError(code, os.strerror(code))),
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+                self.assertRaises(SystemExit) as exit_,
+            ):
+                main()
+            self.assertEqual(exit_.exception.code, 1)
+            self.assertIn("state not changed", stderr.getvalue())
+            self.assertEqual("blocked controls" in stderr.getvalue(), code in (errno.EPERM, errno.EACCES, errno.EROFS))
+        self.assertEqual(list(self.data.iterdir()), [])
+
+    @unittest.skipIf(os.name != "posix", "uses POSIX venv layout")
+    def test_controls_ignore_an_interpreter_planted_in_the_working_directory(self) -> None:
+        # uv run would pick a .venv in the working directory, which a sandboxed command can later overwrite.
+        for symlinks in (True, False):
+            with self.subTest(symlinks=symlinks):
+                planted = self.data / f"project-{symlinks}/.venv"
+                venv.EnvBuilder(symlinks=symlinks, with_pip=False).create(planted)
+                interpreter = planted / "bin/python"
+                self.assertEqual(interpreter.is_symlink(), symlinks)
+                result = subprocess.run(  # noqa: S603 - Isolated fixture interpreter and local helper.
+                    [str(interpreter), "-I", "-S", str(HELPER), "--host=codex"],
+                    input=json.dumps(
+                        {"hook_event_name": "SessionStart", "source": "startup", "session_id": "session-a"}
+                    ),
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    cwd=planted.parent,
+                    env=self.env,
+                )
+                context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+                argv = shlex.split(self.command(context, "enable"))
+                self.assertEqual(argv[0], INTERPRETER)
+                self.assertFalse(Path(argv[0]).is_relative_to(self.data))
+                powershell = self.command(context, "enable", "PowerShell")
+                self.assertTrue(powershell.startswith(f"& '{argv[0]}' '-I' '-S' "))
+                subprocess.run(argv, check=True, cwd=planted.parent, env=self.env)  # noqa: S603 - Emitted control.
+                self.assertTrue((self.data / "z-mode/session-a.json").is_file())
+                self.control("disable")
+
+    def test_context_explains_persistence_under_a_sandbox(self) -> None:
+        render = runpy.run_path(str(HELPER))["build_context"]
+        for host, direct in (("claude", "with the ! prefix or outside Claude Code"), ("codex", "outside the agent")):
+            context, _ = render(host, "session-a", str(self.data), "startup")
+            self.assertIn("If a sandbox blocks a control", context)
+            self.assertIn("request one unsandboxed rerun through the host's permission flow", context)
+            self.assertIn("stop retrying controls this session", context)
+            self.assertIn(f"give the user the command to run {direct}", context)
+            self.assertIn("a blocked Disable leaves stored activation", context)
 
     def test_invalid_identity_and_corrupt_state_fail_inactive(self) -> None:
         for session in ("../outside", "x/y", "x; touch outside", "", "x" * 129):
