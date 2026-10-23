@@ -182,6 +182,7 @@ COMMENT: schema.Comment = {
     "line": 3,
     "createdAt": "now",
 }
+THREAD: schema.Thread = {"id": "t1", "firstComment": COMMENT, "isBugbot": False, "bugbotReviewPasses": 0}
 # One run per verdict, blocker, wait, and timeout shape; --pr 1 is added unless --stack-prs selects PRs.
 GOLDEN_SCENARIOS: list[tuple[str, list[str], Callable[[], Reader]]] = [
     ("ready", [], Reader),
@@ -699,14 +700,18 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(rows[0]["bugbotReviewPasses"], 2)
         self.assertIn("after=next", calls[1])
 
-    def test_warned_threads_wait_for_ci_and_block_only_a_refused_merge(self) -> None:
-        self.options = dataclasses.replace(self.options, threads="warn")
-        self.reader.threads = [{"id": "t1", "firstComment": COMMENT, "isBugbot": False, "bugbotReviewPasses": 0}]
+    def warn_with_thread(self) -> None:
+        self.options = dataclasses.replace(self.options, threads="warn", timeout=60)
+        self.reader.threads = [THREAD]
+
+    def test_warned_thread_waits_for_pending_ci(self) -> None:
+        self.warn_with_thread()
         self.reader.fast_checks = [check("pending")]
-        self.options = dataclasses.replace(self.options, timeout=60)
         self.assertEqual(self.run_simple()["kind"], "TIMEOUT")
         self.assertEqual([e["kind"] for e in self.events], ["WAITING"])
-        self.reader.fast_checks = [check()]
+
+    def test_warned_thread_is_listed_on_ready(self) -> None:
+        self.warn_with_thread()
         result = self.run_simple()
         if (
             result["kind"] != "READY"
@@ -714,11 +719,36 @@ class WatcherTests(unittest.TestCase):
             or result["scope"]["pr"]["kind"] != "ready-pr"
         ):
             self.fail(f"unexpected verdict {result}")
-        self.assertEqual(result["scope"]["pr"]["proof"]["threads"], self.reader.threads)
+        self.assertEqual(result["scope"]["pr"]["proof"]["threads"], [THREAD])
+
+    def test_warned_thread_blocks_a_refused_merge(self) -> None:
+        self.warn_with_thread()
         self.reader.facts["mergeStateStatus"] = "BLOCKED"
         self.assertEqual(self.run_simple()["exitCode"], 3)
-        self.options = dataclasses.replace(self.options, threads="block")
-        self.reader.facts["mergeStateStatus"] = "CLEAN"
+
+    def test_thread_opened_after_the_first_warned_poll_blocks(self) -> None:
+        self.warn_with_thread()
+        self.options = dataclasses.replace(self.options, timeout=200)
+        self.reader.fast_checks = [check("pending")]
+        later = {**THREAD, "id": "t2"}
+        with patch.object(self.reader, "review_threads", side_effect=[[THREAD], [THREAD, later]]):
+            result = self.run_simple()
+        if result["kind"] != "BLOCKER" or result["blocker"]["kind"] != "review-threads":
+            self.fail(f"unexpected verdict {result}")
+        self.assertEqual([t["id"] for t in result["blocker"]["threads"]], ["t1", "t2"])
+        self.assertEqual([e["kind"] for e in self.events], ["WAITING"])
+
+    def test_queued_warn_accepts_only_threads_from_the_first_sweep(self) -> None:
+        self.options = dataclasses.replace(self.options, threads="warn", timeout=200)
+        later = {**THREAD, "id": "t2"}
+        contexts = [CONTEXT, {**CONTEXT, "number": 2}]
+        with patch.object(self.reader, "review_threads", side_effect=[[THREAD], [THREAD], [THREAD, later]]):
+            result = policy.run_queued(self.reader, self.clock, self.events.append, contexts, self.options)
+        self.assertEqual(result["exitCode"], 3)
+        self.assertIn("WAITING", [e["kind"] for e in self.events])
+
+    def test_blocked_mode_stops_on_any_thread(self) -> None:
+        self.reader.threads = [THREAD]
         self.reader.fast_checks = [check("pending")]
         self.assertEqual(self.run_simple()["exitCode"], 3)
 
@@ -771,12 +801,42 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(
             github.GitHubReader(lambda argv: self.fail("no head, no query")).comment_reviews(CONTEXT, None), []
         )
-        broken = {"author": {"login": "chatgpt-codex-connector"}, "body": "<!-- codex-review-state:v1 {nope} -->"}
-        page = {"nodes": [{**broken, "url": "u"}], "pageInfo": {"hasNextPage": False, "endCursor": None}}
-        with self.assertRaises(github.QueryError):
-            github.GitHubReader(
-                lambda argv: {"data": {"repository": {"pullRequest": {"comments": page}}}}
-            ).comment_reviews(CONTEXT, "head")
+
+    def test_codex_review_status_maps_to_check_kind(self) -> None:
+        for sha, status, expected in [
+            ("head", "completed", None),
+            ("head", "running", "pending"),
+            ("head", "in_progress", "pending"),
+            ("head", None, "pending"),
+            ("head", "failed", "failed"),
+            ("head", "something-new", "failed"),
+            (None, "queued", "pending"),
+            (None, "failed", None),
+            (None, None, None),
+            ("old", "running", None),
+            ("old", "failed", None),
+        ]:
+            with self.subTest(sha=sha, status=status):
+                self.assertEqual(github.codex_review_kind(sha, status, "head"), expected)
+
+    def test_failed_codex_review_stops_the_watch(self) -> None:
+        self.reader.bot_reviews = [{**check("failed", "Codex code review"), "reportedState": "FAILED"}]
+        self.assertEqual(self.run_simple()["exitCode"], 4)
+        row = self.snapshot()
+        self.assertFalse(row["kind"] == "open" and row["reviewAutomationRunning"])
+
+    def test_malformed_codex_marker_fails_without_retry(self) -> None:
+        for body in (
+            "<!-- codex-review-state:v1 {nope} -->",
+            "<!-- codex-review-state:v1 {broken",
+            "<!-- codex-review-state:v1 [] -->",
+            '<!-- codex-review-state:v1 {"code_review": "running"} -->',
+        ):
+            node = {"author": {"login": "chatgpt-codex-connector"}, "body": body, "url": "u"}
+            with self.subTest(body=body), self.assertRaises(github.QueryError) as caught:
+                github.parse_comment_reviews([node], "head")
+            self.assertEqual(caught.exception.failure["kind"], "codex-review-state")
+            self.assertFalse(caught.exception.failure["retryable"])
 
     def test_invalid_or_cyclic_pagination_is_rejected(self) -> None:
         for cursor in (None, ""):

@@ -94,7 +94,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--threads",
         choices=("block", "warn"),
         default="block",
-        help="warn: keep watching past unresolved review threads unless the merge stays blocked once CI is clean",
+        help="warn: keep watching past threads open at the first poll unless the merge stays blocked once CI is "
+        "clean; threads that appear later still block",
     )
     for flag in ("status-only", "allow-draft", "pretty"):
         parser.add_argument("--" + flag, action="store_true")

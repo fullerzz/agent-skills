@@ -47,7 +47,10 @@ PR_COMMENTS_QUERY = """query PrComments($owner: String!, $repo: String!, $pr: In
  } } }"""
 # The Codex connector reports review progress by editing one PR comment, not through a check.
 CODEX_AUTHORS = ("chatgpt-codex-connector", "chatgpt-codex-connector[bot]")
-CODEX_STATE = re.compile(r"<!-- codex-review-state:v1 (\{.*?\}) -->", re.DOTALL)
+CODEX_MARKER = "<!-- codex-review-state:v1"
+# Observed statuses are "running" and "completed"; the rest of this set is assumed. Any other status
+# fails, so an unknown terminal state stops the watch instead of waiting without a bound.
+CODEX_ACTIVE = ("queued", "pending", "running", "in_progress")
 CODEX_REVIEWS = (("code_review", "Codex code review"), ("security_review", "Codex security review"))
 MISSING = object()
 
@@ -363,30 +366,50 @@ def parse_review_threads(value: object) -> list[Thread]:
     ]
 
 
+def codex_review_kind(sha: str | None, status: str | None, head: str) -> CheckKind | None:
+    if sha == head:
+        if status == "completed":
+            return None
+        return "pending" if status is None or status in CODEX_ACTIVE else "failed"
+    # A review queued before it records its commit is about to cover the head.
+    return "pending" if sha is None and status in CODEX_ACTIVE else None
+
+
+def parse_codex_state(body: str) -> list[tuple[str, str | None, str | None]]:
+    """Return (check name, commit sha, status) for each review in the comment's Codex marker."""
+    start = body.find(CODEX_MARKER)
+    if start < 0:
+        return []
+    payload, closed, _ = body[start + len(CODEX_MARKER) :].partition("-->")
+    try:
+        if not closed:
+            missing("codex-review-state", body[start:][:240])
+        state = record(parse_json(payload, "codex-review-state"), "codex-review-state")
+        reviews: list[tuple[str, str | None, str | None]] = []
+        for key, name in CODEX_REVIEWS:
+            if (value := state.get(key)) is not None:
+                review = record(value, "codex-review-state." + key)
+                sha = nullable_string(review.get("commit_sha"), f"codex-review-state.{key}.commit_sha")
+                reviews.append((name, sha, nullable_string(review.get("status"), f"codex-review-state.{key}.status")))
+        return reviews
+    except QueryError as error:
+        # The marker does not change between retries, so report it at once.
+        raise QueryError("codex-review-state", error.failure["detail"], False) from error
+
+
 def parse_comment_reviews(nodes: list[object], head: str) -> list[Check]:
-    pending: list[Check] = []
+    reviews: list[Check] = []
     for raw in nodes:
         node = record(raw, "PR comment")
         author = at(node, "author")
         if author is None or nullable_string(at(author, "login"), "author.login") not in CODEX_AUTHORS:
             continue
-        match = CODEX_STATE.search(string(at(node, "body"), "comment.body"))
-        if match is None:
-            continue
-        state = record(parse_json(match[1], "codex-review-state"), "codex-review-state")
-        for key, name in CODEX_REVIEWS:
-            if (review := state.get(key)) is None:
-                continue
-            review = record(review, "codex-review-state." + key)
-            sha = nullable_string(review.get("commit_sha"), f"codex-review-state.{key}.commit_sha")
-            status = nullable_string(review.get("status"), f"codex-review-state.{key}.status")
-            # Only "completed" is a known terminal status, so any other one waits; --timeout bounds it.
-            if sha == head and status is not None and status != "completed":
+        for name, sha, status in parse_codex_state(string(at(node, "body"), "comment.body")):
+            if (kind := codex_review_kind(sha, status, head)) is not None:
                 link = string(at(node, "url"), "comment.url")
-                pending.append(
-                    check({"name": name, "description": "", "link": link, "workflow": ""}, "pending", status.upper())
-                )
-    return pending
+                details: CheckDetails = {"name": name, "description": "", "link": link, "workflow": ""}
+                reviews.append(check(details, kind, (status or "unknown").upper()))
+    return reviews
 
 
 def graphql_args(query: str, context: Context, after: str | None = None) -> list[str]:
@@ -576,7 +599,7 @@ class GitHubReader:
         return parse_review_threads({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}})
 
     def comment_reviews(self, context: Context, head: str | None) -> list[Check]:
-        """Pending checks for review bots that report progress on the head commit in a PR comment."""
+        """Checks for review bots that report progress on the head commit in a PR comment."""
         if head is None:
             return []
         nodes: list[object] = []

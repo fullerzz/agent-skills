@@ -185,7 +185,7 @@ def read_snapshot(reader: Reader, context: Context, pending_history: str = "incl
         "facts": facts,
         "threads": threads,
         "ci": ci,
-        "reviewAutomationRunning": bool(bot_reviews)
+        "reviewAutomationRunning": any(c["kind"] == "pending" for c in bot_reviews)
         or any(
             c["kind"] == "pending"
             and any(
@@ -205,12 +205,23 @@ def conflict_blocker(row: Snapshot) -> MergeConflicts | None:
     return None
 
 
-def thread_blocker(row: Snapshot, threads: ThreadPolicy = "block") -> ReviewThreads | None:
+def answered_threads(threads: ThreadPolicy, rows: list[Snapshot]) -> frozenset[str] | None:
+    """Warn mode accepts the threads open at its first poll; None accepts none."""
+    if threads == "block":
+        return None
+    return frozenset(t["id"] for row in rows if row["kind"] == "open" for t in row["threads"])
+
+
+def thread_blocker(row: Snapshot, answered: frozenset[str] | None = None) -> ReviewThreads | None:
     if row["kind"] != "open" or not row["threads"]:
         return None
-    # Warned threads stop the watch only once CI is clean and the forge still refuses the merge,
+    # Answered threads stop the watch only once CI is clean and the forge still refuses the merge,
     # which is how a required conversation resolution shows.
-    if threads == "warn" and (row["ci"]["kind"] != "ci-clean" or row["facts"]["mergeStateStatus"] != "BLOCKED"):
+    if (
+        answered is not None
+        and all(t["id"] in answered for t in row["threads"])
+        and (row["ci"]["kind"] != "ci-clean" or row["facts"]["mergeStateStatus"] != "BLOCKED")
+    ):
         return None
     return {"kind": "review-threads", "pr": row["context"], "threads": row["threads"]}
 
@@ -244,7 +255,7 @@ def gate_blocker(row: Snapshot, allow_draft: bool) -> MergeGate | None:
     return {"kind": "merge-gate", "pr": row["context"], "reason": reason}
 
 
-def ready_contribution(row: Snapshot, allow_draft: bool, threads: ThreadPolicy = "block") -> Contribution | None:
+def ready_contribution(row: Snapshot, allow_draft: bool, answered: frozenset[str] | None = None) -> Contribution | None:
     if row["kind"] == "merged":
         return {"kind": "merged-pr", "context": row["context"], "mergedAt": row["facts"]["mergedAt"]}
     if row["kind"] != "open":
@@ -252,7 +263,7 @@ def ready_contribution(row: Snapshot, allow_draft: bool, threads: ThreadPolicy =
     ci = row["ci"]
     if (
         ci["kind"] != "ci-clean"
-        or thread_blocker(row, threads)
+        or thread_blocker(row, answered)
         or conflict_blocker(row)
         or gate_reason(row, allow_draft)
     ):
@@ -273,10 +284,12 @@ def ready_contribution(row: Snapshot, allow_draft: bool, threads: ThreadPolicy =
     }
 
 
-def select_stack_decision(rows: list[Snapshot], allow_draft: bool = False, threads: ThreadPolicy = "block") -> Decision:
+def select_stack_decision(
+    rows: list[Snapshot], allow_draft: bool = False, answered: frozenset[str] | None = None
+) -> Decision:
     tiers: tuple[Callable[[Snapshot], Blocker | None], ...] = (
         conflict_blocker,
-        lambda row: thread_blocker(row, threads),
+        lambda row: thread_blocker(row, answered),
         ci_blocker,
         lambda row: gate_blocker(row, allow_draft),
     )
@@ -288,7 +301,7 @@ def select_stack_decision(rows: list[Snapshot], allow_draft: bool = False, threa
     for row in rows:
         if row["kind"] == "open" and row["ci"]["kind"] == "ci-pending":
             return {"kind": "waiting", "frontier": row["context"], "pending": row["ci"]["pending"]}
-    prs = [pr for row in rows if (pr := ready_contribution(row, allow_draft, threads)) is not None]
+    prs = [pr for row in rows if (pr := ready_contribution(row, allow_draft, answered)) is not None]
     if not rows or len(prs) != len(rows):
         raise ValueError("stack has no classified decision")
     return {"kind": "clear", "prs": prs}
@@ -382,8 +395,10 @@ def run_simple(
     stamp = verdict_factory(clock, mode)
     if status_only:
         options = replace(options, max_query_errors=1)
+    answered: frozenset[str] | None = None
 
     def step() -> StepResult:
+        nonlocal answered
         rows = [read_snapshot(reader, context) for context in contexts]
         if status_only:
             return Terminal(
@@ -391,7 +406,9 @@ def run_simple(
             )
         if mode == "stack":
             emit({**stamp(), "kind": "STATUS", "terminal": False, "reason": "poll", "rows": rows})
-        decision = select_stack_decision(rows, options.allow_draft, options.threads)
+        if answered is None:
+            answered = answered_threads(options.threads, rows)
+        decision = select_stack_decision(rows, options.allow_draft, answered)
         if decision["kind"] == "blocker":
             return Terminal(blocker_verdict(stamp, decision["blocker"]))
         if decision["kind"] == "clear":
@@ -423,6 +440,7 @@ class QueuedWatcher:
         self.frontier: Context | None = None
         self.last_wait: tuple[str, int, int] | None = None
         self.sweeping = True
+        self.answered: frozenset[str] | None = None
 
     def complete(self, rows: list[Snapshot]) -> Terminal:
         merged: list[MergedPr] = [
@@ -466,7 +484,9 @@ class QueuedWatcher:
         active: list[Snapshot] = [r for r in rows if r["kind"] != "merged"]
         if not active:
             return self.complete(rows)
-        decision = select_stack_decision(active, self.options.allow_draft, self.options.threads)
+        if self.answered is None:
+            self.answered = answered_threads(self.options.threads, rows)
+        decision = select_stack_decision(active, self.options.allow_draft, self.answered)
         if decision["kind"] == "blocker":
             return Terminal(blocker_verdict(self.stamp, decision["blocker"]))
         current = active[0]["context"]
