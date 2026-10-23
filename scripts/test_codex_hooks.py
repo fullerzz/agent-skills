@@ -20,6 +20,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "hooks/session_start.py"
+# Controls name the base interpreter even when the hook runs inside a virtual environment.
+INTERPRETER = os.path.realpath(getattr(sys, "_base_executable", None) or sys.executable)
 
 
 class CodexHooksTests(unittest.TestCase):
@@ -231,7 +233,7 @@ class CodexHooksTests(unittest.TestCase):
             context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
             enable = self.command(context, "enable")
             self.assertEqual(shlex.split(enable)[-2:], [str(self.data), "enable"])
-            self.assertIn(f"PowerShell control: & '{os.path.realpath(sys.executable)}'", context)
+            self.assertIn(f"PowerShell control: & '{INTERPRETER}'", context)
             self.assertTrue(self.command(context, "disable", "PowerShell").endswith(" 'disable'"))
         context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
         enable = self.command(context, "enable")
@@ -344,7 +346,7 @@ class CodexHooksTests(unittest.TestCase):
             )
             self.assertEqual("Herdr execution was explicitly enabled" in self.hook(session="child"), label == "Herdr")
             self.assertIn("Herdr execution was explicitly enabled", self.hook(session="parent"))
-        self.assertIn(f"PowerShell control: & '{os.path.realpath(sys.executable)}'", context)
+        self.assertIn(f"PowerShell control: & '{INTERPRETER}'", context)
         self.hook(session="parent", source="clear")
         self.assertEqual(list((self.data / "z-mode").iterdir()), [])
 
@@ -427,29 +429,35 @@ class CodexHooksTests(unittest.TestCase):
             self.assertEqual("blocked controls" in stderr.getvalue(), code in (errno.EPERM, errno.EACCES, errno.EROFS))
         self.assertEqual(list(self.data.iterdir()), [])
 
-    @unittest.skipIf(os.name != "posix", "venv interpreters are symlinks on POSIX")
+    @unittest.skipIf(os.name != "posix", "uses POSIX venv layout")
     def test_controls_ignore_an_interpreter_planted_in_the_working_directory(self) -> None:
-        # uv run would pick a .venv in the working directory, which a sandboxed command can write.
-        planted = self.data / "project/.venv"
-        venv.EnvBuilder(symlinks=True, with_pip=False).create(planted)
-        interpreter = planted / "bin/python"
-        self.assertTrue(interpreter.is_symlink())
-        result = subprocess.run(  # noqa: S603 - Isolated fixture interpreter and local helper.
-            [str(interpreter), "-I", "-S", str(HELPER), "--host=codex"],
-            input=json.dumps({"hook_event_name": "SessionStart", "source": "startup", "session_id": "session-a"}),
-            text=True,
-            capture_output=True,
-            check=True,
-            cwd=planted.parent,
-            env=self.env,
-        )
-        context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-        argv = shlex.split(self.command(context, "enable"))
-        self.assertEqual(argv[0], os.path.realpath(interpreter))
-        self.assertFalse(Path(argv[0]).is_relative_to(self.data))
-        self.assertTrue(self.command(context, "enable", "PowerShell").startswith(f"& '{argv[0]}' '-I' '-S' "))
-        subprocess.run(argv, check=True, cwd=planted.parent, env=self.env)  # noqa: S603 - Emitted control.
-        self.assertTrue((self.data / "z-mode/session-a.json").is_file())
+        # uv run would pick a .venv in the working directory, which a sandboxed command can later overwrite.
+        for symlinks in (True, False):
+            with self.subTest(symlinks=symlinks):
+                planted = self.data / f"project-{symlinks}/.venv"
+                venv.EnvBuilder(symlinks=symlinks, with_pip=False).create(planted)
+                interpreter = planted / "bin/python"
+                self.assertEqual(interpreter.is_symlink(), symlinks)
+                result = subprocess.run(  # noqa: S603 - Isolated fixture interpreter and local helper.
+                    [str(interpreter), "-I", "-S", str(HELPER), "--host=codex"],
+                    input=json.dumps(
+                        {"hook_event_name": "SessionStart", "source": "startup", "session_id": "session-a"}
+                    ),
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    cwd=planted.parent,
+                    env=self.env,
+                )
+                context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+                argv = shlex.split(self.command(context, "enable"))
+                self.assertEqual(argv[0], INTERPRETER)
+                self.assertFalse(Path(argv[0]).is_relative_to(self.data))
+                powershell = self.command(context, "enable", "PowerShell")
+                self.assertTrue(powershell.startswith(f"& '{argv[0]}' '-I' '-S' "))
+                subprocess.run(argv, check=True, cwd=planted.parent, env=self.env)  # noqa: S603 - Emitted control.
+                self.assertTrue((self.data / "z-mode/session-a.json").is_file())
+                self.control("disable")
 
     def test_context_explains_persistence_under_a_sandbox(self) -> None:
         render = runpy.run_path(str(HELPER))["build_context"]

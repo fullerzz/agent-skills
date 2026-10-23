@@ -131,13 +131,14 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     path = state_path(data_dir, session_id)
     active, execution, clear_error = restore_state(path, source)
     helper = os.path.realpath(__file__)
-    if not sys.executable:
+    # A control may rerun outside a sandbox, so emit the base interpreter fixed at hook start: a working-directory
+    # .venv that uv chose (symlinked or copied) stays writable by sandboxed commands. This also skips blocked shims.
+    interpreter = getattr(sys, "_base_executable", None) or sys.executable
+    if not interpreter:
         raise ValueError("Python executable unavailable")
     # One template per shell keeps the context inside Codex's 4000-character limit with real paths.
     arguments = [
-        # A control may rerun outside a sandbox, so the working directory must not choose its interpreter
-        # (uv would use a planted .venv); resolving a venv symlink also skips launcher shims the sandbox blocks.
-        os.path.realpath(sys.executable),
+        os.path.realpath(interpreter),
         "-I",
         "-S",
         helper,
