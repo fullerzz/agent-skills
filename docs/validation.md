@@ -6,7 +6,7 @@ outline: [2, 3]
 
 ## Watcher thread policy and comment reviews — 2026-10-22 {#watcher-thread-policy}
 
-Issue #64: `watch-pr` ended watch mode on any unresolved review thread, even after the author replied and GitHub reported the PR `CLEAN`. It also ignored the Codex connector, which reports review progress in an edited PR comment rather than a check. `reviewAutomationRunning` only affected the status table and never held back READY.
+Issue #64 (shared native manifests `0.18.3`): `watch-pr` ended watch mode on any unresolved review thread, even after the author replied and GitHub reported the PR `CLEAN`. It also ignored the Codex connector, which reports review progress in an edited PR comment rather than a check. `reviewAutomationRunning` only affected the status table and never held back READY.
 
 - `--threads warn` keeps watching past the threads open at its first poll. Those threads block only once CI is clean and the forge still reports `BLOCKED`, which is how a required conversation resolution appears. A thread that appears later blocks at once, so findings from the review the watcher waited for are not folded into READY. READY lists the accepted threads in `proof.threads`, and `--pretty` names the count. `--threads block` is the default and keeps the previous contract.
 - The GitHub reader pages PR comments and reads the `codex-review-state:v1` marker from `chatgpt-codex-connector`.
