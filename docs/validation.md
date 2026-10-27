@@ -4,6 +4,19 @@ outline: [2, 3]
 
 # Validation
 
+## Bundled Codex agents and manual installation — 2026-10-26
+
+The Codex package now includes tracked `agents/` files. Shared native manifests are `0.18.4`. The README, setup guide, and Codex host guide document copying `agents/codex/z-agent.toml` into `${CODEX_HOME:-$HOME/.codex}/agents/` while keeping plugin skills installed. The copy prompts before overwriting an existing role, and the host guide covers updates, removal, and `comment-sicko`.
+
+Checks on this macOS host:
+
+- `uv run scripts/package_plugin.py` rebuilt the package with both Codex TOML roles. The new packaging regression checks working-tree agent contents and excludes an untracked personal role; it fails with the old resource list and passes with `agents` included.
+- The documented shell commands copied the exact source bytes from both the checkout and staged package into disposable `CODEX_HOME` paths containing spaces. Declining an overwrite preserved a customized file. Personal Codex configuration was untouched.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 55 passed, zero failures, 51 skipped because TLC was unavailable. Python unittest discovery: all 153 tests passed. Ruff check and format check on both changed Python files, and `git diff --check`, passed. Checks used Homebrew uv and Node to avoid the sandbox-blocked mise shims.
+- Mypy passed on both changed Python files. The additional project-wide run reported an existing `run_queued` argument-type error at `scripts/test_pr_watcher.py:746`; the same command against an isolated archive of base commit `3a8dbb5` reported the identical error.
+
+The installed CLI reports `codex-cli 0.164.0`; static inspection of its plugin manifest parser found skills, MCP servers, and hooks, but no `agents` field. The manifest therefore retains its existing supported declarations. Packaging and manual-copy checks do not prove discovery or a live `z-agent` spawn in a fresh Codex session; those checks and a personal plugin refresh were not performed.
+
 ## Watcher thread policy and comment reviews — 2026-10-22 {#watcher-thread-policy}
 
 Issue #64 (shared native manifests `0.18.3`): `watch-pr` ended watch mode on any unresolved review thread, even after the author replied and GitHub reported the PR `CLEAN`. It also ignored the Codex connector, which reports review progress in an edited PR comment rather than a check. `reviewAutomationRunning` only affected the status table and never held back READY.
