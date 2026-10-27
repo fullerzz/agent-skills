@@ -31,7 +31,7 @@ With native execution, use the selected host's native agent tool and omit model 
 
 Select roles only when exposed by the worker's host:
 
-- **Codex:** Native workers are the normal path for plugin installations. To expose `z-agent` for scoped engineering work or `comment-sicko` for comment reports, copy its bundled `agents/codex/*.toml` file into `$CODEX_HOME/agents/` (default `~/.codex/agents/`) and start a new session. The linked installer also supplies these roles. Use them only when exposed.
+- **Codex:** Native workers are the normal path for plugin installations. To expose `z-agent` for scoped engineering work or `comment-sicko` for comment reports, copy the plugin-root `agents/codex/z-agent.toml` or `agents/codex/comment-sicko.toml` into `$CODEX_HOME/agents/` (default `~/.codex/agents/`) and start a new session. Resolve the plugin root two directories above the real z-mode `SKILL.md`, not from the target cwd. The linked installer also supplies these roles. Use them only when exposed.
 - **Claude Code:** Prefer the plugin's `zstack:z-agent` and `zstack:comment-sicko`, or the linked installation's unqualified names, when exposed. Otherwise use an available native worker with the same scoped brief.
 - **Hermes:** Use available native delegation with the same scoped brief; the plugin registers no agent roles.
 
