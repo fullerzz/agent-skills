@@ -2,7 +2,7 @@
 
 ## Native plugin
 
-The staged Codex package contains `.codex-plugin/plugin.json`, shared `skills/`, `hooks/`, and the license. It needs uv for the hook and optional Python helpers. Installation does not install uv or grant hook trust.
+The staged Codex package contains `.codex-plugin/plugin.json`, shared `skills/`, `hooks/`, `agents/`, and the license. Bundled agent files require the manual installation below; plugin installation does not register them. The package needs uv for the hook and optional Python helpers. Installation does not install uv or grant hook trust.
 
 If you already installed linked skills, preview and apply removal using the original scope before enabling the plugin:
 
@@ -45,7 +45,20 @@ For Codex 0.157+, use the [shared-daemon workaround](../guide/herdr.md#known-cod
 
 ### Native agents
 
-This package does not register `agents/codex/` as plugin roles. Built-in native workers are the normal execution path; existing native agent copies may also be used when exposed. Give workers the same scoped brief and z-mode instruction path described in the [native contract](../../skills/z-mode/references/native-hosts.md#delegation). Use the linked installation below if you need the installer-managed native roles, and disable/remove the plugin to avoid duplicate skills. See [OpenAI's conversion guidance](https://developers.openai.com/plugins/guides/submit-claude-plugin) for the distinction between reusable plugin skills and agent files.
+The plugin bundles `agents/codex/` but does not register those files as subagent roles. Codex's plugin manifest parser in the inspected CLI 0.164.0 has no `agents` field. Built-in native workers remain available; give them the scoped brief and z-mode instruction path described in the [native contract](../../skills/z-mode/references/native-hosts.md#delegation).
+
+To add `z-agent` while keeping the native plugin, run these commands from this checkout:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/agents"
+cp -i agents/codex/z-agent.toml "${CODEX_HOME:-$HOME/.codex}/agents/z-agent.toml"
+```
+
+This uses your configured `CODEX_HOME`, or `~/.codex` by default. `cp -i` prompts before overwriting an existing copy; keep any customizations you need. The staged package also contains the source at `dist/zstack/agents/codex/z-agent.toml` after packaging. Manual copying adds only the role, so it does not duplicate plugin skills or require removing the plugin.
+
+Start a new Codex session and confirm `z-agent` appears among the available subagent roles before selecting it. [OpenAI documents standalone TOML files in the personal agents directory](https://learn.chatgpt.com/docs/agent-configuration/subagents) as the custom-agent registration path. Installing the file does not activate z-mode in the parent session or authorize delegation. Repeat the copy after updating this checkout to update the role; plugin refreshes do not update the personal copy. To remove it, delete only the `z-agent.toml` copy you installed, then start a new session.
+
+For `comment-sicko`, use the same commands with `comment-sicko.toml` in place of `z-agent.toml`. The linked installation below also manages both roles, together with skill links; avoid combining those linked skills with the plugin.
 
 ### Plugin update and removal
 
@@ -71,7 +84,7 @@ Confirm `zstack@zstack-local` is installed and enabled. In a new session, check 
 | Duplicate skill names | Remove the old linked installation in its original scope before using the plugin. |
 | Checkout edits are missing | Rebuild `dist/zstack`, remove and add the cached plugin, then start a new session. |
 | Skills load but mode persistence is unavailable | Check hook trust, including after a refresh that changed the hook definition, and whether uv is available on the execution host. |
-| `z-agent` or `comment-sicko` is unavailable | Expected for plugin installations; use available native workers. The linked installation supplies installer-managed roles if needed. |
+| `z-agent` or `comment-sicko` is unavailable | Plugin installation alone does not register roles. Follow [Native agents](#native-agents) to copy the desired TOML into your personal agents directory, then start a new session; use available native workers otherwise. |
 | CLI reports it could not create PATH aliases | Check the command's exit status and output. This is a Codex CLI startup warning, not a zstack hook error. In the recorded sandbox check, help and plugin listing still succeeded. |
 
 Installed/enabled status proves registration, not skill execution. See the [validation record](../validation.md) for observed host behavior and remaining gaps.

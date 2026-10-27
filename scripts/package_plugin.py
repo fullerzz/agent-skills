@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-RESOURCES = (".codex-plugin", "LICENSE", "skills", "hooks")
+RESOURCES = (".codex-plugin", "LICENSE", "skills", "hooks", "agents")
 IGNORED = {
     ".git",
     "node_modules",

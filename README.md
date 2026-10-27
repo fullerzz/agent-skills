@@ -21,7 +21,14 @@ codex plugin marketplace add "$PWD"
 codex plugin add zstack@zstack-local
 ```
 
-Start a new session and select `zstack:how` from the skill picker. Review hook trust separately. The plugin packages skills and the hook; it does not register native agent roles.
+Start a new session and select `zstack:how` from the skill picker. Review hook trust separately. The plugin bundles native agent files but does not register their roles. To add `z-agent` while keeping the plugin, run these commands from this checkout, then start a new session:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/agents"
+cp -i agents/codex/z-agent.toml "${CODEX_HOME:-$HOME/.codex}/agents/z-agent.toml"
+```
+
+The copy prompts before overwriting an existing file. See [native agent setup](docs/hosts/codex.md#native-agents) for updates, removal, and the optional comment reviewer.
 
 Claude Code loads the same checkout in place as a native plugin: shared skills, the same `SessionStart` hook, and both agent roles. See [Claude Code plugin setup](docs/hosts/claude-code.md#native-plugin) for migration from linked skills and hook behavior. Every skill except `setup-zstack` stays explicit in Claude Code.
 

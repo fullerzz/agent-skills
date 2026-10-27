@@ -15,6 +15,25 @@ def track(root: Path) -> None:
 
 
 class PackagePluginTests(unittest.TestCase):
+    def test_codex_agents_are_bundled_with_working_tree_contents(self) -> None:
+        source = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in (".codex-plugin/plugin.json", "LICENSE", "hooks/codex.json", "skills/z-mode/SKILL.md"):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / name, target)
+            shutil.copytree(source / "agents", root / "agents")
+            track(root)
+            agent = root / "agents/codex/z-agent.toml"
+            agent.write_text(agent.read_text() + "\n# working tree modification\n")
+            (root / "agents/codex/personal.toml").write_text("private")
+            staged = package(root)
+            for agent in (root / "agents/codex").glob("*.toml"):
+                if agent.name != "personal.toml":
+                    self.assertEqual((staged / agent.relative_to(root)).read_bytes(), agent.read_bytes())
+            self.assertFalse((staged / "agents/codex/personal.toml").exists())
+
     def test_ketchup_bundles_visual_guidance_attribution_and_policy(self) -> None:
         source = Path(__file__).resolve().parent.parent
         with tempfile.TemporaryDirectory() as temporary:
@@ -24,6 +43,7 @@ class PackagePluginTests(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source / name, target)
             shutil.copytree(source / "skills/ketchup", root / "skills/ketchup")
+            shutil.copytree(source / "agents", root / "agents")
             track(root)
             staged = package(root)
             for name in (
@@ -45,6 +65,7 @@ class PackagePluginTests(unittest.TestCase):
             for name in (
                 ".codex-plugin/plugin.json",
                 "LICENSE",
+                "agents/codex/z-agent.toml",
                 "skills/z-mode/SKILL.md",
                 "skills/z-mode/scripts/tool.ts",
                 "skills/z-mode/scripts/package.json",
@@ -91,6 +112,8 @@ class PackagePluginTests(unittest.TestCase):
             (root / "skills").mkdir()
             (root / "hooks").mkdir()
             (root / "hooks/hooks.json").write_text("{}")
+            (root / "agents").mkdir()
+            (root / "agents/z-agent.toml").write_text("agent")
             (root / "outside").write_text("preserve")
             (root / "skills/escape").symlink_to("../outside")
             track(root)
@@ -107,7 +130,13 @@ class PackagePluginTests(unittest.TestCase):
             root = Path(temporary)
             with self.assertRaises((ValueError, subprocess.CalledProcessError)):
                 package(root)
-            for name in (".codex-plugin/plugin.json", "LICENSE", "skills/tool.txt", "hooks/hooks.json"):
+            for name in (
+                ".codex-plugin/plugin.json",
+                "LICENSE",
+                "skills/tool.txt",
+                "hooks/hooks.json",
+                "agents/z-agent.toml",
+            ):
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(name)
@@ -136,7 +165,13 @@ class PackagePluginTests(unittest.TestCase):
     def test_lexical_routes_parent_symlinks_and_repository_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for name in (".codex-plugin/plugin.json", "LICENSE", "skills/sub/tool.txt", "hooks/hooks.json"):
+            for name in (
+                ".codex-plugin/plugin.json",
+                "LICENSE",
+                "skills/sub/tool.txt",
+                "hooks/hooks.json",
+                "agents/z-agent.toml",
+            ):
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(name)

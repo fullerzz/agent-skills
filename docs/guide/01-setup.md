@@ -19,7 +19,7 @@ Choose one installation method per host.
 
 | Method | Includes | Use when |
 | --- | --- | --- |
-| [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
+| [Native Codex plugin](../hosts/codex.md#native-plugin) | Namespaced skills, agent files for manual copying, and a session hook | You want plugin management and session-scoped mode persistence after trusting the hook. |
 | [Native Claude Code plugin](../hosts/claude-code.md#native-plugin) | Namespaced skills, agent roles, and a session hook, loaded in place | You want plugin management and session-scoped mode persistence in Claude Code. |
 | [Native Hermes plugin](../hosts/hermes.md) | Explicit namespaced skills and session hooks | You want Hermes plugin management and session-scoped mode controls. |
 | Linked installer | Skill links and copied native agent roles | You need project-scoped installs or installer-managed Codex roles. |
@@ -36,7 +36,14 @@ codex plugin add zstack@zstack-local
 
 Start a new session and select `zstack:how` in the skill picker for a small read-only question. Review and trust the session hook through Codex before using mode persistence. Installation does not activate z-mode. `how`, `why`, and `python-best-practices` permit automatic selection in Codex.
 
-If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin does not register native agent roles; use available native workers with scoped briefs and report capability gaps that affect the requested work. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
+If you already use linked Codex skills, follow the [migration steps](../hosts/codex.md#native-plugin) first to avoid duplicate skills. The plugin bundles agent files but does not register native agent roles. To add `z-agent` while keeping the plugin, run these commands from this checkout, then start a new session:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/agents"
+cp -i agents/codex/z-agent.toml "${CODEX_HOME:-$HOME/.codex}/agents/z-agent.toml"
+```
+
+The copy prompts before overwriting an existing file. See [native agent setup](../hosts/codex.md#native-agents) for updates and removal. Use available native workers with scoped briefs when the role is unavailable, and report capability gaps that affect the requested work. Plugin updates require restaging and refreshing the cached package; see [plugin update and removal](../hosts/codex.md#plugin-update-and-removal).
 
 ### Native Claude Code plugin
 
