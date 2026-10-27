@@ -107,7 +107,7 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 - Verify with project harnesses and create-verification-skill.
 - Check invariants with explicitly invoked [create-formal-verification-skill](docs/reference/workflow-skills.md#create-formal-verification-skill), which produces reusable checks with stated bounds and demonstrated failure detection.
 - Refresh formal checks after code changes with explicitly invoked [maintain-formal-verification-skill](docs/reference/workflow-skills.md#maintain-formal-verification-skill), separating outdated verification from product bugs.
-- Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): TLA+ counterexample paths, chart-to-model skeletons, and specification comparisons, rendered with Mermaid PNG or Pele SVG. Model findings need real-code reproduction before becoming software bug claims.
+- Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): one command checks a TLA+ model with TLC, draws a Mermaid statechart, and reports the shortest path to each broken rule, with optional Pele SVG rendering. Model findings need real-code reproduction before becoming software bug claims.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.

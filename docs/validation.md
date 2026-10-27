@@ -4,6 +4,19 @@ outline: [2, 3]
 
 # Validation
 
+## Statechart compiler — 2026-10-27 {#statechart-compiler}
+
+Ported the pstack statechart compiler from the `519d36aa` tree (#977, #982, #981). Shared native manifests are `0.19.0`. Checks ran on macOS with Node `24.22.1`, Java `25.0.2`, and tla2tools `1.7.4` (sha256 `936a2620…0e88`, matching upstream's pin), downloaded to a session scratch folder. Personal mise and npm configuration was untouched.
+
+- Unmodified upstream suite, with TLC, fast-check `4.5.3`, Pele `1.9.0`, and Mermaid `11.16.0` (render cache in scratch): 366 of 367 passed. The failure was the relative-symlink launcher test, which builds its link with lexical `path.relative` under macOS's `/var` → `/private/var` TMPDIR. With a resolved TMPDIR, both launcher tests passed. The test now resolves its link folder.
+- Adapted suite, same setup, on the final scripts and references: 368 of 368 passed (upstream's 367, including the fixed launcher test, plus one new view-key test).
+- `node --test scripts/*.test.mjs` without TLC: 210 passed, 0 failed, 61 skipped. Skips cover TLC-backed statechart tests, the differential suite (needs fast-check), and the render suite (needs `STATECHART_RENDER_TESTS=1`).
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. Python discovery: 153 tests passed. `git diff --check` passed.
+- Live launcher with real TLC: a model with `[k \in {A, "A"} |-> 0]` and a view exited 2 with the key-collision message. Without a view it exited 0 and drew two states. A model with integer `9007199254740992` exited 2 because TLC refused the number ("TLC can't handle a number this big"), so the old safe-integer guard was dropped as unreachable.
+- In an ad hoc probe model, SANY's XML exporter crashed on `@` inside `EXCEPT` and the command exited 2 with SANY's stack trace. This was not investigated further; the probe was rewritten without `@`.
+
+Bun and Deno launch paths, the mise auto-install path, `tsc` type checking, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised.
+
 ## Bundled Codex agents and manual installation — 2026-10-26
 
 The Codex package now includes tracked `agents/` files. Shared native manifests are `0.18.4`. The README, setup guide, and Codex host guide document copying `agents/codex/z-agent.toml` into `${CODEX_HOME:-$HOME/.codex}/agents/` while keeping plugin skills installed. The copy prompts before overwriting an existing role, and the host guide covers updates, removal, and `comment-sicko`.

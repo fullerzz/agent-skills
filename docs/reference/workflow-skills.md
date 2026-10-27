@@ -254,20 +254,20 @@ Make a TLA+ model and its counterexamples readable to someone deciding what the 
 | Host | Example invocation |
 | --- | --- |
 | Codex | `$statechart Draw the sync model and its counterexamples with Pele; reproduce findings in the code before calling them bugs.` |
-| Claude Code | `/statechart Compare the code-derived model with the agreed specification and render Mermaid PNGs.` |
-| Hermes | Load `zstack:statechart` with `skill_view` and provide the model or agreed chart. |
+| Claude Code | `/statechart Check the upload model and show the shortest path to each broken rule.` |
+| Hermes | Load `zstack:statechart` with `skill_view` and provide the model. |
 
 ### How it works
 
-`from-spec` checks invariants and temporal properties separately with TLC, projects reachable states into readable Mermaid diagrams, and draws numbered counterexample paths. `--fixed` compares a proposed fix; `--against` compares with an unchanged specification using its own config. Select configs with `--config`, `--fixed-config`, and `--against-config`. Missing comparison fields are not invented; unchecked rules are labeled explicitly. Multicore invariant checks replay failures with one worker for shortest paths. Temporal results name their TLC evidence and are not drawn as state counterexamples. `from-chart` generates a TLA+ skeleton, config, and mapping, then compares the checked model's chart with the original. It supports nested states and top-level parallel regions within its documented chart subset.
+`scripts/statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]` checks the model with TLC on the config as written, rechecks after each broken rule, and draws the state graph as Mermaid. A view module labels states and steps in the reader's words and can supply nested states, parallel regions, phase colors, and a title. Above 500 states, the chart draws only paths to broken rules. Rules that a bounded rerun or TLC error left unchecked are listed explicitly rather than treated as passing. Temporal properties that break on a loop show the path into the loop and the repeating states.
 
 ### Expected result
 
-Mermaid sources, stories, summary counts, TLC evidence, and optional Mermaid PNG (`--png`) or Pele SVG (`--pele`) files. Findings remain model counterexamples until an isolated test or live reproduction establishes the actual code behavior. Model comparisons and generated skeletons do not prove implementation correctness.
+A `report.md` with state counts and numbered bug paths, `chart.mmd` (when the chart fits or a rule breaks), `tlc.out`, and per-rule TLC output for paths the chart cannot show. Pele SVG rendering is optional. Findings remain model counterexamples until an isolated test or live reproduction establishes the actual code behavior.
 
 ### Dependencies and limits
 
-Explicit-only on all three hosts. Requires Node, Java 11+, and a local TLC jar through `TLA2TOOLS`; `JAVA` can select the binary. Mermaid PNG uses npm/Mermaid CLI and Chromium; Pele SVG uses the `pele` package installed in the caller's working directory and needs no browser. Neither renderer is a required plugin dependency. Inspect the rendered charts because layout differs. Missing tools or a failed requested render exit 2; model evidence is retained on rendering failure. Checking and publication failures retain diagnostic work. Filesystems without directory rename use copying; overlapping copy-based publications may mix files, so use distinct output directories there. Use an owned scratch folder, review executable mapping modules, and keep user annotations outside generated output folders. Product edits and publication need their own authorization.
+Explicit-only on all three hosts. Requires Node 22.18–22.x or 23.6+, Bun 1.1.5+, or Deno 2+, and Java 11+. Set `TLA2TOOLS` (and optionally `JAVA`) to use a local TLC; otherwise the first run installs checksum-pinned tla2tools 1.7.4 and Temurin 25 through mise, which needs the network and approval. The output folder must be new or empty, and only exits 0 and 1 write output. Pele is installed in an owned scratch folder and is not a plugin dependency. The `from-chart` skeletons, `--fixed`/`--against` comparisons, and Mermaid PNG flags were removed with upstream's compiler replacement. Review view modules as executable code. Product edits and publication need their own authorization.
 
 [Full statechart instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/statechart/SKILL.md)
 
