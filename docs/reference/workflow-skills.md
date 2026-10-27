@@ -259,7 +259,7 @@ Make a TLA+ model and its counterexamples readable to someone deciding what the 
 
 ### How it works
 
-`scripts/statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]` checks the model with TLC on the config as written, rechecks after each broken rule, and draws the state graph as Mermaid. A view module labels states and steps in the reader's words and can supply nested states, parallel regions, phase colors, and a title. Above 500 states, the chart draws only paths to broken rules. Rules that a bounded rerun or TLC error left unchecked are listed explicitly rather than treated as passing. Temporal properties that break on a loop show the path into the loop and the repeating states.
+`scripts/statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]` checks the model with TLC on the config as written, rechecks after each broken rule, and draws the state graph as Mermaid. A view module labels states and steps in the reader's words and can supply nested states, parallel regions, phase colors, and a title. Above 500 states, the chart draws only paths to broken rules. Rules that a bounded or failed rerun leaves unchecked are listed explicitly rather than treated as passing. A TLC error on the config as written stops the command with exit 2 and no output. Temporal properties that break on a loop show the path into the loop and the repeating states.
 
 ### Expected result
 

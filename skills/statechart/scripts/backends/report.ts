@@ -36,7 +36,11 @@ const forever = (loop: { state: string }[], stutters: boolean | undefined) => {
     : `The run loops through ${list(runs)} forever.`;
 };
 
-const fenced = (text: string) => ["```", text, "```"].join("\n");
+const fenced = (text: string) => {
+  let fence = "```";
+  while (text.includes(fence)) fence += "`";
+  return [fence, text, fence].join("\n");
+};
 
 export function report(
   {

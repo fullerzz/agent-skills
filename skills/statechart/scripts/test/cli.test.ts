@@ -428,8 +428,8 @@ for (const signal of ["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]) {
   test(
     `${signal} while the view draws the chart stops the command, and it writes nothing`,
     { timeout: 60_000 },
-    () =>
-      signalWhile(signal, (fakes) => {
+    async () => {
+      await signalWhile(signal, (fakes) => {
         const drawing = path.join(fakes, "drawing");
         const dir = copyCase("Login", (d) =>
           fs.writeFileSync(
@@ -445,14 +445,15 @@ for (const signal of ["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]) {
           ),
         );
         return { dir, reached: () => fs.existsSync(drawing) };
-      }),
+      });
+    },
   );
 
   test(
     `${signal} while the command writes its files stops it, and it writes nothing`,
     { timeout: 60_000 },
-    () =>
-      signalWhile(signal, () => ({
+    async () => {
+      await signalWhile(signal, () => ({
         dir: gridCase(150),
         reached: (parent) => {
           for (const f of fs.readdirSync(parent, { recursive: true, encoding: "utf8" }))
@@ -463,7 +464,8 @@ for (const signal of ["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]) {
               return true;
           return false;
         },
-      })),
+      }));
+    },
   );
 }
 

@@ -16,7 +16,7 @@ Resolve this entrypoint to its real installed directory and follow the [native h
 "$STATECHART_DIR/scripts/statechart" SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 ```
 
-The launcher runs `scripts/statechart.ts` with Node 22.18–22.x or 23.6+, Bun 1.1.5+, or Deno 2+. The output folder must be new or empty; the default is `SPEC-chart` beside the spec. Exit 0 means every checked rule holds, 1 means a rule breaks, and 2 means TLC stopped with an error, a signal killed the check, or the command could not run. Only exits 0 and 1 write output.
+The launcher runs `scripts/statechart.ts` with Node 22.18–22.x or 23.6+, Bun 1.1.5+, or Deno 2+. The output folder must be new or empty; the default is `SPEC-chart` beside the spec. Exit 0 means every checked rule holds, 1 means a rule breaks, and 2 means TLC stopped with an error, a signal killed the check, or the command could not run. The launcher exits 127 when it finds no supported runtime. Only exits 0 and 1 write output.
 
 TLC needs Java 11+. Set `TLA2TOOLS` to a local [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases), and optionally `JAVA` to a Java binary. Without `TLA2TOOLS`, the command runs `mise install` for a checksum-pinned tla2tools 1.7.4 and Temurin 25, which needs the network and writes to the user's mise tool store. Ask before that first install unless the user already allowed it. Missing tools or unfinished runs are blocked evidence, never passes.
 

@@ -1214,3 +1214,39 @@ test("a graph of 10,000 states draws in seconds with no view", () => {
   assert.equal(chart.match(/^ {2}s\d+: /gm)?.length, n * n);
   assert.ok(seconds < 5, `drawing took ${seconds.toFixed(1)} s`);
 });
+
+test("a TLC graph dump step with no action name is an error, never a dropped step", () => {
+  const dot = '1 [label="x = 0",style = filled]\n2 [label="x = 1"];\n1 -> 2;\n';
+  assert.throws(() => parseDot(dot), /a step with no action name/);
+});
+
+test("a TLC stop message that holds a code fence stays in one block of the report", () => {
+  const graph = graphOf([["s0", { x: 0 }, true]], []);
+  const found = bugs(graph);
+  const { chart, stories } = project(graph, walk(graph), {}, found);
+  const message = "before\n```\n# not a heading\n````\nafter";
+  const spec: Spec = {
+    module: "Test",
+    variables: [],
+    invariants: [],
+    properties: [],
+    deadlock: false,
+    written: [],
+  };
+  const text = report(
+    {
+      spec,
+      graph,
+      paths: undefined,
+      rules: [],
+      properties: [],
+      stop: { status: 75, message },
+      drawing: undefined,
+      states: { distinct: 1, initial: 1, complete: true, cut: false },
+    },
+    found,
+    chart,
+    stories,
+  );
+  assert.ok(text.includes(`\`\`\`\`\`\n${message}\n\`\`\`\`\``), text);
+});

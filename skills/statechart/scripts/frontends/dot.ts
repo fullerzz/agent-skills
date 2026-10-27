@@ -48,8 +48,10 @@ export function parseDot(input: Lines): Graph {
     return copy;
   };
   for (const line of linesOf(input)) {
-    const edge = /^(-?\d+) -> (-?\d+) \[label="([^"]*)"/.exec(line);
+    const edge = /^(-?\d+) -> (-?\d+)(?: \[label="([^"]*)")?/.exec(line);
     if (edge) {
+      if (edge[3] === undefined)
+        throw new Error("The TLC graph dump has a step with no action name. Dump it with actionlabels.");
       steps.set(edge.slice(1).join(" "), {
         from: own(edge[1]),
         to: own(edge[2]),

@@ -15,7 +15,13 @@ Ported the pstack statechart compiler from the `519d36aa` tree (#977, #982, #981
 - Live launcher with real TLC: a model with `[k \in {A, "A"} |-> 0]` and a view exited 2 with the key-collision message. Without a view it exited 0 and drew two states. A model with integer `9007199254740992` exited 2 because TLC refused the number ("TLC can't handle a number this big"), so the old safe-integer guard was dropped as unreachable.
 - In an ad hoc probe model, SANY's XML exporter crashed on `@` inside `EXCEPT` and the command exited 2 with SANY's stack trace. This was not investigated further; the probe was rewritten without `@`.
 
-Bun and Deno launch paths, the mise auto-install path, `tsc` type checking, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised.
+Bun and Deno launch paths, the mise auto-install path, fresh Codex/Claude/Hermes invocation, and remote CI were not exercised.
+
+PR #69 review follow-up (cubic, 13 threads):
+- Fixed. An unlabeled step in the TLC dump now stops with an error instead of being dropped. A stop message containing backticks gets a longer fence in `report.md`. SKILL.md documents the launcher's 127 exit. The setup docs now require Node 22.18+ for the TypeScript tests. The workflow reference separates unchecked-rule reporting on reruns from the no-output exit on a first-run TLC error. Both new regressions failed against the unfixed code and pass now.
+- Added `typescript` 5.9.3 and `@types/node` 22.18.0 as devDependencies with a `typecheck` script. `tsc -p .` initially reported four upstream errors (an `exit` widened to `number`, and two tests returning non-void). After fixes it reports zero.
+- Declined, with evidence. Tightening the config fuzz to require a TLC error failed on a U+2029 config: TLC silently drops the following `CONSTANT` line, and the skill refuses the config by design. With real TLC 1.7.4, `CONSTANT P <- [R] Q` leaves `PROPERTY P` unreplaced while `P <- Q` replaces it, and the skill matches both. Lazily read TLC output depends on its open file descriptors after the temporary folder is removed. The `CounterOrder` dump is TLC's real output for a state past `CONSTRAINT`. An empty dump is valid for a spec with no initial states. The 10,000-state drawing took 0.32 s against its 5 s budget. The synchronous poll targets a short file-writing window.
+- Full suite with TLC, fast-check, Pele, and Mermaid: 370 of 370 passed.
 
 ## Bundled Codex agents and manual installation — 2026-10-26
 
