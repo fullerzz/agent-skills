@@ -20,6 +20,8 @@ Use the current session's trusted Herdr/Native controls to remember explicit exe
 
 ## Working posture
 
+In your first message on a task, restate in your own words the user's goal, the problem, and, when the task ships a change, the smallest change you expect to meet it. Do not wait for confirmation. If the evidence rules out the requested change, show it and stop. Restate the goal in each delegated brief.
+
 Ground changes in the actual runtime flow and callers. Favor deletion, native features, and the smallest correct change. Keep read-only investigations and reviews read-only. Preserve dirty and concurrent work. Verify the real outcome and label missing proof.
 
 Use the project's existing harness or relevant installed verification skill. Name a missing capability when it prevents required proof. Companion plugins are optional, never assumed.
@@ -48,8 +50,8 @@ Read only the selected playbook. Resolve companion skills through the catalog or
 - [Authorized landing](playbooks/shipping.md)
 - [Bounded autonomous task](playbooks/autonomous-run.md)
 - [Program coordination](playbooks/orchestrate.md)
-- [Independent queue](playbooks/autopilot-full.md)
-- [Dependent queue](playbooks/autopilot-stack.md)
+- [Autonomous queue](playbooks/autopilot-full.md)
+- [Autonomous queue, operator lands](playbooks/autopilot-stack.md)
 - [Session pickup](playbooks/session-pickup.md)
 - [Pause safely](playbooks/pause-safely.md)
 - [Multi-phase plan](playbooks/multi-phase-plan.md)
@@ -58,7 +60,7 @@ Read only the selected playbook. Resolve companion skills through the catalog or
 
 If no playbook fits, read the installed figure-it-out skill and design a scoped workflow.
 
-When running a benchmark or reporting a measured speedup or regression, read [benchmark-checklist](../benchmark-checklist/SKILL.md) before trusting or acting on the number. For measured eval results, read [explain the number](../principle-explain-the-number/SKILL.md).
+When running a benchmark or reporting a measured speedup or regression, read [benchmark-checklist](../benchmark-checklist/SKILL.md) before trusting or acting on the number. Before measuring an eval and before trusting its result, read [explain the number](../principle-explain-the-number/SKILL.md).
 
 ## Principles
 
@@ -91,4 +93,4 @@ Load a leaf when it changes a decision. Principles remain inside task scope and 
 
 ## Report
 
-Lead with the outcome, reason, and evidence. State actual checks and practical limits. Cite real artifacts. Explain meaningful tradeoffs and omit ceremony for small changes. Comments explain non-obvious constraints and public contracts rather than narrate code.
+Open with the user's goal in one line, except after a fully specified one-line edit, then lead with the outcome, reason, and evidence. State actual checks and practical limits. Cite real artifacts. Explain meaningful tradeoffs and omit ceremony for small changes. Comments explain non-obvious constraints and public contracts rather than narrate code.

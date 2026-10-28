@@ -6,7 +6,7 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Explain the number {#principle-explain-the-number}
 
-**Decision affected:** Before trusting a measured performance or eval result, establish what limits it and rule out failures, skipped work, tuning differences, and noise.
+**Decision affected:** Before measuring, name the result that would change a decision and the noise floor. Before trusting a measured performance or eval result, establish what limits it and rule out failures, skipped work, tuning differences, and noise.
 
 **Example:** A faster export reports fewer completed rows. Reject the speedup claim, correct the probe, and repeat comparable runs. Keep run count, spread, and limiter evidence with the number. For performance results, use [benchmark-checklist](workflow-skills.md#benchmark-checklist).
 

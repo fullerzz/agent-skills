@@ -97,15 +97,15 @@ Several plausible approaches could produce materially different designs or artif
 
 ### How it works
 
-The agent defines the artifact and 3–6 criteria, then assigns the same brief to 2–3 independent native candidates unless you request another useful count. Each candidate has isolated output. After every candidate finishes, a fresh read-only judge scores the artifacts. The coordinator chooses a base, adapts useful ideas, and verifies the synthesis.
+The agent defines the artifact and 3–6 criteria, then assigns the same brief to 2–3 independent native candidates unless you request another useful count. Each candidate has isolated output. After every candidate finishes, a fresh read-only judge from a model family other than the coordinator's scores the artifacts. When no other-family judge can run, the coordinator skips judging and picks the base alone. The coordinator chooses a base, adapts useful ideas, and verifies the synthesis.
 
 ### Expected result
 
-A verified artifact plus the chosen base, adopted ideas, rejected ideas, reviewer identities, and coverage gaps.
+A verified artifact plus the chosen base, adopted ideas, rejected ideas, the judge's identity and verdict or the skipped judging, and coverage gaps.
 
 ### Dependencies and limits
 
-Requires native delegation for independent candidates. Concurrency stays within host limits. Missing candidates remain gaps. A parent-only judgment is labeled. Same-model runs do not establish cross-provider comparison.
+Requires native delegation for independent candidates. Concurrency stays within host limits. Missing candidates remain gaps; a rejected model drops its seat and the run tops up to two candidates. An inherited or same-family model never judges. Same-model runs do not establish cross-provider comparison.
 
 [Full arena instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/arena/SKILL.md)
 
@@ -377,15 +377,15 @@ You want an adversarial review of a defined diff, set of files, or design.
 
 ### How it works
 
-The agent pins scope and intended behavior, prepares the review rubric, and runs 2–3 independent native read-only reviewers. It waits, deduplicates, verifies actionable paths, and applies lead judgment.
+The agent pins scope and restates the intent, then gives 2–3 independent adversaries their own worktrees outside your checkout. Each must prove every finding with a run against the real code. The agent reruns each finding's command in a fresh isolated worktree, keeps only failures that break the intent, and merges shared root causes.
 
 ### Expected result
 
-Intent and coverage, findings categorized as Act on, Consider, Noted, or Dismissed, with evidence, locations, reviewers, rationale, and disagreements.
+The intent, each verified finding with its command, output, broken intent, and the adversaries that found it, and a Dropped list counting each adversary's unproven findings and why.
 
 ### Dependencies and limits
 
-Review does not apply fixes. Unrelated dirty work is preserved. A supported security or correctness finding matters without consensus. If native agents are unavailable, the review is labeled parent-only.
+Review does not apply fixes. Your checkout and unrelated dirty work stay untouched; the agent removes the worktrees it created. Adversaries run code, so findings need a runnable target. Style, naming, and hypothetical risks are dropped. If native agents are unavailable, the review is labeled parent-only.
 
 [Full interrogate instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/interrogate/SKILL.md)
 

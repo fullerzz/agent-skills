@@ -1,5 +1,17 @@
 # Upstream provenance
 
+## Proven interrogation, cross-family judging, and operator-landed queues — 2026-10-27
+
+Selectively adapted pstack 0.15.35 from [PR #986](https://github.com/cursor/plugins/pull/986), merged at `ab1f702ce8e8b6557edb56b09f52cde8bfb83f17` (head `357e07aa616a2211b2cc2c6d775ceff051c2fad4`). The MIT license retains Lauren Tan's attribution.
+
+Interrogate is rewritten around executable proof. Adversaries work in their own worktrees and must return a command and its output for each finding. The lead reruns every command in a fresh isolated worktree and keeps only failures that break the stated intent. The reviewer prompt, rubric, code-quality lens, lead-judgment framework, and Act on / Consider / Noted / Dismissed verdict are deleted with the upstream references. Fixes are still never applied. Zstack keeps its target checkout untouched, removes the worktrees it creates, and requires `--no-ext-diff` patches because an external diff tool otherwise yields no applicable patch.
+
+Arena's judge must come from a model family other than the coordinator's. An inherited or same-family model never judges, and when no other-family judge runs, the coordinator skips judging and says so instead of labeling a parent-only judgment. Rejected model seats are dropped and the run tops up to two candidates. A shared model-rejection rule joins the native delegation contract: no guessed identifiers, the closest same-family model the error lists, or the inherited default.
+
+Autopilot-stack becomes Autopilot-full without the merge. Independent items stay off trunk, an item stacks only on the item it builds on and rebases onto that parent, and the run stops at verified and green for the operator to land. Autopilot-full adds the upstream blocking rule, which blocks only on a demonstrated failure or a doc line the change made wrong, plus parked follow-ups. It also skips extra verification for a wording-only change; zstack limits that to wording that alters no behavior or instruction, since skill text is shipped instruction here. Z-mode restates the user's goal in its first message, delegated briefs, PR `## Why`, and final report. Explain the number now applies before a measurement as well.
+
+Excluded: ketchup-video, which zstack never adopted; Cursor model slugs, `/setup-pstack` pool ordering, and role-rule fallbacks, since zstack has no role-to-model rule; the Cursor agent-store copy rule and `store.ts` cleanup, since zstack's orchestration uses a local task directory and a Python CLI; and autonomous-run, babysit, and multi-phase-plan wording that zstack already covers or never carried. Generated harness copies, Cursor manifests, and poteto-help are excluded as before. Native manifests advance together to `0.20.0` for the changed workflows. See [validation](validation.md#pstack-0-15-35) for actual checks and limits.
+
 ## Statechart compiler — 2026-10-27
 
 Adapted pstack [PR #977](https://github.com/cursor/plugins/pull/977) (0.15.33, merged at `34b1b7c96f09f81a21a6c78f65b7833f7dcb5b24`), [PR #982](https://github.com/cursor/plugins/pull/982) (0.15.34, merged at `740d2c0786246cafac41906198f656b135194d3b`), and [PR #981](https://github.com/cursor/plugins/pull/981) (test only, merged at `519d36aa98955bf680db01bcde5fdfba686dc901`). The scripts, corpus, and Pele theme are copied from the `519d36aa` tree. The MIT license retains Lauren Tan's attribution.

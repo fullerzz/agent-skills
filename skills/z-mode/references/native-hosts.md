@@ -29,6 +29,8 @@ Execution selection is session-scoped and independent of task routing. Current t
 
 With native execution, use the selected host's native agent tool and omit model overrides to inherit its configured default. With Herdr execution, each CLI has its own configuration; it does not inherit parent model settings, conversation, permissions, tools, roles, or mode activation. Supply the scoped brief and verify needed capabilities. Where an override is requested, keep model ID and effort as separate supported settings. Do not promise provider diversity. Report model identity if exposed, otherwise say it is unavailable.
 
+If the host rejects a requested model, do not guess further identifiers. Use the closest valid model of the same family that the error lists, or omit the override to inherit the default when it lists none, and say so. Never pass a rejected identifier again, and skip a calling workflow's fallback that names one.
+
 Select roles only when exposed by the worker's host:
 
 - **Codex:** Native workers are the normal path for plugin installations. To expose `z-agent` for scoped engineering work or `comment-sicko` for comment reports, copy the plugin-root `agents/codex/z-agent.toml` or `agents/codex/comment-sicko.toml` into `$CODEX_HOME/agents/` (default `~/.codex/agents/`) and start a new session. Resolve the plugin root two directories above the real z-mode `SKILL.md`, not from the target cwd. The linked installer also supplies these roles. Use them only when exposed.

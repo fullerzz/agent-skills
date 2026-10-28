@@ -4,6 +4,16 @@ outline: [2, 3]
 
 # Validation
 
+## pstack 0.15.35 workflow port — 2026-10-27 {#pstack-0-15-35}
+
+Ported interrogate, arena, autopilot, explain-the-number, and z-mode changes from pstack PR #986. Shared native manifests are `0.20.0`. Checks ran on macOS in Claude Code with native agents.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 212 passed, zero failed, 61 skipped (TLC-backed, differential, and render suites). Python unittest discovery: 153 tests passed.
+- Live interrogate scenario on a scratch fixture repository: a committed branch diff with two planted bugs, plus an uncommitted `last_page` addition that depends on one of them. Two native adversaries (Claude Opus and Claude Sonnet, so same provider) each worked in a detached worktree and returned exact commands with printed and required output. A rerun in a fresh lead worktree, carrying only the named repro files, reproduced every reported output. Three findings survived, each found by both adversaries, with the `last_page` failures merged into the floored `page_count` root cause. One reproducible `ZeroDivisionError` from `page_count(5, 0)` was dropped because the stated intent does not define that input. After the worktrees were removed, the fixture checkout still held only its original uncommitted change.
+- The scenario found one gap, which is now fixed in the skill. On this host `git diff` uses an external diff tool, so the first copy of the uncommitted changes produced no applicable patch. The skill now requires `git diff --no-ext-diff --binary` and names untracked files.
+
+Arena's cross-family judge rule, the model-rejection fallback, the autopilot playbooks, goal restatement, and Codex and Hermes invocation were reviewed statically and not exercised live. No Herdr or other-provider judge was available to run.
+
 ## Statechart compiler — 2026-10-27 {#statechart-compiler}
 
 Ported the pstack statechart compiler from the `519d36aa` tree (#977, #982, #981). Shared native manifests are `0.19.0`. Checks ran on macOS with Node `24.22.1`, Java `25.0.2`, and tla2tools `1.7.4` (sha256 `936a2620…0e88`, matching upstream's pin), downloaded to a session scratch folder. Personal mise and npm configuration was untouched.

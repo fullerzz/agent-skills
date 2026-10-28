@@ -11,7 +11,7 @@ Return what was published, the link, checks, and limits. Local fixes remain loca
 
 Keep the briefing readable in under a minute, normally under 40 lines. Use `##` headings in this order. Only `## Tradeoffs` and `## Blast Radius` are optional, under these conditions:
 
-- `## Why`: one to three short sentences stating the problem and approach.
+- `## Why`: one to three short sentences opening with the user's goal, then the problem and approach.
 - `## What changed`: one to three bullets. Name symbols or paths only when they explain the change; name both sides of a rename.
 - `## Scope`: one to three items stating what this PR covers and any deliberate exclusions, follow-ups, or known gaps. Do not invent exclusions or enumerate every file.
 - `## Tradeoffs`: only alternatives a reviewer would reasonably ask about; omit when there was no meaningful choice.

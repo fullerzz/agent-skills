@@ -246,7 +246,7 @@ Pin units and dependencies, pilot the brief, store user-owned state and receipts
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/orchestrate.md).
 
-## Independent queue {#playbook-autopilot-full}
+## Autonomous queue {#playbook-autopilot-full}
 
 Execute independent work items with explicit done predicates.
 
@@ -255,24 +255,24 @@ Codex: $z-mode Complete these three independent fixes and deliver local verified
 Claude Code: /z-mode Complete these three independent fixes and deliver local verified artifacts.
 ```
 
-Pin scope, gates and authority; assign exclusive native owners; independently verify exact heads; publish or merge only covered items; reconcile children on stop. Return item, owner, status, head, evidence, and remaining gates.
+Pin scope, gates and authority; assign exclusive native owners; independently verify exact heads; publish or merge only covered items; reconcile children on stop. Only a demonstrated failure blocks an item; other findings become parked follow-ups. Return item, owner, status, head, evidence, remaining gates, and follow-ups.
 
-**Prerequisites and limits:** Host concurrency and native reviewers bound coverage. The name grants no merge authority or permission to bypass operator gates.
+**Prerequisites and limits:** Host concurrency and native reviewers bound coverage. A wording-only change that alters no behavior or instruction gets no extra verifier. The name grants no merge authority or permission to bypass operator gates.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/autopilot-full.md).
 
-## Dependent queue {#playbook-autopilot-stack}
+## Autonomous queue, operator lands {#playbook-autopilot-stack}
 
-Build an ordered chain of dependent changes for review.
+Run the autonomous queue without merging, so you review and land the verified work.
 
 ```text
 Codex: $z-mode Build the schema then API then UI changes as a review stack; do not merge.
 Claude Code: /z-mode Build the schema then API then UI changes as a review stack; do not merge.
 ```
 
-Pin order and acceptance, assign exclusive owners, relay verified parent context, let one coordinator own topology, and verify each base/head patch. Return ordered artifacts and per-unit SHAs/verdicts.
+Runs the autonomous queue's owners and verification, then stops when each item is verified at its current head with green CI where published. Independent items stay off trunk; an item stacks only on the item it builds on and rebases onto that parent's branch. A restacked child keeps its verdict when its `git patch-id` is unchanged. Return each item's verdict, head, and base.
 
-**Prerequisites and limits:** Publication must be authorized: root targets trunk and children target parents. No merge or auto-merge; authorized rebases require fresh evidence.
+**Prerequisites and limits:** Publication must be authorized: each chain's root targets trunk and children target parents. No merge or auto-merge, and no pushes after handoff without your go.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/autopilot-stack.md).
 

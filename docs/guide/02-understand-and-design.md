@@ -54,7 +54,7 @@ Sharpen preserves your goal, constraints, and open choices. It stops after the r
 | [architect](../../skills/architect/SKILL.md) | Design from caller usage and types first. |
 | [arena](../../skills/arena/SKILL.md) | Settle contested shapes with independent candidates and synthesis. |
 | [swarm](../../skills/swarm/SKILL.md) | Partition coverage across agents. |
-| [interrogate](../../skills/interrogate/SKILL.md) | Return adversarial findings without edits. |
+| [interrogate](../../skills/interrogate/SKILL.md) | Return adversarial findings that a rerun proves, without edits. |
 
 ::: code-group
 
