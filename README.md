@@ -50,7 +50,7 @@ These commands use the merged default branch. See [Hermes setup](docs/hosts/herm
 
 ### Linked installation
 
-Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output, markdown-it-py for source-link parsing, and PyYAML for validation). Node.js 20+ runs the repository integration tests. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter. Install missing tools with mise or brew.
+Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output, markdown-it-py for source-link parsing, and PyYAML for validation). Node.js 22.18+ (23.6+ on the 23 line) runs the repository integration tests, because the statechart suites are TypeScript. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
 
@@ -107,7 +107,7 @@ Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode 
 - Verify with project harnesses and create-verification-skill.
 - Check invariants with explicitly invoked [create-formal-verification-skill](docs/reference/workflow-skills.md#create-formal-verification-skill), which produces reusable checks with stated bounds and demonstrated failure detection.
 - Refresh formal checks after code changes with explicitly invoked [maintain-formal-verification-skill](docs/reference/workflow-skills.md#maintain-formal-verification-skill), separating outdated verification from product bugs.
-- Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): TLA+ counterexample paths, chart-to-model skeletons, and specification comparisons, rendered with Mermaid PNG or Pele SVG. Model findings need real-code reproduction before becoming software bug claims.
+- Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): one command checks a TLA+ model with TLC, draws a Mermaid statechart, and reports the shortest path to each broken rule, with optional Pele SVG rendering. Model findings need real-code reproduction before becoming software bug claims.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.

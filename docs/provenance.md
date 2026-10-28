@@ -1,5 +1,13 @@
 # Upstream provenance
 
+## Statechart compiler — 2026-10-27
+
+Adapted pstack [PR #977](https://github.com/cursor/plugins/pull/977) (0.15.33, merged at `34b1b7c96f09f81a21a6c78f65b7833f7dcb5b24`), [PR #982](https://github.com/cursor/plugins/pull/982) (0.15.34, merged at `740d2c0786246cafac41906198f656b135194d3b`), and [PR #981](https://github.com/cursor/plugins/pull/981) (test only, merged at `519d36aa98955bf680db01bcde5fdfba686dc901`). The scripts, corpus, and Pele theme are copied from the `519d36aa` tree. The MIT license retains Lauren Tan's attribution.
+
+The `.mjs` pipeline is replaced by the TypeScript compiler: `scripts/statechart SPEC.tla` checks the model, draws the Mermaid chart through a view module, and reports shortest paths, with qualified INSTANCE action names (#982) and the macOS reap wait in the SIGKILL test (#981). The `from-chart` skeletons, `--fixed`/`--against` comparisons, mapping modules, `summary.json`/`stories.md`, and Mermaid PNG flag are removed with it, as upstream removed them. Keeping them would mean maintaining a second value parser and checker beside the one upstream now maintains.
+
+Zstack retains explicit invocation, resolved installed paths, owned scratch folders, scoped authority, view-module review, the real-code reproduction requirement, and local Pele installation. It adds a view guard: two function keys that project to one view key, such as model value `A` and string `"A"`, stop the run instead of silently losing an entry. It also fixes a test-only bug: the relative-symlink launcher test failed under macOS's default `/var` → `/private/var` TMPDIR. The earlier safe-integer guard is not carried forward, because TLC rejects integers beyond 32 bits before the parser sees them. Upstream's mise fallback for TLC and Java is kept, but the skill requires approval before the first install. Generated Claude harness duplicates, Cursor manifests, poteto-help, and upstream CI changes are excluded. The fast-check differential suite and the Pele/Mermaid render suite run only on request. All native manifests advance together to `0.19.0` for the removed workflows. See [validation](validation.md#statechart-compiler) for actual checks and limits.
+
 ## Statechart comparison and checking fixes — 2026-10-22
 
 Adapted pstack [PR #776](https://github.com/cursor/plugins/pull/776), merged at `7698375f92a729f8bb89d113c633dce9ff9dc6db`, and [PR #779](https://github.com/cursor/plugins/pull/779), merged at `4ec7ffa173eaa70d3d9467a627baf0954645a353`. Upstream still declares `0.15.30`; these exact merges identify the imported changes. The MIT license retains Lauren Tan's attribution.

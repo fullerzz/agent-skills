@@ -1,0 +1,14 @@
+{
+  "name": "@zstack/statechart",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "fast-check": "4.5.3",
+    "typescript": "5.9.3"
+  }
+}
