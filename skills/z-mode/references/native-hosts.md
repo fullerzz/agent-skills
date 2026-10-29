@@ -41,6 +41,18 @@ Using native workers without bundled roles is expected and needs no fallback ann
 
 Every brief names goal, context paths, read/write scope, acceptance check, and report format. A brief for any child that should follow z-mode, whether a bundled role, a native worker, or a Herdr worker, gives the absolute real path of z-mode's `SKILL.md` and tells the child to read it first; a child may not find it reliably on its own. Derive the path from this file's `../SKILL.md`. For a worker on another machine, give that machine's installed path, or say it is unknown so the worker resolves it locally. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
 
+### Other-provider route
+
+Under native execution, a workflow seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed Codex CLI. Skip the route when you are a Codex model yourself; it would add a same-family seat. With Herdr selected, launch another provider's CLI through Herdr instead. Check `codex --version`; never install Codex, log in, or change its configuration. Pass the scoped brief on stdin and keep the run inside the seat's own directory, which need not be a Git repository:
+
+```sh
+codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
+```
+
+Use `--sandbox workspace-write` only for a seat that must write repro files in its own worktree. Codex's own sandbox can block project tools that run on the host, for example version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check with `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>`. If it fails where the host run passes, skip the seat and record the gap. Tell every seat to report a blocked command as blocked, never as passing or as no finding.
+
+The run header goes to stderr; keep it. It prints `provider:` and `model:`; record both, and count the seat as other-family only when they differ from yours. If the host sandbox blocks the run, request one unsandboxed rerun through the permission flow; otherwise record the gap. A Codex seat follows the same brief, wait, and verification rules as any other worker, and its output is evidence, not a verdict. A seat whose report shows blocked checks provides no coverage for them. Without the CLI, report the missing coverage.
+
 ### Agent lifecycle
 
 Start a fresh agent for new work, including fix rounds, follow-ups, retries, and the next queue item. Give it a consolidated brief: the original scope, later directives, prior report, and branch or artifact paths. A continuing role does not require a continuing agent.

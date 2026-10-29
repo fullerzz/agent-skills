@@ -36,6 +36,10 @@ The hook supplies one labeled POSIX sh and one PowerShell control template; repl
 
 For [Herdr execution](../reference/workflow-skills.md#herdr-workflow), explicitly request "use z-mode with Herdr". The shared hook also supplies Herdr/Native controls in both shells. Herdr changes execution without activating z-mode; Native disables Herdr while retaining the mode. Enable preserves execution; Disable (stopping or switching away from active z-mode) and clear reset both, so a Herdr-only selection survives a style switch. The same-ID preference is a marker beside the mode JSON and does not transfer to children. The hook never launches agents or probes Herdr. Operation requires `HERDR_ENV=1` and remains subject to Claude permissions; older installed hooks retain selection conversationally until refreshed.
 
+### Codex adversarial review
+
+OpenAI's Codex plugin for Claude Code adds `/codex:adversarial-review`, a review that challenges the chosen design and its assumptions. Zstack does not bundle or call it. The command sets `disable-model-invocation: true`, so only you can run it, and it returns Codex's output without verification. Run it yourself as a second-provider check beside `/zstack:interrogate`, and treat its findings as leads until a run reproduces them. Arena and interrogate reach another model family through the installed Codex CLI instead, using the [other-provider route](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/references/native-hosts.md#other-provider-route); they do not need the Codex plugin.
+
 ### Plugin update and removal
 
 Because the plugin loads in place, checkout edits take effect at the next session start or after `/reload-plugins`. You do not need a version bump to pick up local edits, but changes to packaged content still bump the shared version under the README versioning policy. Keep the checkout at a stable path, because the marketplace records it.

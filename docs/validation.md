@@ -4,6 +4,21 @@ outline: [2, 3]
 
 # Validation
 
+## Codex other-provider route — 2026-10-27 {#other-provider-route}
+
+Added the native-hosts other-provider route, wired it into arena's judge and one interrogate adversary, and documented `/codex:adversarial-review` as a user-run check for Claude Code. Shared native manifests are `0.21.0`. Checks ran on macOS in Claude Code with Codex CLI `0.165.0`.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 212 passed, zero failed, 61 skipped. Python unittest discovery: 153 tests passed. `git diff --check` passed.
+- Live probe of the documented command from a Claude Code Bash call: `codex exec --sandbox read-only --ephemeral -C <scratch repo> -o <file> -` with the brief on stdin. It read the fixture, answered correctly, and wrote the last message to the `-o` file. The run header printed `provider: openai`, `model: gpt-6.1-sol`, and `sandbox: read-only` on stderr. The Claude Code sandbox did not block it in this session.
+- Live interrogate of this change with two Claude Opus 5.5 adversaries and one Codex `gpt-6.1-sol` adversary under `workspace-write`. Four findings survived lead reruns; the Codex seat reported none. Fixes, each rerun after the change:
+  - Outside a Git repository, `codex exec` exited 1 with `Not inside a trusted directory and --skip-git-repo-check was not specified.` With `--skip-git-repo-check` the documented command exited 0 in a non-repository scratch folder and wrote `PONG`.
+  - Inside Codex's sandbox, mise shims and the uv cache failed with `Operation not permitted` while the host runs passed, and a piped `node --test` still exited 0. The Codex adversary hit this and worked around it. `codex sandbox -P :workspace -C <dir> -- uv --version` reproduces the block without a model call (exit 1), while `-- git --version` exits 0, so the route now preflights one representative check and treats blocked commands as gaps.
+  - On a Codex host the Codex seat is the coordinator's own model (`model = "gpt-6.1-sol"` in config). The route, interrogate, and reference now skip it for a Codex coordinator.
+  - The route permitted a direct `codex exec` under Herdr, contradicting herdr-workflow; it now applies to native execution only.
+- A side effect occurred outside the worktrees: one adversary's `mise which uv` auto-pruned old tool versions (`usage` 7.1.2, `fnox` 1.42.1, `mr-boxington` 1.27.0, `npm:@openai/codex` 0.164.0).
+
+A full arena run with a Codex judge, the route under a Codex coordinator, and a blocked-host-sandbox rerun were not exercised.
+
 ## pstack 0.15.35 workflow port — 2026-10-27 {#pstack-0-15-35}
 
 Ported interrogate, arena, autopilot, explain-the-number, and z-mode changes from pstack PR #986. Shared native manifests are `0.20.0`. Checks ran on macOS in Claude Code with native agents.
