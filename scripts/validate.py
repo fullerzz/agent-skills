@@ -195,7 +195,6 @@ def validate_helpers(root: Path, fail: Fail) -> None:
         "scripts/worktree-audit.sh",
         "scripts/worktree_audit.py",
         "scripts/watch-pr/watch_pr.py",
-        "scripts/orch/orch.py",
     ):
         if not (root / "skills/z-mode" / path).exists():
             fail(path, "Missing tool entrypoint")

@@ -11,7 +11,6 @@ Use absolute quoted script paths. Keep the target repository as cwd, or pass its
 ```sh
 uv run "$Z_MODE_DIR/scripts/check_plan.py" "$TARGET_REPO/docs/plan.md"
 uv run "$Z_MODE_DIR/scripts/worktree_audit.py" "$TARGET_REPO"
-uv run "$Z_MODE_DIR/scripts/orch/orch.py" --help
 uv run "$Z_MODE_DIR/scripts/watch-pr/watch_pr.py" --help
 ```
 
