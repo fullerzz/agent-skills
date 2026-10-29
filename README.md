@@ -50,7 +50,7 @@ These commands use the merged default branch. See [Hermes setup](docs/hosts/herm
 
 ### Linked installation
 
-Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output, markdown-it-py for source-link parsing, and PyYAML for validation). Node.js 22.18+ (23.6+ on the 23 line) runs the repository integration tests, because the statechart suites are TypeScript. The optional orchestration, PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter. Install missing tools with mise or brew.
+Keep this checkout where its links can remain valid. uv runs the Python 3.14+ installer and structural validator, resolving their inline dependencies (Rich for output, markdown-it-py for source-link parsing, and PyYAML for validation). Node.js 22.18+ (23.6+ on the 23 line) runs the repository integration tests, because the statechart suites are TypeScript. The optional PR watcher, plan validator, and worktree audit use uv-managed Python 3.12+ and the standard library. Session hooks use the standard library on Python 3.11+: Codex and Claude Code launch them through uv with its default Python, and Hermes loads them in its own interpreter. Install missing tools with mise or brew.
 
 From this checkout, preview and then apply the selected personal installation:
 
@@ -121,7 +121,7 @@ Herdr can launch a requested supported agent CLI with its own configuration; ind
 uv run scripts/validate.py
 node --test scripts/*.test.mjs
 uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'
-uv run --with ty ty check skills/z-mode/scripts --extra-search-path skills/z-mode/scripts/orch --extra-search-path skills/z-mode/scripts/watch-pr
+uv run --with ty ty check skills/z-mode/scripts --extra-search-path skills/z-mode/scripts/watch-pr
 uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
 ```
 

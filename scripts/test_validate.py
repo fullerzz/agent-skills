@@ -29,7 +29,6 @@ class ValidateTests(unittest.TestCase):
             "skills/z-mode/scripts/worktree-audit.sh",
             "skills/z-mode/scripts/worktree_audit.py",
             "skills/z-mode/scripts/watch-pr/watch_pr.py",
-            "skills/z-mode/scripts/orch/orch.py",
             "skills/show-me-your-work/scripts/log.sh",
         ):
             self.write(relative, "").chmod(0o755)

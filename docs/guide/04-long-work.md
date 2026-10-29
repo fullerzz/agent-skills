@@ -8,7 +8,7 @@ Give [autonomous-run](../../skills/z-mode/playbooks/autonomous-run.md) a checkab
 Native background or scheduling features can be used when verified and requested; this library supplies no replacement daemon.
 :::
 
-[Orchestrate](../../skills/z-mode/playbooks/orchestrate.md) coordinates workers around owned task state, using native execution by default or [Herdr when explicitly enabled](herdr.md). [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
+[Orchestrate](../../skills/z-mode/playbooks/orchestrate.md) is for a program that outlives any single agent. The coordinator decides which agent does each piece of work, checks what each one produces, and never writes code itself. It uses native execution by default or [Herdr when explicitly enabled](herdr.md). [show-me-your-work](../../skills/show-me-your-work/SKILL.md) keeps an append-only TSV trail.
 
 ## Earn trust before unattended work
 

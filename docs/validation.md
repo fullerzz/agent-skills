@@ -4,6 +4,22 @@ outline: [2, 3]
 
 # Validation
 
+## pstack 0.15.36 Orchestrate port — 2026-10-28 {#pstack-0-15-36}
+
+Rewrote Orchestrate around native delegation, host task trackers, and PR/CI event subscriptions. The Python orch CLI and its store and frontier tests are deleted. Shared native manifests are `0.22.0`. Checks ran on macOS in Claude Code.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. Python unittest discovery: 143 tests passed. The 10 fewer than the previous 153 are the deleted orch store, CLI, and frontier tests. The watcher launcher test still runs.
+- `node --test scripts/*.test.mjs` on Node `24.22.1`: 212 passed, zero failed, 61 skipped. `git diff --check` passed.
+- `ty check` on `skills/z-mode/scripts` without the orch search path: all checks passed. Project mypy reports one `arg-type` error in `scripts/test_pr_watcher.py:746`. It reproduces identically on an untouched worktree of base `7f8b9aa`.
+- A tracked-file scan finds no remaining caller of `scripts/orch`, `orch.py`, or `store.py`. Older validation and provenance entries and the adaptation plan still name it as history.
+- An interrogate run used three native Claude Opus 5.5 adversaries, so all came from the same provider. The Codex seat was skipped: its sandbox blocked the uv cache with `Operation not permitted`, and an isolated cache failed with `error resolving DNS`. Four findings were verified by lead reruns of the adversaries' probes in a fresh worktree. Each was a playbook rule copied from upstream that contradicted `native-hosts.md`:
+  - two retries with the same brief and a different model;
+  - messaging an existing worker for any follow-up;
+  - a fixed ten-worker window;
+  - Shipping having the parent's owner rebase and retarget a child PR.
+  All four are fixed in the playbook. One more finding, no PR-watch path without native subscriptions, was dropped: the no-polling rule binds only the coordinator, and owners keep Babysit.
+- No live Orchestrate program, sub-coordinator, cross-family verifier, or native PR event subscription was exercised. The playbook was reviewed statically against the native host contract.
+
 ## Claude sandbox startup requirement — 2026-10-28
 
 PR #71's writing-seat settings now include `sandbox.failIfUnavailable: true`, following the [Claude sandbox startup documentation](https://code.claude.com/docs/en/sandboxing#get-started). Unavailable sandboxing is a coverage gap; a retry outside the host sandbox must retain the CLI's own sandbox settings. Shared manifests are `0.21.2`.
