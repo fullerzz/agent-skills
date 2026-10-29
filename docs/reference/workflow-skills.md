@@ -97,7 +97,7 @@ Several plausible approaches could produce materially different designs or artif
 
 ### How it works
 
-The agent defines the artifact and 3–6 criteria, then assigns the same brief to 2–3 independent native candidates unless you request another useful count. Each candidate has isolated output. After every candidate finishes, a fresh read-only judge from a model family other than the coordinator's scores the artifacts. When no other-family judge can run, the coordinator skips judging and picks the base alone. The coordinator chooses a base, adapts useful ideas, and verifies the synthesis.
+The agent defines the artifact and 3–6 criteria, then assigns the same brief to 2–3 independent native candidates unless you request another useful count. Each candidate has isolated output. After every candidate finishes, a fresh read-only judge from a model family other than the coordinator's scores the artifacts. Under native execution, an installed Codex or Claude CLI from a family other than the coordinator's can supply that judge. When no other-family judge can run, the coordinator skips judging and picks the base alone. The coordinator chooses a base, adapts useful ideas, and verifies the synthesis.
 
 ### Expected result
 
@@ -377,7 +377,7 @@ You want an adversarial review of a defined diff, set of files, or design.
 
 ### How it works
 
-The agent pins scope and restates the intent, then gives 2–3 independent adversaries their own worktrees outside your checkout. Each must prove every finding with a run against the real code. The agent reruns each finding's command in a fresh isolated worktree, keeps only failures that break the intent, and merges shared root causes.
+The agent pins scope and restates the intent, then gives 2–3 independent adversaries their own worktrees outside your checkout. When a Codex or Claude CLI from a family other than the coordinator's is installed, one adversary runs through it for a second model family, unless that CLI's sandbox blocks the project's checks. Each must prove every finding with a run against the real code. The agent reruns each finding's command in a fresh isolated worktree, keeps only failures that break the intent, and merges shared root causes.
 
 ### Expected result
 

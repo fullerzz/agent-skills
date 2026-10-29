@@ -4,6 +4,47 @@ outline: [2, 3]
 
 # Validation
 
+## Claude sandbox startup requirement — 2026-10-28
+
+PR #71's writing-seat settings now include `sandbox.failIfUnavailable: true`, following the [Claude sandbox startup documentation](https://code.claude.com/docs/en/sandboxing#get-started). Unavailable sandboxing is a coverage gap; a retry outside the host sandbox must retain the CLI's own sandbox settings. Shared manifests are `0.21.2`.
+
+- A Node assertion extracted and parsed the documented `--settings` JSON and checked `enabled: true`, `failIfUnavailable: true`, and `allowUnsandboxedCommands: false`.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `git diff --check` passed.
+- No live unsupported-platform or missing-dependency Claude launch was performed. The full Node/Python suites were not repeated for this instruction-only repair; their previous results are recorded below.
+
+## Codex seat MCP isolation — 2026-10-28
+
+The other-provider route now disables configured MCP servers, plugins, and apps through per-invocation arguments for both read-only and writing Codex seats. Shared manifests are `0.21.1`.
+
+- Codex CLI `0.165.0` configuration probes on macOS reproduced the issue: `-c 'mcp_servers={}'` retained inherited servers. Quoting server names in dotted override keys failed with `invalid transport`, so the route accepts only ASCII letters, digits, underscores, and hyphens and skips other names.
+- With apps and plugins disabled, discovery returned 11 servers. Per-server `enabled=false` overrides disabled all 11; `features list` confirmed apps and plugins were false. A fresh listing without overrides matched the original 13-server inventory and enablement. No personal configuration was edited and no MCP operation was invoked.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. Python unittest discovery: 153 tests passed. Installed Node and uv binaries were placed before mise shims for these checks because the shims were blocked by the host sandbox.
+- The sandboxed Node suite was stopped after its signal test could not use `ps`. Outside the sandbox, Node `26.12.0` passed 211 tests, failed one unchanged statechart assertion about the exact stderr for a module throwing `null`, and skipped 61. The signal test passed there.
+- `node --test scripts/*.test.mjs` on Node `24.22.1` outside the sandbox: 212 passed, zero failed, 61 skipped. `git diff --check` passed.
+- This verifies CLI configuration loading, not a live model's tool catalog or an end-to-end judge/adversary run with the revised arguments.
+
+## Codex other-provider route — 2026-10-27 {#other-provider-route}
+
+Added the native-hosts other-provider route, wired it into arena's judge and one interrogate adversary, and documented `/codex:adversarial-review` as a user-run check for Claude Code. Shared native manifests are `0.21.0`. Checks ran on macOS in Claude Code with Codex CLI `0.165.0`.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `node --test scripts/*.test.mjs`: 212 passed, zero failed, 61 skipped. Python unittest discovery: 153 tests passed. `git diff --check` passed.
+- Live probe of the documented command from a Claude Code Bash call: `codex exec --sandbox read-only --ephemeral -C <scratch repo> -o <file> -` with the brief on stdin. It read the fixture, answered correctly, and wrote the last message to the `-o` file. The run header printed `provider: openai`, `model: gpt-6.1-sol`, and `sandbox: read-only` on stderr. The Claude Code sandbox did not block it in this session.
+- Live interrogate of this change with two Claude Opus 5.5 adversaries and one Codex `gpt-6.1-sol` adversary under `workspace-write`. Four findings survived lead reruns; the Codex seat reported none. Fixes, each rerun after the change:
+  - Outside a Git repository, `codex exec` exited 1 with `Not inside a trusted directory and --skip-git-repo-check was not specified.` With `--skip-git-repo-check` the documented command exited 0 in a non-repository scratch folder and wrote `PONG`.
+  - Inside Codex's sandbox, mise shims and the uv cache failed with `Operation not permitted` while the host runs passed, and a piped `node --test` still exited 0. The Codex adversary hit this and worked around it. `codex sandbox -P :workspace -C <dir> -- uv --version` reproduces the block without a model call (exit 1), while `-- git --version` exits 0, so the route now preflights one representative check and treats blocked commands as gaps.
+  - On a Codex host the Codex seat is the coordinator's own model (`model = "gpt-6.1-sol"` in config). The route, interrogate, and reference now skip it for a Codex coordinator.
+  - The route permitted a direct `codex exec` under Herdr, contradicting herdr-workflow; it now applies to native execution only.
+- A side effect occurred outside the worktrees: one adversary's `mise which uv` auto-pruned old tool versions (`usage` 7.1.2, `fnox` 1.42.1, `mr-boxington` 1.27.0, `npm:@openai/codex` 0.164.0).
+
+- Live arena with a Codex judge: two Claude Opus 5.5 candidates rewrote the route section, and the judge ran the documented read-only command in a non-repository scratch folder. It exited 0 with `provider: openai`, `model: gpt-6.1-sol`, `sandbox: read-only` on stderr, scored the candidates 25/25 and 23/25, checked both commands byte-for-byte, and flagged that differing `model:` values alone do not establish another family. The synthesis keeps candidate 1, grafts candidate 2's ordering of the blocked-command rule and two sentences, fixes the family wording, and stays at 285 words.
+
+- Live arena under a Codex coordinator: Codex CLI `0.165.0` (`GPT-6.1-Sol high`) with the native plugin refreshed to `0.21.0`, launched in a Herdr pane without Herdr execution selected. After a plugin refresh, Codex opened its hook-trust review and swallowed the first prompt; the user reviewed the hooks and the prompt was resent. Two native candidates completed, without exact model IDs exposed. The coordinator skipped the Codex route, citing "Skip the route when you are a Codex model", found only GPT-family overrides, and did not launch the installed Claude CLI because Herdr was not selected. It skipped judging and picked the base alone, as arena step 4 requires. Its first `node` call failed through the mise shim with `Operation not permitted`, and it reported that as blocked rather than passing. The checkout stayed clean.
+
+- Claude CLI route, added after that run. Live probes with Claude Code `2.1.312` in a non-repository scratch folder: the documented read-only command returned `PONG` with `modelUsage` key `claude-opus-5-5` and no permission denials. Without `--strict-mcp-config`, the seat offered the user's MCP write tools (Google Drive, GitHub); with it, the seat listed only `Glob, Grep, Read`. The writing variant wrote `repro.txt` in its folder through sandboxed Bash. In an earlier probe the same sandbox also let Bash write a sibling folder under `$TMPDIR`, as Codex's `workspace-write` does, and refused compound commands, reporting them in `permission_denials`.
+- Live arena under a Codex coordinator after the Claude route, with the plugin refreshed and hooks re-reviewed by the user: two native candidates completed without exposed model IDs. A read-only judge ran through the documented `claude -p` command from Codex's sandbox. It exited 0 with `modelUsage["claude-opus-5-5"].provider` `firstParty`, no permission denials, and scored the candidates 24/25 and 23/25. Three Claude SessionEnd hooks failed through blocked mise shims; the judge's result was unaffected, so no unsandboxed rerun was requested. The checkout stayed unchanged.
+
+A blocked-host-sandbox rerun and a writing Claude adversary under a Codex coordinator were not exercised.
+
 ## pstack 0.15.35 workflow port — 2026-10-27 {#pstack-0-15-35}
 
 Ported interrogate, arena, autopilot, explain-the-number, and z-mode changes from pstack PR #986. Shared native manifests are `0.20.0`. Checks ran on macOS in Claude Code with native agents.

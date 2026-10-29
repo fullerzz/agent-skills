@@ -41,6 +41,29 @@ Using native workers without bundled roles is expected and needs no fallback ann
 
 Every brief names goal, context paths, read/write scope, acceptance check, and report format. A brief for any child that should follow z-mode, whether a bundled role, a native worker, or a Herdr worker, gives the absolute real path of z-mode's `SKILL.md` and tells the child to read it first; a child may not find it reliably on its own. Derive the path from this file's `../SKILL.md`. For a worker on another machine, give that machine's installed path, or say it is unknown so the worker resolves it locally. Writable workers have exclusive files or separate worktrees. Tell them they are not alone and must preserve others' edits. Read-only is a task constraint; do not assume it removes MCP access. Use actual tool restrictions or sandbox settings when supported.
 
+### Other-provider route
+
+Under native execution, a seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed CLI from a family other than yours: the Codex CLI when you are not a Codex model, or the Claude CLI when you are not a Claude model. With Herdr selected, launch the other provider's CLI through Herdr instead. Check `codex --version` or `claude --version`; never install either CLI, log in, or change its configuration. Without a usable CLI, report the missing coverage.
+
+A CLI's own sandbox can block project tools that run on the host, such as version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check in that sandbox: `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>` for Codex, or a writing Claude seat whose brief runs only that check. If it fails where the host run passes, skip the seat and record the gap.
+
+Tell every seat to report a blocked command as blocked, never as passing or as no finding. Pass the scoped brief on stdin and run inside the seat's own directory, which need not be a Git repository:
+
+Before a Codex seat, build a Bash array `CODEX_MCP_ARGS` starting with `--disable apps --disable plugins`. Run `codex "${CODEX_MCP_ARGS[@]}" -C "$SEAT_DIR" mcp list --json`, and append `-c 'mcp_servers.NAME.enabled=false'` for every returned server name. Only substitute names containing ASCII letters, digits, underscores, or hyphens; skip the seat for other names because Codex's dotted-key override parser does not handle quoted TOML keys. Rerun the listing with all those arguments and require every server to have `enabled: false`; if discovery, parsing, or verification fails, skip the seat and report the gap. Pass the same array to `exec` below, including for writing seats.
+
+These are invocation-only overrides: never edit personal configuration. The shell sandbox does not restrict remote MCP writes; `-c 'mcp_servers={}'` does not clear inherited servers. Disabling plugins and apps also prevents their tool sources from being loaded. Carry required skill instructions in the brief because plugins are disabled for this seat.
+
+```bash
+codex exec "${CODEX_MCP_ARGS[@]}" --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
+(cd "$SEAT_DIR" && claude -p --tools Read,Grep,Glob --strict-mcp-config --permission-mode dontAsk --no-session-persistence --output-format json < "$BRIEF" > "$REPORT")
+```
+
+For a seat that must write repro files in its own worktree, give Codex `--sandbox workspace-write`. For Claude, replace its `--tools` and `--permission-mode` values with `--tools Read,Grep,Glob,Bash,Edit,Write --permission-mode acceptEdits` and add `--settings '{"sandbox":{"enabled":true,"failIfUnavailable":true,"autoAllowBashIfSandboxed":true,"allowUnsandboxedCommands":false}}'`. If Claude's sandbox is unavailable, skip the seat and report a coverage gap; do not retry with its sandbox disabled. Both sandboxes also permit writes to temporary folders. If the host sandbox blocks the run, request one rerun outside the host sandbox through the permission flow, retaining the CLI's own sandbox settings; otherwise record the gap.
+
+Record the seat's identity. Codex prints `provider:` and `model:` in a stderr header; keep it. Claude's JSON report holds the answer in `result`, models under `modelUsage`, and refused tool calls under `permission_denials`; treat each refusal as a blocked command. Count the seat as other-family only when it shows a model family other than yours, not merely another model.
+
+A CLI seat follows the same brief, wait, and verification rules as any other worker. Its output is evidence, not a verdict. A report with blocked checks provides no coverage for them.
+
 ### Agent lifecycle
 
 Start a fresh agent for new work, including fix rounds, follow-ups, retries, and the next queue item. Give it a consolidated brief: the original scope, later directives, prior report, and branch or artifact paths. A continuing role does not require a continuing agent.
