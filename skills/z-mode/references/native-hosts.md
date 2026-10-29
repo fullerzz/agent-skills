@@ -43,21 +43,22 @@ Every brief names goal, context paths, read/write scope, acceptance check, and r
 
 ### Other-provider route
 
-Under native execution, a seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed Codex CLI. With Herdr selected, launch the other provider's CLI through Herdr instead. Skip the route when you are a Codex model; it would add a same-family seat. Check `codex --version`; never install Codex, log in, or change its configuration. Without the CLI, report the missing coverage.
+Under native execution, a seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed CLI from a family other than yours: the Codex CLI when you are not a Codex model, or the Claude CLI when you are not a Claude model. With Herdr selected, launch the other provider's CLI through Herdr instead. Check `codex --version` or `claude --version`; never install either CLI, log in, or change its configuration. Without a usable CLI, report the missing coverage.
 
-Codex's own sandbox can block project tools that run on the host, such as version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check with `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>`. If it fails where the host run passes, skip the seat and record the gap.
+A CLI's own sandbox can block project tools that run on the host, such as version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check in that sandbox: `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>` for Codex, or a writing Claude seat whose brief runs only that check. If it fails where the host run passes, skip the seat and record the gap.
 
 Tell every seat to report a blocked command as blocked, never as passing or as no finding. Pass the scoped brief on stdin and run inside the seat's own directory, which need not be a Git repository:
 
 ```sh
 codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
+(cd "$SEAT_DIR" && claude -p --tools Read,Grep,Glob --strict-mcp-config --permission-mode dontAsk --no-session-persistence --output-format json < "$BRIEF" > "$REPORT")
 ```
 
-Use `--sandbox workspace-write` only for a seat that must write repro files in its own worktree. If the host sandbox blocks the run, request one unsandboxed rerun through the permission flow; otherwise record the gap.
+For a seat that must write repro files in its own worktree, give Codex `--sandbox workspace-write`. For Claude, replace its `--tools` and `--permission-mode` values with `--tools Read,Grep,Glob,Bash,Edit,Write --permission-mode acceptEdits` and add `--settings '{"sandbox":{"enabled":true,"autoAllowBashIfSandboxed":true,"allowUnsandboxedCommands":false}}'`. Both sandboxes also permit writes to temporary folders. If the host sandbox blocks the run, request one unsandboxed rerun through the permission flow; otherwise record the gap.
 
-Keep the run header, which goes to stderr. Record its `provider:` and `model:`, and count the seat as other-family only when they show a model family other than yours, not merely another model.
+Record the seat's identity. Codex prints `provider:` and `model:` in a stderr header; keep it. Claude's JSON report holds the answer in `result`, models under `modelUsage`, and refused tool calls under `permission_denials`; treat each refusal as a blocked command. Count the seat as other-family only when it shows a model family other than yours, not merely another model.
 
-A Codex seat follows the same brief, wait, and verification rules as any other worker. Its output is evidence, not a verdict. A report with blocked checks provides no coverage for them.
+A CLI seat follows the same brief, wait, and verification rules as any other worker. Its output is evidence, not a verdict. A report with blocked checks provides no coverage for them.
 
 ### Agent lifecycle
 

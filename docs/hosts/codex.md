@@ -43,6 +43,10 @@ Explicitly select "use z-mode with Herdr" to apply [Herdr execution](../referenc
 
 For Codex 0.157+, use the [shared-daemon workaround](../guide/herdr.md#known-codex-shared-daemon-issue): launch with `codex --no-daemon` so hooks and tool commands receive the intended pane's Herdr context.
 
+### Claude judge and adversary
+
+Codex's native model overrides all stay in one model family, so arena's judge and interrogate's cross-family adversary need another CLI. When the Claude CLI is installed and signed in, they run it through the [other-provider route](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/references/native-hosts.md#other-provider-route) under native execution. In the recorded run the read-only judge worked inside Codex's sandbox, while the Claude CLI's own hooks that call mise shims failed. If the sandbox blocks the seat itself, expect one request to rerun it outside the sandbox. Without the CLI or that approval, the workflow reports the missing coverage.
+
 ### Native agents
 
 The plugin bundles `agents/codex/` but does not register those files as subagent roles. Codex's plugin manifest parser in the inspected CLI 0.164.0 has no `agents` field. Built-in native workers remain available; give them the scoped brief and z-mode instruction path described in the [native contract](../../skills/z-mode/references/native-hosts.md#delegation).
