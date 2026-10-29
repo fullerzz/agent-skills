@@ -43,15 +43,21 @@ Every brief names goal, context paths, read/write scope, acceptance check, and r
 
 ### Other-provider route
 
-Under native execution, a workflow seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed Codex CLI. Skip the route when you are a Codex model yourself; it would add a same-family seat. With Herdr selected, launch another provider's CLI through Herdr instead. Check `codex --version`; never install Codex, log in, or change its configuration. Pass the scoped brief on stdin and keep the run inside the seat's own directory, which need not be a Git repository:
+Under native execution, a seat that needs another model family, such as arena's judge or one interrogate adversary, may use an installed Codex CLI. With Herdr selected, launch the other provider's CLI through Herdr instead. Skip the route when you are a Codex model; it would add a same-family seat. Check `codex --version`; never install Codex, log in, or change its configuration. Without the CLI, report the missing coverage.
+
+Codex's own sandbox can block project tools that run on the host, such as version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check with `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>`. If it fails where the host run passes, skip the seat and record the gap.
+
+Tell every seat to report a blocked command as blocked, never as passing or as no finding. Pass the scoped brief on stdin and run inside the seat's own directory, which need not be a Git repository:
 
 ```sh
 codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
 ```
 
-Use `--sandbox workspace-write` only for a seat that must write repro files in its own worktree. Codex's own sandbox can block project tools that run on the host, for example version-manager shims or tool caches failing with `Operation not permitted`. Before launching a seat that must run project checks, run one representative check with `codex sandbox -P :workspace -C "$SEAT_DIR" -- <command>`. If it fails where the host run passes, skip the seat and record the gap. Tell every seat to report a blocked command as blocked, never as passing or as no finding.
+Use `--sandbox workspace-write` only for a seat that must write repro files in its own worktree. If the host sandbox blocks the run, request one unsandboxed rerun through the permission flow; otherwise record the gap.
 
-The run header goes to stderr; keep it. It prints `provider:` and `model:`; record both, and count the seat as other-family only when they differ from yours. If the host sandbox blocks the run, request one unsandboxed rerun through the permission flow; otherwise record the gap. A Codex seat follows the same brief, wait, and verification rules as any other worker, and its output is evidence, not a verdict. A seat whose report shows blocked checks provides no coverage for them. Without the CLI, report the missing coverage.
+Keep the run header, which goes to stderr. Record its `provider:` and `model:`, and count the seat as other-family only when they show a model family other than yours, not merely another model.
+
+A Codex seat follows the same brief, wait, and verification rules as any other worker. Its output is evidence, not a verdict. A report with blocked checks provides no coverage for them.
 
 ### Agent lifecycle
 

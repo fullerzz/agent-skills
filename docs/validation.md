@@ -17,7 +17,9 @@ Added the native-hosts other-provider route, wired it into arena's judge and one
   - The route permitted a direct `codex exec` under Herdr, contradicting herdr-workflow; it now applies to native execution only.
 - A side effect occurred outside the worktrees: one adversary's `mise which uv` auto-pruned old tool versions (`usage` 7.1.2, `fnox` 1.42.1, `mr-boxington` 1.27.0, `npm:@openai/codex` 0.164.0).
 
-A full arena run with a Codex judge, the route under a Codex coordinator, and a blocked-host-sandbox rerun were not exercised.
+- Live arena with a Codex judge: two Claude Opus 5.5 candidates rewrote the route section, and the judge ran the documented read-only command in a non-repository scratch folder. It exited 0 with `provider: openai`, `model: gpt-6.1-sol`, `sandbox: read-only` on stderr, scored the candidates 25/25 and 23/25, checked both commands byte-for-byte, and flagged that differing `model:` values alone do not establish another family. The synthesis keeps candidate 1, grafts candidate 2's ordering of the blocked-command rule and two sentences, fixes the family wording, and stays at 285 words.
+
+The route under a Codex coordinator and a blocked-host-sandbox rerun were not exercised.
 
 ## pstack 0.15.35 workflow port — 2026-10-27 {#pstack-0-15-35}
 
