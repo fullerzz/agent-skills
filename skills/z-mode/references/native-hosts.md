@@ -49,8 +49,12 @@ A CLI's own sandbox can block project tools that run on the host, such as versio
 
 Tell every seat to report a blocked command as blocked, never as passing or as no finding. Pass the scoped brief on stdin and run inside the seat's own directory, which need not be a Git repository:
 
-```sh
-codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
+Before a Codex seat, build a Bash array `CODEX_MCP_ARGS` starting with `--disable apps --disable plugins`. Run `codex "${CODEX_MCP_ARGS[@]}" -C "$SEAT_DIR" mcp list --json`, and append `-c 'mcp_servers.NAME.enabled=false'` for every returned server name. Only substitute names containing ASCII letters, digits, underscores, or hyphens; skip the seat for other names because Codex's dotted-key override parser does not handle quoted TOML keys. Rerun the listing with all those arguments and require every server to have `enabled: false`; if discovery, parsing, or verification fails, skip the seat and report the gap. Pass the same array to `exec` below, including for writing seats.
+
+These are invocation-only overrides: never edit personal configuration. The shell sandbox does not restrict remote MCP writes; `-c 'mcp_servers={}'` does not clear inherited servers. Disabling plugins and apps also prevents their tool sources from being loaded. Carry required skill instructions in the brief because plugins are disabled for this seat.
+
+```bash
+codex exec "${CODEX_MCP_ARGS[@]}" --sandbox read-only --ephemeral --skip-git-repo-check -C "$SEAT_DIR" -o "$REPORT" - < "$BRIEF"
 (cd "$SEAT_DIR" && claude -p --tools Read,Grep,Glob --strict-mcp-config --permission-mode dontAsk --no-session-persistence --output-format json < "$BRIEF" > "$REPORT")
 ```
 

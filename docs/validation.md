@@ -4,6 +4,17 @@ outline: [2, 3]
 
 # Validation
 
+## Codex seat MCP isolation — 2026-10-28
+
+The other-provider route now disables configured MCP servers, plugins, and apps through per-invocation arguments for both read-only and writing Codex seats. Shared manifests are `0.21.1`.
+
+- Codex CLI `0.165.0` configuration probes on macOS reproduced the issue: `-c 'mcp_servers={}'` retained inherited servers. Quoting server names in dotted override keys failed with `invalid transport`, so the route accepts only ASCII letters, digits, underscores, and hyphens and skips other names.
+- With apps and plugins disabled, discovery returned 11 servers. Per-server `enabled=false` overrides disabled all 11; `features list` confirmed apps and plugins were false. A fresh listing without overrides matched the original 13-server inventory and enablement. No personal configuration was edited and no MCP operation was invoked.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. Python unittest discovery: 153 tests passed. Installed Node and uv binaries were placed before mise shims for these checks because the shims were blocked by the host sandbox.
+- The sandboxed Node suite was stopped after its signal test could not use `ps`. Outside the sandbox, Node `26.12.0` passed 211 tests, failed one unchanged statechart assertion about the exact stderr for a module throwing `null`, and skipped 61. The signal test passed there.
+- `node --test scripts/*.test.mjs` on Node `24.22.1` outside the sandbox: 212 passed, zero failed, 61 skipped. `git diff --check` passed.
+- This verifies CLI configuration loading, not a live model's tool catalog or an end-to-end judge/adversary run with the revised arguments.
+
 ## Codex other-provider route — 2026-10-27 {#other-provider-route}
 
 Added the native-hosts other-provider route, wired it into arena's judge and one interrogate adversary, and documented `/codex:adversarial-review` as a user-run check for Claude Code. Shared native manifests are `0.21.0`. Checks ran on macOS in Claude Code with Codex CLI `0.165.0`.
