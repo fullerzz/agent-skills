@@ -4,6 +4,14 @@ outline: [2, 3]
 
 # Validation
 
+## Claude sandbox startup requirement — 2026-10-28
+
+PR #71's writing-seat settings now include `sandbox.failIfUnavailable: true`, following the [Claude sandbox startup documentation](https://code.claude.com/docs/en/sandboxing#get-started). Unavailable sandboxing is a coverage gap; a retry outside the host sandbox must retain the CLI's own sandbox settings. Shared manifests are `0.21.2`.
+
+- A Node assertion extracted and parsed the documented `--settings` JSON and checked `enabled: true`, `failIfUnavailable: true`, and `allowUnsandboxedCommands: false`.
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `git diff --check` passed.
+- No live unsupported-platform or missing-dependency Claude launch was performed. The full Node/Python suites were not repeated for this instruction-only repair; their previous results are recorded below.
+
 ## Codex seat MCP isolation — 2026-10-28
 
 The other-provider route now disables configured MCP servers, plugins, and apps through per-invocation arguments for both read-only and writing Codex seats. Shared manifests are `0.21.1`.
