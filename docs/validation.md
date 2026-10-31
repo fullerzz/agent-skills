@@ -4,6 +4,20 @@ outline: [2, 3]
 
 # Validation
 
+## Native hc companion routing — 2026-10-31 {#native-hc-companion-routing}
+
+[Issue #73](https://github.com/fullerzz/agent-skills/issues/73) changes Herdr-selected hook context to resolve the installed `herdr-zstack:hc-workflow` companion. Zstack retains the four controls and `.herdr` marker; missing or ambiguous companions report a capability gap with no legacy fallback. Shared Codex, Claude Code and Hermes manifests are `0.23.0`.
+
+- `uv run scripts/validate.py`: 57 skills, zero structural problems. `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: 146 tests passed.
+- `node --test scripts/*.test.mjs` on Node `24.22.2` outside the sandbox: 212 passed, zero failed, 61 skipped. The first sandboxed run stalled after a process-signal test failed; it was interrupted, its test processes were confirmed gone, and the complete suite was rerun outside the sandbox.
+- VitePress documentation build and `git diff --check` passed.
+- The 27 hook tests cover isolated Codex and Claude startup wrappers with a companion present under native (`HC_TERMINAL_ID`, no `HERDR_ENV`), legacy-only and empty environments; no environment signal selects execution by itself. They also cover missing/ambiguous installs, Claude directory marketplaces and malformed registries, unchanged control round trips, fresh fork controls, and both missing/present context within Codex’s 4000-character limit. These are fixture tests, not live agent sessions.
+- Ruff lint and format checks and strict mypy checks pass for `hooks/session_start.py` and `scripts/test_codex_hooks.py`. Installed uv and Node paths bypassed sandbox-blocked mise shims for verification.
+- Read-only checks against this Mac’s actual plugin locations found no `hc-workflow` installation for either Codex or Claude; the herdr-zstack checkout also has no `skills/hc-workflow/SKILL.md`. Its existing preflight reported hc `0.1.15`, herdr-app `0.1.10`, and an unavailable legacy-only session (`HERDR_ENV=1`, no `HC_TERMINAL_ID`). It ran only the two version commands and made zero core requests.
+- Fresh interactive Claude Code/Codex sessions selecting a real hc companion remain unverified until that companion is shipped and installed. No workers were launched, no parent controls were copied into children, and no personal plugin configuration or Herdr execution preference was changed for these checks. Multiple distinct cached companion paths require host-catalog resolution; the hook deliberately does not choose a version.
+
+PR #75 review repair: a directory marketplace can contain multiple plugins, so its root is not necessarily the companion root. The hook now reads the matching `herdr-zstack` entry in `.claude-plugin/marketplace.json`, resolves its relative `source` from the marketplace root, and retains the registered `installPath` when no local plugin source resolves, following [Claude’s marketplace format](https://code.claude.com/docs/en/plugin-marketplaces#write-relative-paths-from-the-marketplace-root). Regression fixtures reproduced two failures before the fix (nested source and lost install path); all 147 Python tests, including 28 hook tests, now pass. Root and nested sources, unrelated plugin entries, missing/malformed catalogs and nonlocal source entries are covered. Structural validation, Ruff lint/format and strict mypy checks pass. The complete Node suite outside the sandbox passed 212 tests with 61 skips; the docs build and whitespace check also passed. This repair uses isolated fixtures; it adds no live host-session proof.
+
 ## pstack 0.15.36 Orchestrate port — 2026-10-28 {#pstack-0-15-36}
 
 Rewrote Orchestrate around native delegation, host task trackers, and PR/CI event subscriptions. The Python orch CLI and its store and frontier tests are deleted. Shared native manifests are `0.22.0`. Checks ran on macOS in Claude Code.

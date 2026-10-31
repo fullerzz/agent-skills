@@ -95,7 +95,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 
 ## Workflows
 
-Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode Use Herdr execution for this session` in Claude Code's plugin, or ask Hermes to load `zstack:z-mode` with Herdr enabled. Existing bug-fix, feature, investigation, review, and queue workflows then use Herdr for their authorized delegated agents and useful long-running processes. Small work stays direct. Herdr must be available inside the calling pane (`HERDR_ENV=1`); enabling the preference does not attach an outside session.
+Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode Use Herdr execution for this session` in Claude Code's plugin, or ask Hermes to load `zstack:z-mode` with Herdr enabled. Existing bug-fix, feature, investigation, review, and queue workflows then use Herdr for their authorized delegated agents and useful long-running processes. Small work stays direct. Install the herdr-zstack plugin for native `hc` execution. Its `hc-workflow` companion requires `HC_TERMINAL_ID`, a resolvable live caller and an answering core; `HERDR_ENV` alone is insufficient. A missing companion is a capability gap, with no legacy fallback. Enabling the preference does not attach an outside session.
 
 "Disable Herdr execution" restores native execution while retaining z-mode. "Stop z-mode" clears both preferences. The shared native hooks remember them for the same session ID; new sessions and children require their own selection. With linked skills or older hooks, selection remains conversational. See [Herdr workflow](docs/reference/workflow-skills.md#herdr-workflow) for mechanics, limits, and resume behavior.
 

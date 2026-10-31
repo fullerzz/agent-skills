@@ -22,7 +22,7 @@ For execution selection without activating z-mode, invoke `herdr-workflow` expli
 
 ### How it works
 
-Z-mode selects the normal task playbook, then loads this companion when Herdr is enabled. The playbook determines work, ownership, and acceptance; Herdr supplies agent launch, prompt submission, lifecycle waits, terminal inspection, and useful supporting panes. A small task still runs directly. The coordinator maintains task-to-agent/pane assignments and accepts artifacts only after the workflow's checks.
+Z-mode selects the normal task playbook. When Herdr is enabled, the session hook resolves the installed **herdr-zstack:hc-workflow** companion; the zstack `herdr-workflow` skill retains selection and discovery guidance. A missing or ambiguous companion is a capability gap, with no legacy fallback. The playbook determines work, ownership, and acceptance; Herdr supplies agent launch, prompt submission, lifecycle waits, terminal inspection, and useful supporting terminals. A small task still runs directly. The coordinator maintains task-to-terminal assignments and accepts artifacts only after the workflow's checks.
 
 The session hook supplies Herdr and Native controls alongside Enable and Disable. Herdr changes execution only; Native disables Herdr while preserving z-mode. Enable selects z-mode and retains an existing execution preference; Disable clears both. These are preference writes, not process controls. Explicit pause drains or stops assigned workers; client detach leaves processes running.
 
@@ -32,9 +32,9 @@ The original workflow's deliverable, visible task-owned agents/processes, verifi
 
 ### Dependencies and limits
 
-Herdr control requires `HERDR_ENV=1`, a compatible CLI/server, and the selected agent CLI. The installed CLI's help determines syntax. Missing capabilities require a disclosed, user-selected fallback; host restrictions and combined worker limits still apply. The upstream [agent guide](https://herdr.dev/agent-guide.md), [concepts](https://herdr.dev/docs/concepts/), [working guide](https://herdr.dev/docs/how-to-work/), and [automation docs](https://herdr.dev/docs/agent-automation/) describe Herdr itself.
+Native control requires the herdr-zstack plugin, `HC_TERMINAL_ID`, a live caller resolved by `hc get "$HC_TERMINAL_ID"`, an answering `hc server status` on the same core, and the selected agent CLI. `HERDR_ENV` is legacy diagnostic context only. Use the companion’s read-only preflight rather than CLI discovery that could start an absent core. The installed CLI’s help determines syntax. Missing capabilities require a disclosed, user-selected fallback; host restrictions and combined worker limits still apply. The [herdr-zstack execution contract](https://github.com/fullerzz/herdr-zstack/blob/main/docs/execution-contract.md) defines native hc capabilities and evidence limits.
 
-New CLI sessions do not inherit the coordinator's context, model settings, permissions, or activation. Panes alone do not isolate filesystem writes. Use existing task authority for exclusive files or requested worktrees, and supply consolidated briefs. Server restart is different from detach: conversation restoration depends on native integrations and does not prove work continued.
+New CLI sessions do not inherit the coordinator's context, model settings, permissions, or activation. Terminals alone do not isolate filesystem writes. Use existing task authority for exclusive files or requested worktrees, and supply consolidated briefs. Server restart is different from detach: conversation restoration depends on native integrations and does not prove work continued.
 
 The preference is a marker beside mode state in each native host's plugin data directory and restored only for the same session ID. Stopping or switching away from active z-mode and clear/reset remove both; a Herdr-only selection survives a style switch; new children and rotated IDs start without either. Without the new hooks, record selection and opt-out conversationally. No installation, permission changes, server restarts, publication, or extra delegation follow merely from enabling it.
 
