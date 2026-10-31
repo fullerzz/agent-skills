@@ -122,6 +122,39 @@ def control_command(arguments: list[str], shell: str) -> str:
     return shlex.join(arguments)
 
 
+def companion_skill(host: str) -> str | None:
+    """Resolve one installed hc companion; never guess between cached versions."""
+    from pathlib import Path
+
+    home = Path.home()
+    candidates: list[Path] = []
+    if host == "codex":
+        base = Path(os.environ.get("CODEX_HOME") or home / ".codex")
+        candidates = list(base.glob("plugins/cache/*/herdr-zstack/*/skills/hc-workflow/SKILL.md"))
+        candidates.append(home / ".agents/skills/hc-workflow/SKILL.md")
+    elif host == "claude":
+        base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or home / ".claude")
+        candidates.append(base / "skills/hc-workflow/SKILL.md")
+        installed = load_mode(str(base / "plugins/installed_plugins.json")).get("plugins", {})
+        markets = load_mode(str(base / "plugins/known_marketplaces.json"))
+        if isinstance(installed, dict):
+            for name, entries in installed.items():
+                if not name.startswith("herdr-zstack@") or not isinstance(entries, list):
+                    continue
+                market = markets.get(name.split("@", 1)[1], {})
+                source = market.get("source", {}) if isinstance(market, dict) else {}
+                if not isinstance(source, dict):
+                    source = {}
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    root = source.get("path") if source.get("source") == "directory" else entry.get("installPath")
+                    if isinstance(root, str) and os.path.isabs(root):
+                        candidates.append(Path(root) / "skills/hc-workflow/SKILL.md")
+    paths = {str(path.resolve()) for path in candidates if path.is_file()}
+    return paths.pop() if len(paths) == 1 else None
+
+
 def build_context(host: str, session_id: str, data_dir: str, source: str) -> tuple[str, str | None]:
     """Restore scoped state and render controls without emitting output."""
     if host not in ("codex", "claude", "hermes"):
@@ -182,10 +215,19 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
     else:
         context += "No stored z-mode activation exists for this session."
     if execution == "herdr":
-        skill = os.path.join(os.path.dirname(os.path.dirname(helper)), "skills/herdr-workflow/SKILL.md")
+        companion = companion_skill(host)
+        context += "\nHerdr execution was explicitly enabled for this session. "
+        if companion:
+            context += f"Read {companion} (herdr-zstack:hc-workflow) alongside the selected playbook. "
+        else:
+            context += (
+                "Capability gap: herdr-zstack:hc-workflow is missing or ambiguous; "
+                "resolve it through the host catalog. "
+            )
         context += (
-            f"\nHerdr execution was explicitly enabled for this session. Read {skill}; "
-            "apply it alongside the selected playbook. Later user instructions override stored state."
+            "No legacy Herdr fallback. Native hc requires HC_TERMINAL_ID, a resolved caller and an answering core; "
+            "HERDR_ENV alone is insufficient. Do not dispatch until the companion's read-only preflight passes. "
+            "Never copy these controls into children. Later user instructions override stored state."
         )
     else:
         context += "\nHerdr execution is not enabled."

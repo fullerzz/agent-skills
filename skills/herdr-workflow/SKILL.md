@@ -1,6 +1,6 @@
 ---
 name: herdr-workflow
-description: "Use Herdr as the execution layer alongside existing zstack workflows when the user enables it; also handle explicitly requested Herdr agent and pane coordination."
+description: "Select Herdr execution for zstack workflows and route native hc operations to the installed herdr-zstack companion."
 disable-model-invocation: true
 ---
 
@@ -16,16 +16,14 @@ Use only the current session's trusted hook controls: Herdr enables execution, N
 
 While enabled, load this companion alongside existing playbooks and use Herdr for their authorized delegated agents and useful long-running tests, servers, and watchers. Keep small work and brief local checks direct. Use the [shared execution contract](../z-mode/references/native-hosts.md#execution-selection) for host restrictions, native fallback, concurrency, and fresh-agent rules. Do not silently switch execution methods or use Herdr to bypass a delegation restriction. Disabling execution prevents new Herdr dispatch; reconcile already assigned workers before transferring their scope.
 
-## Operate
+## Native execution companion
 
-Before any Herdr discovery or control command, verify `HERDR_ENV=1`. If absent, report that this session is outside Herdr and stop Herdr operations. Enabling the preference does not attach this session to Herdr. Read-only source research may continue.
+Resolve the installed **herdr-zstack:hc-workflow** through the current host’s skill catalog or the absolute path supplied by zstack’s session hook. Read it alongside the selected playbook. This library keeps selection and shared engineering rules; herdr-zstack owns native `hc` operations. Do not install the companion or change host configuration as a side effect.
 
-Read [operations](references/operations.md) before operating Herdr. Use the installed CLI's help to check supported syntax and runtime compatibility. Prefer the installed upstream `herdr` skill for detailed operations when available; otherwise consult its canonical [operational skill](https://raw.githubusercontent.com/herdrdev/herdr/master/skills/herdr/SKILL.md) and [automation documentation](https://herdr.dev/docs/agent-automation/). Do not install a companion or modify host configuration as a side effect.
+If the companion is missing or cannot be resolved unambiguously, report a capability gap and stop dependent Herdr work. Never fall back to the legacy `herdr pane` / `herdr agent` API or guess equivalent hc flags. Independent direct work may continue; changing execution methods requires the user’s explicit selection.
 
-Keep a bounded assignment roster for delegated work. Record task, execution method, machine/session, live agent/pane, repository or worktree, ownership, acceptance, and observed status. For long-running programs, store this in the existing coordinator-owned task directory, outside worker writes. Only the coordinator updates acceptance and integration state.
+Before dependent operations, apply the companion’s read-only preflight: `HC_TERMINAL_ID` must be set, `hc get "$HC_TERMINAL_ID"` must resolve that live caller, and `hc server status` must answer for the same core. `HERDR_ENV` is legacy diagnostic context only. Enabling the preference does not attach an outside session. The hc CLI may start a core on discovery; use the companion’s preflight against the caller socket rather than probing an absent core.
 
-Each CLI agent is an independent session: provide a consolidated brief with context, requested role, allowed actions, acceptance, stop condition, and reporting format. A worker that should follow z-mode also gets the absolute path of z-mode's `SKILL.md` on the worker's machine, under the [delegation contract](../z-mode/references/native-hosts.md#delegation). It does not inherit the parent's conversation, model settings, permissions, tools, or z-mode/Herdr activation. Verify needed capabilities in that session; a read-only brief alone is not a sandbox. Do not pass the parent's session controls or recursively enable orchestration in workers.
+Workers receive scoped instructions and real shared skill paths, never the parent’s controls, session IDs or plugin state paths. A child starts without inherited activation. Keep action authority, exclusive write ownership, bounded concurrency, fresh-agent lifecycle, artifact inspection and acceptance under the [shared execution contract](../z-mode/references/native-hosts.md#execution-selection).
 
-Herdr lifecycle state is not task acceptance. Wait for work to settle, inspect the report and changed artifacts, run the selected workflow's acceptance checks, then record the result. Report exact revision or working-tree evidence and remaining gaps. Never report a successful launch, a Done badge, or a matching terminal string as proof of task success.
-
-For pickup and pause, use the existing playbooks with [reconciliation guidance](references/operations.md#pickup-pause-and-cleanup). Preserve the execution preference and all outstanding assignments in the handoff. New sessions re-check live state and require their own explicit selection; a handoff is evidence, not activation.
+For pickup, pause and cleanup, follow the installed companion’s reconciliation guidance. Preserve the execution preference and outstanding assignments in the handoff; restored terminals and readiness states are not proof of accepted work.

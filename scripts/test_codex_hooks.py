@@ -98,11 +98,19 @@ class CodexHooksTests(unittest.TestCase):
             for key, value in os.environ.items()
             if not key.startswith("CLAUDE_PLUGIN_") and key != "ZSTACK_XRAY"
         }
-        self.env = dict(inherited, PLUGIN_ROOT=str(ROOT), PLUGIN_DATA=str(self.data))
+        self.env = dict(
+            inherited,
+            PLUGIN_ROOT=str(ROOT),
+            PLUGIN_DATA=str(self.data),
+            CODEX_HOME=str(self.data / "codex"),
+            CLAUDE_CONFIG_DIR=str(self.data / "claude"),
+            HOME=str(self.data),
+        )
 
-    def hook(self, session: str = "session-a", source: str = "startup") -> str:
+    def hook(self, session: str = "session-a", source: str = "startup", host: str = "codex") -> str:
+        env = self.env | ({"CLAUDE_PLUGIN_DATA": str(self.data)} if host == "claude" else {})
         result = subprocess.run(  # noqa: S603 - Trusted fixture/manifest commands.
-            [sys.executable, "-I", "-S", str(HELPER), "--host=codex"],
+            [sys.executable, "-I", "-S", str(HELPER), f"--host={host}"],
             input=json.dumps(
                 {
                     "hook_event_name": "SessionStart",
@@ -113,7 +121,7 @@ class CodexHooksTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=True,
-            env=self.env,
+            env=env,
         )
         self.assertEqual(result.stderr, "")
         return result.stdout
@@ -301,6 +309,66 @@ class CodexHooksTests(unittest.TestCase):
         self.control("native")
         self.assertEqual(list(state.parent.iterdir()), [])
 
+    def test_herdr_routes_to_host_companion_without_inheriting_environment_activation(self) -> None:
+        codex_skill = self.data / "codex/plugins/cache/market/herdr-zstack/0.1.0/skills/hc-workflow/SKILL.md"
+        claude_root = self.data / "companion source"
+        claude_skill = claude_root / "skills/hc-workflow/SKILL.md"
+        for skill in (codex_skill, claude_skill):
+            skill.parent.mkdir(parents=True)
+            skill.write_text("Native hc companion fixture")
+        registry = self.data / "claude/plugins/installed_plugins.json"
+        registry.parent.mkdir(parents=True)
+        registry.write_text(json.dumps({"plugins": {"herdr-zstack@local": [{"installPath": str(claude_root)}]}}))
+        for host, skill in (("codex", codex_skill), ("claude", claude_skill)):
+            for signals in ({"HC_TERMINAL_ID": "t16"}, {"HERDR_ENV": "1"}, {}):
+                env = {key: value for key, value in self.env.items() if not key.startswith(("HC_", "HERDR_"))}
+                with self.subTest(host=host, signals=signals), patch.dict(self.env, env | signals, clear=True):
+                    context = json.loads(self.hook(session="fresh", host=host))["hookSpecificOutput"][
+                        "additionalContext"
+                    ]
+                    self.assertIn("Herdr execution is not enabled", context)
+                    self.control("herdr")
+                    context = json.loads(self.hook(host=host))["hookSpecificOutput"]["additionalContext"]
+                    self.assertIn(str(skill), context)
+                    self.assertIn("herdr-zstack:hc-workflow", context)
+                    self.assertIn("read-only preflight passes", context)
+                    self.assertNotIn("skills/herdr-workflow/", context)
+                    self.assertNotIn("--session-id=session-a", context.split("Read ")[-1])
+                    self.control("native")
+
+    def test_missing_or_ambiguous_companion_reports_gap_without_legacy_fallback(self) -> None:
+        self.control("herdr")
+        for versions in ((), ("0.1.0", "0.2.0")):
+            for version in versions:
+                skill = self.data / f"codex/plugins/cache/market/herdr-zstack/{version}/skills/hc-workflow/SKILL.md"
+                skill.parent.mkdir(parents=True)
+                skill.write_text("fixture")
+            context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("Capability gap: herdr-zstack:hc-workflow is missing or ambiguous", context)
+            self.assertIn("No legacy Herdr fallback", context)
+            self.assertNotIn("skills/herdr-workflow/", context)
+        self.assertTrue((self.data / "z-mode/session-a.herdr").is_file())
+
+    def test_claude_directory_marketplace_resolves_live_source_and_invalid_registry_fails_closed(self) -> None:
+        resolve = runpy.run_path(str(HELPER))["companion_skill"]
+        base = self.data / "claude/plugins"
+        base.mkdir(parents=True)
+        source = self.data / "live source"
+        skill = source / "skills/hc-workflow/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("fixture")
+        registry = base / "installed_plugins.json"
+        registry.write_text(json.dumps({"plugins": {"herdr-zstack@local": [{"installPath": "/stale/cache"}]}}))
+        (base / "known_marketplaces.json").write_text(
+            json.dumps({"local": {"source": {"source": "directory", "path": str(source)}}})
+        )
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(resolve("claude"), str(skill))
+            self.assertIsNone(resolve("codex"))
+            for value in ("invalid", "[]", '{"plugins":null}', '{"plugins":{"herdr-zstack@local":[null]}}'):
+                registry.write_text(value)
+                self.assertIsNone(resolve("claude"))
+
     def test_parallel_mode_and_execution_controls_both_persist(self) -> None:
         for _ in range(10):
             processes = [
@@ -329,9 +397,15 @@ class CodexHooksTests(unittest.TestCase):
             [sys.executable, "-I", "-S", str(HELPER), "herdr", f"--session-id={session}", "--data-dir", str(data)],
             check=True,
         )
-        context, _ = render("codex", session, str(data), "resume")
-        self.assertLess(len(context), 4000)
-        self.assertIn("Herdr execution was explicitly enabled", context)
+        skill = self.data / "codex/plugins/cache/market/herdr-zstack/0.1.0/skills/hc-workflow/SKILL.md"
+        with patch.dict(os.environ, self.env, clear=True):
+            for present in (False, True):
+                if present:
+                    skill.parent.mkdir(parents=True)
+                    skill.write_text("fixture")
+                context, _ = render("codex", session, str(data), "resume")
+                self.assertLess(len(context), 4000)
+                self.assertIn("Herdr execution was explicitly enabled", context)
 
     def test_execution_controls_are_scoped_and_roundtrip_from_hook(self) -> None:
         self.control("enable", session="parent")
