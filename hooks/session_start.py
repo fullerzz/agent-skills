@@ -122,6 +122,21 @@ def control_command(arguments: list[str], shell: str) -> str:
     return shlex.join(arguments)
 
 
+def directory_companion_root(source: dict[str, object]) -> str | None:
+    root = source.get("path")
+    if source.get("source") != "directory" or not isinstance(root, str) or not os.path.isabs(root):
+        return None
+    plugins = load_mode(os.path.join(root, ".claude-plugin/marketplace.json")).get("plugins")
+    if not isinstance(plugins, list):
+        return None
+    for plugin in plugins:
+        if isinstance(plugin, dict) and plugin.get("name") == "herdr-zstack":
+            relative = plugin.get("source")
+            if isinstance(relative, str) and relative.startswith("./") and ".." not in relative.split("/"):
+                return os.path.join(root, relative)
+    return None
+
+
 def companion_skill(host: str) -> str | None:
     """Resolve one installed hc companion; never guess between cached versions."""
     from pathlib import Path
@@ -145,10 +160,11 @@ def companion_skill(host: str) -> str | None:
                 source = market.get("source", {}) if isinstance(market, dict) else {}
                 if not isinstance(source, dict):
                     source = {}
+                local_root = directory_companion_root(source)
                 for entry in entries:
                     if not isinstance(entry, dict):
                         continue
-                    root = source.get("path") if source.get("source") == "directory" else entry.get("installPath")
+                    root = local_root or entry.get("installPath")
                     if isinstance(root, str) and os.path.isabs(root):
                         candidates.append(Path(root) / "skills/hc-workflow/SKILL.md")
     paths = {str(path.resolve()) for path in candidates if path.is_file()}

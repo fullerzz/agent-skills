@@ -353,21 +353,69 @@ class CodexHooksTests(unittest.TestCase):
         resolve = runpy.run_path(str(HELPER))["companion_skill"]
         base = self.data / "claude/plugins"
         base.mkdir(parents=True)
-        source = self.data / "live source"
-        skill = source / "skills/hc-workflow/SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text("fixture")
         registry = base / "installed_plugins.json"
         registry.write_text(json.dumps({"plugins": {"herdr-zstack@local": [{"installPath": "/stale/cache"}]}}))
-        (base / "known_marketplaces.json").write_text(
-            json.dumps({"local": {"source": {"source": "directory", "path": str(source)}}})
-        )
         with patch.dict(os.environ, self.env, clear=True):
-            self.assertEqual(resolve("claude"), str(skill))
+            for index, relative in enumerate(("./", "./plugins/herdr-zstack")):
+                source = self.data / f"live marketplace {index}"
+                skill = source / relative / "skills/hc-workflow/SKILL.md"
+                skill.parent.mkdir(parents=True)
+                skill.write_text("fixture")
+                catalog = source / ".claude-plugin/marketplace.json"
+                catalog.parent.mkdir()
+                catalog.write_text(
+                    json.dumps(
+                        {
+                            "plugins": [
+                                {"name": "unrelated", "source": "./wrong-plugin"},
+                                {"name": "herdr-zstack", "source": relative},
+                            ]
+                        }
+                    )
+                )
+                (base / "known_marketplaces.json").write_text(
+                    json.dumps({"local": {"source": {"source": "directory", "path": str(source)}}})
+                )
+                with self.subTest(source=relative):
+                    self.assertEqual(resolve("claude"), str(skill))
             self.assertIsNone(resolve("codex"))
             for value in ("invalid", "[]", '{"plugins":null}', '{"plugins":{"herdr-zstack@local":[null]}}'):
                 registry.write_text(value)
                 self.assertIsNone(resolve("claude"))
+
+    def test_claude_directory_marketplace_retains_install_path_without_a_relative_plugin_source(self) -> None:
+        resolve = runpy.run_path(str(HELPER))["companion_skill"]
+        base = self.data / "claude/plugins"
+        base.mkdir(parents=True)
+        installed = self.data / "installed companion/skills/hc-workflow/SKILL.md"
+        installed.parent.mkdir(parents=True)
+        installed.write_text("fixture")
+        (base / "installed_plugins.json").write_text(
+            json.dumps(
+                {
+                    "plugins": {
+                        "herdr-zstack@local": [{"installPath": str(installed.parents[2])}],
+                    }
+                }
+            )
+        )
+        source = self.data / "marketplace"
+        catalog = source / ".claude-plugin/marketplace.json"
+        catalog.parent.mkdir(parents=True)
+        (base / "known_marketplaces.json").write_text(
+            json.dumps({"local": {"source": {"source": "directory", "path": str(source)}}})
+        )
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(resolve("claude"), str(installed))
+            for contents in (
+                "invalid",
+                '{"plugins":null}',
+                '{"plugins":[]}',
+                json.dumps({"plugins": [{"name": "herdr-zstack", "source": {"source": "github"}}]}),
+            ):
+                catalog.write_text(contents)
+                with self.subTest(catalog=contents):
+                    self.assertEqual(resolve("claude"), str(installed))
 
     def test_parallel_mode_and_execution_controls_both_persist(self) -> None:
         for _ in range(10):
