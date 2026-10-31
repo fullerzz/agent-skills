@@ -39,9 +39,7 @@ The hook uses only the Python standard library. Its launcher skips uv configurat
 
 ### Herdr execution
 
-Explicitly select "use z-mode with Herdr" to apply [Herdr execution](../reference/workflow-skills.md#herdr-workflow) across the existing playbooks. The hook also emits Herdr and Native controls: these change the session's execution preference without activating or disabling z-mode. Enable preserves that preference; Disable and session clear remove both. Disable runs on a style switch only when z-mode is active, so a Herdr-only selection survives it. Legacy mode-only state defaults to native execution. New children receive neither preference from their parent. The preference is a per-session marker beside the mode JSON, so parallel controls cannot overwrite each other, with no process launch or Herdr discovery in the hook. Actual control requires the agent to be inside Herdr and remains subject to Codex permissions. Older installed hooks use conversational selection until refreshed.
-
-For Codex 0.157+, use the [shared-daemon workaround](../guide/herdr.md#known-codex-shared-daemon-issue): launch with `codex --no-daemon` so hooks and tool commands receive the intended pane's Herdr context.
+Explicitly select “use z-mode with Herdr” to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries, and the companion's [launch instructions](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/references/operations.md#3-launch) for Codex flags and readiness checks. Codex permissions still apply.
 
 ### Claude judge and adversary
 

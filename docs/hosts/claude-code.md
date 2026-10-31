@@ -34,7 +34,7 @@ The hook supplies one labeled POSIX sh and one PowerShell control template; repl
 
 ### Herdr execution
 
-For [Herdr execution](../reference/workflow-skills.md#herdr-workflow), explicitly request "use z-mode with Herdr". The shared hook also supplies Herdr/Native controls in both shells. Herdr changes execution without activating z-mode; Native disables Herdr while retaining the mode. Enable preserves execution; Disable (stopping or switching away from active z-mode) and clear reset both, so a Herdr-only selection survives a style switch. The same-ID preference is a marker beside the mode JSON and does not transfer to children. The hook never launches agents or probes Herdr. Operation requires `HERDR_ENV=1` and remains subject to Claude permissions; older installed hooks retain selection conversationally until refreshed.
+Explicitly request “use z-mode with Herdr” to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The shared hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries. The companion owns native hc detection and preflight; `HERDR_ENV` alone is insufficient. Claude permissions still apply.
 
 ### Codex adversarial review
 

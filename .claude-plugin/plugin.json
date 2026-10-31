@@ -1,6 +1,6 @@
 {
   "name": "zstack",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "Evidence-driven engineering workflows, scoped agents, and task-sized verification for Claude Code.",
   "author": {
     "name": "Zach Fuller",
