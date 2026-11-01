@@ -95,9 +95,9 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 
 ## Workflows
 
-Select `$z-mode Use Herdr execution for this session` in Codex, `/zstack:z-mode Use Herdr execution for this session` in Claude Code's plugin, or ask Hermes to load `zstack:z-mode` with Herdr enabled. Existing bug-fix, feature, investigation, review, and queue workflows then use Herdr for their authorized delegated agents and useful long-running processes. Small work stays direct. Install the herdr-zstack plugin for native `hc` execution. Its `hc-workflow` companion requires `HC_TERMINAL_ID`, a resolvable live caller and an answering core; `HERDR_ENV` alone is insufficient. A missing companion is a capability gap, with no legacy fallback. Enabling the preference does not attach an outside session.
+Explicitly select “use z-mode with Herdr” to apply the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md) alongside existing playbooks. Herdr-zstack owns native hc operations; zstack keeps routing, session preferences, scope and acceptance. A missing or ambiguous companion is a capability gap, with no legacy fallback. Small work stays direct.
 
-"Disable Herdr execution" restores native execution while retaining z-mode. "Stop z-mode" clears both preferences. The shared native hooks remember them for the same session ID; new sessions and children require their own selection. With linked skills or older hooks, selection remains conversational. See [Herdr workflow](docs/reference/workflow-skills.md#herdr-workflow) for mechanics, limits, and resume behavior.
+“Disable Herdr execution” restores native execution while retaining z-mode; “Stop z-mode” clears both preferences. See the [session guide](docs/guide/herdr.md) for host invocation and controls, and [herdr-zstack installation](https://github.com/fullerzz/herdr-zstack/blob/main/docs/installation.md) for setup.
 
 - Understand with how, why, teach, recall, and blast-radius.
 - Check that the agent understood a long or messy ask with explicitly invoked [in-your-own-words](docs/reference/workflow-skills.md#in-your-own-words), a restatement of your goals and the problem you are solving.

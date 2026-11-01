@@ -8,37 +8,9 @@ Delegated workflows use native host agents by default, or [Herdr execution](#her
 
 ## Herdr workflow {#herdr-workflow}
 
-You want existing workflows to run their agents and useful long-running supporting processes visibly in Herdr.
+`herdr-workflow` is a compatibility entrypoint for the installed **herdr-zstack:hc-workflow** companion. Zstack owns session selection and the normal playbook's scope, authority and acceptance. Herdr-zstack owns native hc preflight, launch, collection, pause, pickup and cleanup; use its [installation guide](https://github.com/fullerzz/herdr-zstack/blob/main/docs/installation.md), [skill](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md) and [operations](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/references/operations.md).
 
-Start with the [Herdr walkthrough](../guide/herdr.md) for setup, execution behavior, pause/resume, and troubleshooting, or visit the upstream [Herdr documentation](https://herdr.dev/docs/).
-
-| Host | Example invocation |
-| --- | --- |
-| Codex | `$z-mode Use Herdr execution for this session, then fix the reconnect bug.` |
-| Claude Code | `/zstack:z-mode Use Herdr execution for this session, then fix the reconnect bug.` |
-| Hermes | `Load zstack:z-mode with skill_view and enable Herdr execution for this session.` |
-
-For execution selection without activating z-mode, invoke `herdr-workflow` explicitly and ask to enable it. A one-off request such as `$herdr-workflow Inspect the agents assigned to this task` does not persist a session preference.
-
-### How it works
-
-Z-mode selects the normal task playbook. When Herdr is enabled, the session hook resolves the installed **herdr-zstack:hc-workflow** companion; the zstack `herdr-workflow` skill retains selection and discovery guidance. A missing or ambiguous companion is a capability gap, with no legacy fallback. The playbook determines work, ownership, and acceptance; Herdr supplies agent launch, prompt submission, lifecycle waits, terminal inspection, and useful supporting terminals. A small task still runs directly. The coordinator maintains task-to-terminal assignments and accepts artifacts only after the workflow's checks.
-
-The session hook supplies Herdr and Native controls alongside Enable and Disable. Herdr changes execution only; Native disables Herdr while preserving z-mode. Enable selects z-mode and retains an existing execution preference; Disable clears both. These are preference writes, not process controls. Explicit pause drains or stops assigned workers; client detach leaves processes running.
-
-### Expected result
-
-The original workflow's deliverable, visible task-owned agents/processes, verified results, and a reconciled roster or handoff. Reports distinguish agent readiness from task acceptance and name incomplete evidence.
-
-### Dependencies and limits
-
-Native control requires the herdr-zstack plugin, `HC_TERMINAL_ID`, a live caller resolved by `hc get "$HC_TERMINAL_ID"`, an answering `hc server status` on the same core, and the selected agent CLI. `HERDR_ENV` is legacy diagnostic context only. Use the companion’s read-only preflight rather than CLI discovery that could start an absent core. The installed CLI’s help determines syntax. Missing capabilities require a disclosed, user-selected fallback; host restrictions and combined worker limits still apply. The [herdr-zstack execution contract](https://github.com/fullerzz/herdr-zstack/blob/main/docs/execution-contract.md) defines native hc capabilities and evidence limits.
-
-New CLI sessions do not inherit the coordinator's context, model settings, permissions, or activation. Terminals alone do not isolate filesystem writes. Use existing task authority for exclusive files or requested worktrees, and supply consolidated briefs. Server restart is different from detach: conversation restoration depends on native integrations and does not prove work continued.
-
-The preference is a marker beside mode state in each native host's plugin data directory and restored only for the same session ID. Stopping or switching away from active z-mode and clear/reset remove both; a Herdr-only selection survives a style switch; new children and rotated IDs start without either. Without the new hooks, record selection and opt-out conversationally. No installation, permission changes, server restarts, publication, or extra delegation follow merely from enabling it.
-
-[Full herdr-workflow instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/herdr-workflow/SKILL.md)
+Explicitly request “use z-mode with Herdr”, or invoke `herdr-workflow` to select execution without z-mode. The [session guide](../guide/herdr.md) covers host invocation and preference controls. Resolve the installed companion through the host catalog or session hook. A missing or ambiguous companion is a capability gap, with no legacy fallback. Loading a skill grants no extra delegation or external-action authority; small work stays direct.
 
 ## Benchmark checklist {#benchmark-checklist}
 
