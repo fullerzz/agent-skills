@@ -18,9 +18,9 @@ def state_path(data_dir: str, session_id: str) -> str:
     return os.path.join(data_dir, "z-mode", session_id + ".json")
 
 
-def execution_path(path: str) -> str:
-    # A separate marker keeps each control a single-file write, so parallel controls cannot drop each other.
-    return os.path.splitext(path)[0] + ".herdr"
+def execution_path(path: str, legacy: str | None = None) -> str:
+    # One atomic execution record stays separate from mode activation.
+    return os.path.splitext(path)[0] + ("." + legacy if legacy else ".execution.json")
 
 
 def load_mode(path: str) -> dict[str, object]:
@@ -32,11 +32,21 @@ def load_mode(path: str) -> dict[str, object]:
     return state if isinstance(state, dict) else {}
 
 
+def read_execution(path: str) -> str | None:
+    selection = execution_path(path)
+    if os.path.lexists(selection):
+        value = load_mode(selection).get("execution")
+        # Corrupt explicit state must not re-enter automatic selection.
+        return "herdr" if value == "herdr" else "native"
+    if os.path.isfile(execution_path(path, "native")):
+        return "native"
+    if os.path.isfile(execution_path(path, "herdr")) or load_mode(path).get("execution") == "herdr":
+        return "herdr"
+    return None
+
+
 def read_state(path: str) -> tuple[bool, str]:
-    state = load_mode(path)
-    # Earlier releases stored execution in the mode JSON; honor it until a control migrates it.
-    herdr = state.get("execution") == "herdr" or os.path.isfile(execution_path(path))
-    return state.get("active") is True, "herdr" if herdr else "native"
+    return load_mode(path).get("active") is True, read_execution(path) or "native"
 
 
 def unlink(path: str) -> None:
@@ -46,7 +56,7 @@ def unlink(path: str) -> None:
         pass
 
 
-def write_active(path: str) -> None:
+def write_state(path: str, state: dict[str, object]) -> None:
     import tempfile
 
     directory = os.path.dirname(path)
@@ -55,7 +65,7 @@ def write_active(path: str) -> None:
     try:
         with tempfile.NamedTemporaryFile(mode="w", dir=directory, delete=False) as file:
             temporary = file.name
-            json.dump({"active": True}, file)
+            json.dump(state, file)
         os.replace(temporary, path)
     finally:
         if temporary is not None:
@@ -68,9 +78,9 @@ def migrate_legacy(path: str) -> None:
     if "execution" not in state:
         return
     if state["execution"] == "herdr":
-        open(execution_path(path), "a").close()
+        open(execution_path(path, "herdr"), "a").close()
     if state.get("active") is True:
-        write_active(path)
+        write_state(path, {"active": True})
     else:
         unlink(path)
 
@@ -80,20 +90,18 @@ def set_active(path: str, active: bool) -> None:
     if not active:
         unlink(path)
         unlink(execution_path(path))
+        unlink(execution_path(path, "herdr"))
+        unlink(execution_path(path, "native"))
         return
     migrate_legacy(path)
-    write_active(path)
+    write_state(path, {"active": True})
 
 
 def set_execution(path: str, execution: str) -> None:
     if execution not in ("herdr", "native"):
         raise ValueError("Invalid execution selection")
     migrate_legacy(path)
-    if execution == "native":
-        unlink(execution_path(path))
-    else:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        open(execution_path(path), "a").close()
+    write_state(execution_path(path), {"execution": execution})
 
 
 def restore_state(path: str, source: str) -> tuple[bool, str, str | None]:
@@ -203,8 +211,8 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         "Installation activates neither z-mode nor Herdr. "
         "These controls supersede any controls inherited from a parent or forked conversation; "
         "never run another session's controls. Parent activation does not activate a fork. "
-        "Only explicit selection/opt-out permits controls: Enable selects z-mode; Disable clears both; "
-        "Herdr selects execution only; Native clears execution only. Preferences do not control processes. "
+        "Enable requires explicit z-mode activation; Disable clears both; "
+        "Herdr selects execution; Native opts out of automatic Herdr. Preferences do not control processes. "
         "In the executing shell's control, replace only the final argument ACTION with enable, disable, herdr, "
         "or native; leave all other arguments unchanged, including ACTION inside paths or session IDs:\n"
         f"POSIX sh control: {control_command(arguments, 'posix')}\n"
@@ -232,7 +240,7 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         context += "No stored z-mode activation exists for this session."
     if execution == "herdr":
         companion = companion_skill(host)
-        context += "\nHerdr execution was explicitly enabled for this session. "
+        context += "\nHerdr execution is selected for this session. "
         if companion:
             context += f"Read {companion} (herdr-zstack:hc-workflow) alongside the selected playbook. "
         else:
@@ -245,8 +253,21 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
             "HERDR_ENV alone is insufficient. Do not dispatch until the companion's read-only preflight passes. "
             "Never copy these controls into children. Later user instructions override stored state."
         )
+    elif active and read_execution(path) != "native":
+        companion = companion_skill(host)
+        context += "\nAutomatically run the hc companion's preflight before choosing execution. "
+        if companion:
+            context += f"Read {companion}. "
+        else:
+            context += "Resolve herdr-zstack:hc-workflow through the host catalog; missing or ambiguous means stay native. "
+        context += (
+            "Select Herdr with this session's control only if session.status is supported. "
+            "Otherwise stay native and report the gap. A later explicit Native choice overrides auto-selection."
+        )
     else:
         context += "\nHerdr execution is not enabled."
+        if read_execution(path) == "native":
+            context += " Native was explicitly selected; do not auto-select Herdr."
     if clear_error:
         context += "\n" + clear_error
     return context, clear_error

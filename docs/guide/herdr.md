@@ -4,7 +4,7 @@ Zstack selects the playbook and owns session preferences. The installed **herdr-
 
 ## Enable it for a session
 
-Start the coordinator in a live hc terminal and explicitly select z-mode with Herdr:
+Start the coordinator in a live hc terminal and enable z-mode. The agent automatically runs the installed companion’s read-only preflight and selects Herdr when `session.status` is `supported`, unless Native was explicitly selected. Headless hc terminals qualify; the app need not be installed or running. Missing or failed detection stays native. To select Herdr explicitly:
 
 | Host | Example invocation |
 | --- | --- |
@@ -12,13 +12,13 @@ Start the coordinator in a live hc terminal and explicitly select z-mode with He
 | Claude Code plugin | `/zstack:z-mode Use Herdr execution for this session.` |
 | Hermes | `Load zstack:z-mode with skill_view and enable Herdr execution for this session.` |
 
-Linked installations use `$z-mode` in Codex or `/z-mode` in Claude Code. The `herdr-workflow` compatibility entrypoint can select execution without activating z-mode when explicitly requested. Loading a skill or discussing Herdr does not enable execution.
+Linked installations use `$z-mode` in Codex or `/z-mode` in Claude Code. The `herdr-workflow` compatibility entrypoint can select execution without activating z-mode when explicitly requested. Enabling z-mode triggers detection; installing skills or discussing Herdr does not enable execution.
 
 The session hook resolves the installed companion through its host's installation records, or reports a capability gap for missing or ambiguous installs. Resolve other layouts through the host catalog. Read the resolved installed skill before operating; never substitute legacy commands. Enabling the preference does not attach an outside session to hc.
 
 ## Session preferences
 
-“Disable Herdr execution” selects native execution while retaining z-mode. “Stop z-mode” clears both preferences. Native hooks remember selection for the same session ID; new sessions and children need their own explicit selection. Linked installations without hooks preserve it conversationally. Controls change preferences, not processes; reconcile assigned workers before changing execution methods.
+“Disable Herdr execution” selects native execution while retaining z-mode and suppresses automatic selection, including after resume or re-enabling z-mode. “Stop z-mode” clears both preferences and that opt-out. Native hooks remember selection for the same session ID; new sessions and children need their own z-mode activation and detection or explicit Herdr selection. Linked installations without hooks preserve it conversationally. Controls change preferences, not processes; reconcile assigned workers before changing execution methods.
 
 The selected playbook still decides scope, whether to delegate, ownership and acceptance. Small work and brief checks stay direct. Follow the [shared host contract](../../skills/z-mode/references/native-hosts.md#execution-selection) for permissions, concurrency and fallback boundaries.
 

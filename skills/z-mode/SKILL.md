@@ -1,6 +1,6 @@
 ---
 name: z-mode
-description: "Evidence-driven engineering with scoped agents, portable principles, and task-sized verification. Use for z-mode; explicitly enabled Herdr execution applies across playbooks."
+description: "Evidence-driven engineering with scoped agents, portable principles, and task-sized verification. Use for z-mode; Herdr execution is selected automatically in a verified live hc terminal."
 disable-model-invocation: true
 ---
 
@@ -14,9 +14,11 @@ Read the [native host contract](references/native-hosts.md) before delegation or
 
 ## Execution selection
 
-Select the playbook for the task independently of how work runs. Native host execution is the default. When the user enables Herdr (for example, "use z-mode with Herdr"), resolve and read the installed **herdr-zstack:hc-workflow** companion through the host catalog or session hook, and apply it alongside every selected playbook and companion. Herdr-zstack owns [native hc operations](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). A missing companion is a capability gap; never fall back to legacy Herdr commands. Use Herdr for authorized delegated agents and useful long-running processes; small work and brief checks stay direct. Do not add a separate Herdr playbook or extra delegation merely because it is enabled.
+Select the playbook independently of how work runs. On z-mode activation or restoration without an existing Herdr selection, unless this session explicitly selected Native, resolve and read the installed **herdr-zstack:hc-workflow** companion through the host catalog or trusted session hook. Run its read-only `scripts/preflight.mjs`, resolved relative to the companion's real installation, automatically. If `session.status` is `supported`, select Herdr for this session and briefly report the selection. Headless hc terminals qualify; app membership is not required. Missing companion or failed native-session detection leaves native execution selected; report the gap without starting a core or opening the app. Installation and discussion of this integration do not activate z-mode.
 
-Use the current session's trusted Herdr/Native controls to remember explicit execution selection. Enabling Herdr does not itself activate z-mode; a request for both uses both Enable and Herdr. "Disable Herdr" selects Native while retaining z-mode. Stopping z-mode or switching style uses Disable to clear both preferences. Controls change preferences, not running processes: reconcile assigned workers before changing their ownership or execution method. Without controls, preserve selection conversationally and in handoffs. A discussion or implementation request about Herdr is not activation; new child sessions do not inherit selection. Host restrictions still apply, and an unavailable Herdr path requires a disclosed, explicitly chosen fallback under the [execution contract](references/native-hosts.md#execution-selection).
+Use the current session's trusted Herdr control to persist automatic selection after successful detection; without controls, retain it conversationally and in handoffs. Apply the companion alongside every selected playbook for authorized delegated agents and useful long-running processes. Small work and brief checks stay direct. Detection does not add workers or override host restrictions. Re-run preflight before dispatch; never fall back to legacy Herdr commands.
+
+An explicit "use Herdr" also selects the companion, including for a headless hc terminal; it still requires a supported native session before dispatch. "Disable Herdr" or "use Native" runs Native and suppresses automatic selection for this session while retaining z-mode. Re-enabling z-mode preserves that opt-out. An explicit Herdr choice replaces it. Stopping z-mode or switching style runs Disable and clears both preferences, including the opt-out. Reconcile assigned workers before changing their ownership or execution method. New sessions do not inherit selection; their own z-mode activation and detection apply. A selected Herdr path becoming unavailable requires a disclosed, explicitly chosen fallback under the [execution contract](references/native-hosts.md#execution-selection).
 
 ## Working posture
 

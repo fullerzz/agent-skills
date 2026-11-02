@@ -79,23 +79,23 @@ class HermesHookTests(unittest.TestCase):
             self.control(context, "Herdr")
         self.hooks.on_session_reset(session_id="new", old_session_id="old", new_session_id="new")
         self.assertIn("No stored z-mode activation", self.hooks.pre_llm_call(session_id="new")["context"])
-        self.assertNotIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="new")["context"])
+        self.assertNotIn("Herdr execution is selected", self.hooks.pre_llm_call(session_id="new")["context"])
         self.assertIn("z-mode was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
-        self.assertIn("Herdr execution was explicitly enabled", self.hooks.pre_llm_call(session_id="old")["context"])
+        self.assertIn("Herdr execution is selected", self.hooks.pre_llm_call(session_id="old")["context"])
 
     def test_execution_preference_survives_adapter_restart_but_not_new_sessions(self) -> None:
         context = self.hooks.pre_llm_call(session_id="parent")["context"]
         self.control(context, "Herdr")
         restarted = hermes.HermesHooks(lambda: self.data)
         context = restarted.pre_llm_call(session_id="parent")["context"]
-        self.assertIn("Herdr execution was explicitly enabled", context)
+        self.assertIn("Herdr execution is selected", context)
         self.assertIn("No stored z-mode activation", context)
         self.assertNotIn(
-            "Herdr execution was explicitly enabled", restarted.pre_llm_call(session_id="child")["context"]
+            "Herdr execution is selected", restarted.pre_llm_call(session_id="child")["context"]
         )
         self.control(context, "Native")
         self.assertNotIn(
-            "Herdr execution was explicitly enabled", restarted.pre_llm_call(session_id="parent")["context"]
+            "Herdr execution is selected", restarted.pre_llm_call(session_id="parent")["context"]
         )
 
     def test_failed_reset_stays_inactive_until_clear_can_be_retried(self) -> None:
