@@ -3,6 +3,8 @@
 """Exercise explicit Codex mode controls without personal configuration."""
 
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 import errno
 import io
 import json
@@ -285,9 +287,65 @@ class CodexHooksTests(unittest.TestCase):
         self.assertIn("No stored", self.hook(source="resume"))
         self.control("disable")
 
+    def test_active_mode_requests_preflight_but_native_opt_out_survives_resume(self) -> None:
+        self.assertNotIn("Automatically run", self.hook())
+        self.control("enable")
+        for source in ("startup", "resume", "compact"):
+            context = self.hook(source=source)
+            self.assertIn("Automatically run", context)
+            self.assertIn("session.status is supported", context)
+            self.assertNotIn("appSession", context)
+        self.assertNotIn("Automatically run", self.hook(session="child", source="fork"))
+        self.control("native")
+        self.control("enable")
+        context = self.hook(source="resume")
+        self.assertIn("Native was explicitly selected", context)
+        self.assertNotIn("Automatically run", context)
+        self.control("disable")
+        self.control("enable")
+        self.assertIn("Automatically run", self.hook())
+
+    def test_concurrent_execution_controls_retain_a_choice_on_resume(self) -> None:
+        functions = runpy.run_path(str(HELPER))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            for trial in range(50):
+                session = f"race-{trial}"
+                path = functions["state_path"](str(self.data), session)
+                functions["set_active"](path, True)
+                ready = Barrier(2)
+
+                def choose(selection: str) -> None:
+                    ready.wait()
+                    functions["set_execution"](path, selection)
+
+                futures = [pool.submit(choose, selection) for selection in ("herdr", "native")]
+                for future in futures:
+                    future.result()
+                context, _ = functions["build_context"]("codex", session, str(self.data), "resume")
+                self.assertNotIn("Automatically run", context)
+                self.assertTrue("Herdr execution is selected" in context or "Native was explicitly selected" in context)
+
+    def test_legacy_markers_and_corrupt_execution_records_do_not_lose_opt_out(self) -> None:
+        functions = runpy.run_path(str(HELPER))
+        path = functions["state_path"](str(self.data), "session-a")
+        functions["set_active"](path, True)
+        Path(functions["execution_path"](path, "herdr")).touch()
+        self.assertEqual(functions["read_state"](path), (True, "herdr"))
+        Path(functions["execution_path"](path, "native")).touch()
+        self.assertEqual(functions["read_execution"](path), "native")
+        functions["set_execution"](path, "herdr")
+        self.assertEqual(functions["read_execution"](path), "herdr")
+        for invalid in ("invalid", "{}", '{"execution": "unexpected"}'):
+            Path(functions["execution_path"](path)).write_text(invalid)
+            context, _ = functions["build_context"]("codex", "session-a", str(self.data), "resume")
+            self.assertIn("Native was explicitly selected", context)
+            self.assertNotIn("Automatically run", context)
+        functions["set_active"](path, False)
+        self.assertEqual(list(Path(path).parent.iterdir()), [])
+
     def test_execution_selection_is_independent_and_mode_stop_clears_both(self) -> None:
         state = self.data / "z-mode/session-a.json"
-        marker = self.data / "z-mode/session-a.herdr"
+        marker = self.data / "z-mode/session-a.execution.json"
         self.control("herdr")
         self.assertFalse(state.exists())
         self.assertTrue(marker.is_file())
@@ -295,19 +353,19 @@ class CodexHooksTests(unittest.TestCase):
         self.assertEqual(json.loads(state.read_text()), {"active": True})
         for source in ("startup", "resume", "compact"):
             context = json.loads(self.hook(source=source))["hookSpecificOutput"]["additionalContext"]
-            self.assertIn("Herdr execution was explicitly enabled", context)
+            self.assertIn("Herdr execution is selected", context)
             self.assertIn("z-mode was explicitly enabled", context)
         self.control("native")
         self.assertEqual(json.loads(state.read_text()), {"active": True})
-        self.assertFalse(marker.exists())
+        self.assertEqual(json.loads(marker.read_text()), {"execution": "native"})
         self.control("herdr")
         self.control("disable")
         self.assertEqual(list(state.parent.iterdir()), [])
         context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
-        self.assertNotIn("Herdr execution was explicitly enabled", context)
+        self.assertNotIn("Herdr execution is selected", context)
         self.control("herdr")
         self.control("native")
-        self.assertEqual(list(state.parent.iterdir()), [])
+        self.assertEqual(list(state.parent.iterdir()), [marker])
 
     def test_herdr_routes_to_host_companion_without_inheriting_environment_activation(self) -> None:
         codex_skill = self.data / "codex/plugins/cache/market/herdr-zstack/0.1.0/skills/hc-workflow/SKILL.md"
@@ -347,7 +405,7 @@ class CodexHooksTests(unittest.TestCase):
             self.assertIn("Capability gap: herdr-zstack:hc-workflow is missing or ambiguous", context)
             self.assertIn("No legacy Herdr fallback", context)
             self.assertNotIn("skills/herdr-workflow/", context)
-        self.assertTrue((self.data / "z-mode/session-a.herdr").is_file())
+        self.assertTrue((self.data / "z-mode/session-a.execution.json").is_file())
 
     def test_claude_directory_marketplace_resolves_live_source_and_invalid_registry_fails_closed(self) -> None:
         resolve = runpy.run_path(str(HELPER))["companion_skill"]
@@ -428,7 +486,7 @@ class CodexHooksTests(unittest.TestCase):
             self.assertEqual([process.wait() for process in processes], [0, 0])
             context = json.loads(self.hook(session="race"))["hookSpecificOutput"]["additionalContext"]
             self.assertIn("z-mode was explicitly enabled", context)
-            self.assertIn("Herdr execution was explicitly enabled", context)
+            self.assertIn("Herdr execution is selected", context)
             self.control("disable", session="race")
 
     def test_style_switch_disable_is_scoped_to_active_mode(self) -> None:
@@ -453,23 +511,24 @@ class CodexHooksTests(unittest.TestCase):
                     skill.write_text("fixture")
                 context, _ = render("codex", session, str(data), "resume")
                 self.assertLess(len(context), 4000)
-                self.assertIn("Herdr execution was explicitly enabled", context)
+                self.assertIn("Herdr execution is selected", context)
 
     def test_execution_controls_are_scoped_and_roundtrip_from_hook(self) -> None:
         self.control("enable", session="parent")
         self.control("herdr", session="parent")
         context = json.loads(self.hook(session="child", source="fork"))["hookSpecificOutput"]["additionalContext"]
-        self.assertNotIn("Herdr execution was explicitly enabled", context)
+        self.assertNotIn("Herdr execution is selected", context)
         for label in ("Herdr", "Native"):
             argv = shlex.split(self.command(context, label.lower()))
             self.assertIn("--session-id=child", argv)
             subprocess.run(  # noqa: S603 - Trusted emitted command; isolated data root.
                 [sys.executable, *argv[argv.index("-I") :]], check=True, capture_output=True, env=self.env
             )
-            self.assertEqual("Herdr execution was explicitly enabled" in self.hook(session="child"), label == "Herdr")
-            self.assertIn("Herdr execution was explicitly enabled", self.hook(session="parent"))
+            self.assertEqual("Herdr execution is selected" in self.hook(session="child"), label == "Herdr")
+            self.assertIn("Herdr execution is selected", self.hook(session="parent"))
         self.assertIn(f"PowerShell control: & '{INTERPRETER}'", context)
         self.hook(session="parent", source="clear")
+        self.hook(session="child", source="clear")
         self.assertEqual(list((self.data / "z-mode").iterdir()), [])
 
     def test_legacy_and_invalid_execution_state_default_to_native(self) -> None:
@@ -478,7 +537,7 @@ class CodexHooksTests(unittest.TestCase):
         for value in ({"active": True}, {"active": True, "execution": "unexpected"}, {"execution": True}):
             state.write_text(json.dumps(value))
             context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
-            self.assertNotIn("Herdr execution was explicitly enabled", context)
+            self.assertNotIn("Herdr execution is selected", context)
             self.assertEqual("z-mode was explicitly enabled" in context, value.get("active") is True)
 
     def test_legacy_json_herdr_preference_survives_upgrade_and_native_clears_it(self) -> None:
@@ -488,7 +547,7 @@ class CodexHooksTests(unittest.TestCase):
         state.write_text(json.dumps({"active": True, "execution": "herdr"}))
         context = json.loads(self.hook(source="resume"))["hookSpecificOutput"]["additionalContext"]
         self.assertIn("z-mode was explicitly enabled", context)
-        self.assertIn("Herdr execution was explicitly enabled", context)
+        self.assertIn("Herdr execution is selected", context)
         self.control("enable")
         self.assertEqual(json.loads(state.read_text()), {"active": True})
         self.assertTrue(marker.is_file())
@@ -496,22 +555,22 @@ class CodexHooksTests(unittest.TestCase):
         marker.unlink()
         self.control("native")
         self.assertEqual(json.loads(state.read_text()), {"active": True})
-        self.assertFalse(marker.exists())
-        self.assertNotIn("Herdr execution was explicitly enabled", self.hook(source="resume"))
+        self.assertEqual(json.loads(state.with_suffix(".execution.json").read_text()), {"execution": "native"})
+        self.assertNotIn("Herdr execution is selected", self.hook(source="resume"))
         state.write_text(json.dumps({"active": False, "execution": "herdr"}))
         self.control("herdr")
-        self.assertEqual(list(state.parent.iterdir()), [marker])
+        self.assertEqual(set(state.parent.iterdir()), {marker, state.with_suffix(".execution.json")})
         self.assertIn("No stored z-mode activation", self.hook(source="resume"))
 
     def test_failed_execution_selection_preserves_prior_state_and_reports_failure(self) -> None:
         functions = runpy.run_path(str(HELPER))
         path = str(self.data / "z-mode/session-a.json")
         functions["set_active"](path, True)
-        with patch("builtins.open", side_effect=PermissionError("fixture")), self.assertRaises(PermissionError):
+        with patch("os.replace", side_effect=PermissionError("fixture")), self.assertRaises(PermissionError):
             functions["set_execution"](path, "herdr")
         self.assertEqual(json.loads(Path(path).read_text()), {"active": True})
         self.assertEqual(list(Path(path).parent.iterdir()), [Path(path)])
-        Path(path).parent.joinpath("session-a.herdr").mkdir()
+        Path(path).parent.joinpath("session-a.execution.json").mkdir()
         result = self.control("native", check=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("state not changed", result.stderr)

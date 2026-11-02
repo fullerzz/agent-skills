@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when explicitly enabled. The library includes 58 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 58 skills, 24 engineering principles, 23 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -95,7 +95,7 @@ Repeat the original `--project` or `--home` scope if used. Removal unlinks only 
 
 ## Workflows
 
-Explicitly select “use z-mode with Herdr” to apply the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md) alongside existing playbooks. Herdr-zstack owns native hc operations; zstack keeps routing, session preferences, scope and acceptance. A missing or ambiguous companion is a capability gap, with no legacy fallback. Small work stays direct.
+Enable z-mode in a verified live hc terminal, or explicitly select “use z-mode with Herdr”, to apply the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md) alongside existing playbooks. Herdr-zstack owns native hc operations; zstack keeps routing, session preferences, scope and acceptance. A missing or ambiguous companion is a capability gap, with no legacy fallback. Small work stays direct.
 
 “Disable Herdr execution” restores native execution while retaining z-mode; “Stop z-mode” clears both preferences. See the [session guide](docs/guide/herdr.md) for host invocation and controls, and [herdr-zstack installation](https://github.com/fullerzz/herdr-zstack/blob/main/docs/installation.md) for setup.
 

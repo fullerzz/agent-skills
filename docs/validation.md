@@ -1307,3 +1307,15 @@ Hardened `docs/nginx.conf` for a TLS-terminating reverse proxy. Against the rebu
 `scripts/install.py` now renders a Rich panel per host when stdout is a terminal. Entries are grouped by operation, with counts, a short meaning, and wrapped names; skill and agent directories appear once at the top of each panel. Piped output keeps the tab-separated lines that existing tests and scripts parse. A new Node test forces terminal rendering with `TTY_COMPATIBLE=1` and checks grouping, both host panels, and the agents directory. Rendering was inspected at 60 and 100 columns against the real `~/.claude` and `~/.agents` state. Long names fold instead of truncating.
 
 Validation: 13 Node tests, structural validation (46 skills), and 4 Python unit tests pass. This was not checked in an interactive TTY session; `TTY_COMPATIBLE=1` stood in for one.
+
+## Automatic Herdr selection — 2026-11-01
+
+Z-mode activation/restoration directs the agent to run the installed hc companion's preflight and select Herdr when `session.status` is supported. Headless hc terminals qualify. The hook supplies guidance; the agent runs preflight and the trusted session control. Explicit Native selection suppresses automatic selection across resumes and repeated Enable; Disable clears it.
+
+Execution choices use one atomically replaced `.execution.json` record, separate from mode activation. Legacy `.herdr`, `.native` and mode JSON selections remain readable; a new record takes precedence. Malformed explicit records suppress automatic selection, and Disable clears every representation. The shared plugin version advances to 0.26.0 for the new hook and stored-state behavior.
+
+- All 150 Python tests passed, including opt-out persistence, concurrent controls, legacy-state precedence, corrupt-state handling and atomic-write failure. Structural validation: 58 skills, zero problems. `git diff --check`: passed.
+- The original 100-pair concurrent-control reproduction lost zero choices after the atomic-record fix (previously 98).
+- Companion suite: 161 tests passed, including missing herdr-app with a valid hc terminal. A read-only probe accepted an explicitly supplied existing terminal and rejected the actual coordinator outside hc; neither queried an app window.
+- The full Node suite was attempted in an isolated checkout with existing dependencies; an unrelated statechart signal-handling test failed and the suite did not provide a clean completion. No statechart files changed. The publication-time project-wide mypy check reported one error in unchanged `scripts/test_pr_watcher.py:746`: `list[Mapping[str, object]]` passed where `list[Context]` is expected; 26 source files were checked.
+- Plugins were not refreshed and no fresh-host activation or worker launch was exercised.
