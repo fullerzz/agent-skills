@@ -219,6 +219,30 @@ Explicit-only. Uses existing project tooling and preserves invocation policy. Mi
 
 [Full maintain-formal-verification-skill instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/maintain-formal-verification-skill/SKILL.md)
 
+## Sketch {#sketch}
+
+Render Mermaid diagrams inline as readable text, without an image viewer.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$sketch Show the request flow as an inline text diagram.` |
+| Claude Code | `/sketch Draw the job states inline.` |
+| Hermes | Load `zstack:sketch` with `skill_view` and describe the diagram. |
+
+### How it works
+
+Writes Mermaid source and captures Sketch's text renderer with `-f text -color never -cols 80`. The agent checks the drawing and includes the actual output in a fenced text block, preserving alignment. Large diagrams are simplified or split without silently dropping relationships.
+
+### Expected result
+
+An inline Unicode diagram and a short explanation. Saved Mermaid source, SVG/PNG exports, and a Rex pane are optional when requested.
+
+### Dependencies and limits
+
+Explicit-only on all three hosts. Requires the standalone `sketch` CLI; installation is separate from invoking the skill. Captured output defaults to SVG unless text is explicitly selected. Diagram layout is not proof of the behavior it depicts, and terminal fonts or narrow chat views can affect alignment.
+
+[Full sketch instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/sketch/SKILL.md)
+
 ## Statechart {#statechart}
 
 Make a TLA+ model and its counterexamples readable to someone deciding what the app should do.

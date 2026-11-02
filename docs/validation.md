@@ -4,6 +4,14 @@ outline: [2, 3]
 
 # Validation
 
+## Sketch inline diagrams — 2026-11-01 {#sketch-inline-diagrams}
+
+Added the explicit-only `sketch` skill, its workflow reference, and catalog counts. Shared native manifests are `0.25.0`.
+
+- `uv run scripts/validate.py`: 58 skills, zero structural problems. Python unittest discovery with rich and pyyaml: 147 passed. `node --test scripts/*.test.mjs` on Node `24.22.2`: 212 passed, zero failed, 61 optional tests skipped; includes the documentation builds. Checks ran outside the sandbox because mise shims are blocked there. `git diff --check` passed.
+- Read the installed Sketch CLI help and ran the skill's stdin example with `-f text -color never -cols 80`, using the executable resolved by `mise which sketch`. It exited zero and returned a complete three-node Unicode drawing through captured stdout, without ANSI escapes or SVG. The preceding Rex demo also rendered flowchart, sequence, and state diagrams from Markdown and verified them through terminal capture; SVG and PNG exports succeeded.
+- This is direct CLI and repository validation, not an independent agent evaluation or proof of skill discovery in a freshly installed host. No global skill installation, commit, or publication was performed.
+
 ## Legacy Herdr retirement — 2026-10-31 {#legacy-herdr-retirement}
 
 [Issue #74](https://github.com/fullerzz/agent-skills/issues/74) now routes z-mode, its shared host contract, pause/pickup playbooks and public documentation directly to the installed **herdr-zstack:hc-workflow** companion. `herdr-workflow` remains an explicit-only compatibility stub; its local operations reference is deleted. Shared manifests are `0.24.0`. Earlier validation entries remain historical evidence.
