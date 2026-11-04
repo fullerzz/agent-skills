@@ -10,12 +10,22 @@ from pathlib import Path
 from unittest.mock import patch
 
 from test_hermes_plugin import ROOT, Registry, load_plugin
+from test_codex_hooks import HERDR_BOUNDARY
 from validate import load_yaml
 
 from hooks import hermes, session_start
 
 
 class HermesHookTests(unittest.TestCase):
+    def test_execution_boundary_only_appears_after_herdr_selection(self) -> None:
+        context = self.hooks.pre_llm_call(session_id="boundary")["context"]
+        for action in ("Disable", "Enable", "Herdr", "Native"):
+            self.control(context, action)
+            context = self.hooks.pre_llm_call(session_id="boundary")["context"]
+            with self.subTest(action=action):
+                self.assertEqual(HERDR_BOUNDARY in context, action == "Herdr")
+                self.assertEqual("`hc run --bg`" in context, action == "Herdr")
+
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory(prefix="zstack Hermes '")
         self.addCleanup(temporary.cleanup)

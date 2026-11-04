@@ -249,6 +249,10 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
                 "resolve it through the host catalog. "
             )
         context += (
+            "Keep file edits and quick checks (expected under about 30 seconds) direct. "
+            "Run slower or unknown-duration commands (tests, builds, installs, CI watches, servers) with "
+            "`hc run --bg` and `hc wait`, not host background shells, monitors or sleep/poll loops. "
+            "When the playbook delegates, use hc instead of native agent tools for authorized workers. "
             "No legacy Herdr fallback. Native hc requires HC_TERMINAL_ID, a resolved caller and an answering core; "
             "HERDR_ENV alone is insufficient. Do not dispatch until the companion's read-only preflight passes. "
             "Never copy these controls into children. Later user instructions override stored state."

@@ -24,9 +24,26 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "hooks/session_start.py"
 # Controls name the base interpreter even when the hook runs inside a virtual environment.
 INTERPRETER = os.path.realpath(getattr(sys, "_base_executable", None) or sys.executable)
+HERDR_BOUNDARY = (
+    "Keep file edits and quick checks (expected under about 30 seconds) direct. "
+    "Run slower or unknown-duration commands (tests, builds, installs, CI watches, servers) with "
+    "`hc run --bg` and `hc wait`, not host background shells, monitors or sleep/poll loops. "
+    "When the playbook delegates, use hc instead of native agent tools for authorized workers."
+)
 
 
 class CodexHooksTests(unittest.TestCase):
+    def test_execution_boundary_matches_docs_and_only_selected_herdr_context(self) -> None:
+        self.assertIn(HERDR_BOUNDARY, (ROOT / "skills/z-mode/references/native-hosts.md").read_text())
+        for host in ("codex", "claude"):
+            for action in ("disable", "enable", "herdr", "native"):
+                self.control(action)
+                context = json.loads(self.hook(host=host))["hookSpecificOutput"]["additionalContext"]
+                with self.subTest(host=host, action=action):
+                    self.assertEqual(HERDR_BOUNDARY in context, action == "herdr")
+                    self.assertEqual("`hc run --bg`" in context, action == "herdr")
+                    self.assertIn("No added authority for delegation", context)
+
     def test_shared_renderer_matches_native_wrapper_without_side_effects(self) -> None:
         render = runpy.run_path(str(HELPER))["build_context"]
         for active in (False, True):
@@ -389,6 +406,7 @@ class CodexHooksTests(unittest.TestCase):
                     context = json.loads(self.hook(host=host))["hookSpecificOutput"]["additionalContext"]
                     self.assertIn(str(skill), context)
                     self.assertIn("herdr-zstack:hc-workflow", context)
+                    self.assertIn(HERDR_BOUNDARY, context)
                     self.assertIn("read-only preflight passes", context)
                     self.assertNotIn("skills/herdr-workflow/", context)
                     self.assertNotIn("--session-id=session-a", context.split("Read ")[-1])
@@ -404,6 +422,8 @@ class CodexHooksTests(unittest.TestCase):
             context = json.loads(self.hook())["hookSpecificOutput"]["additionalContext"]
             self.assertIn("Capability gap: herdr-zstack:hc-workflow is missing or ambiguous", context)
             self.assertIn("No legacy Herdr fallback", context)
+            self.assertIn(HERDR_BOUNDARY, context)
+            self.assertIn("read-only preflight passes", context)
             self.assertNotIn("skills/herdr-workflow/", context)
         self.assertTrue((self.data / "z-mode/session-a.execution.json").is_file())
 
@@ -512,6 +532,7 @@ class CodexHooksTests(unittest.TestCase):
                 context, _ = render("codex", session, str(data), "resume")
                 self.assertLess(len(context), 4000)
                 self.assertIn("Herdr execution is selected", context)
+                self.assertIn(HERDR_BOUNDARY, context)
 
     def test_execution_controls_are_scoped_and_roundtrip_from_hook(self) -> None:
         self.control("enable", session="parent")
