@@ -4,6 +4,15 @@ outline: [2, 3]
 
 # Validation
 
+## Herdr execution guidance — 2026-11-03 {#herdr-execution-guidance}
+
+[Issue #79](https://github.com/fullerzz/agent-skills/issues/79) adds the same concrete execution boundary to the selected-Herdr hook context and the native host contract: file edits and checks expected under about 30 seconds stay direct; slower or unknown-duration commands use `hc run --bg` and `hc wait`. Authorized delegation uses hc. Existing permission, preflight, companion-resolution and no-legacy-fallback gates remain intact. The installed hc-workflow companion's substitution table uses the same boundary.
+
+- `uv run scripts/validate.py`: exit 0, 58 skills and zero structural problems. `uv run --with rich --with pyyaml python -m unittest discover -s scripts -p 'test_*.py'`: exit 0, 152 tests passed. Fixtures cover Codex, Claude and Hermes selected/native/auto-preflight contexts, companion routing and missing/ambiguous resolution, identical hook/documentation wording, and the unchanged 4,000-character limit.
+- The first `node --test scripts/*.test.mjs` run exited 1: 208 passed, four installer tests failed, and 61 optional tests were skipped. Capturing output outside the hc PTY fixed three output-format assertions; the remaining failure was mise's trust error under the installer's temporary HOME. The full rerun with installed Node `24.22.2`/uv executable directories ahead of mise shims and output captured to a file exited 0: 212 passed, zero failed, 61 optional tests skipped, including successful documentation builds. No personal configuration or installer code changed. `git diff --check` passed.
+- The installed companion's read-only preflight resolved this session's live hc caller (`session.status: supported`); hc/core `0.1.17` and herdr-app `0.1.12` differ from its inspected baseline. The checks above were actually launched with `hc run --bg --no-notify`, collected with `hc wait` and `hc read`, and their finished terminals removed. This proves command execution and exit collection in the current session, not that a fresh model session follows the changed hook.
+- Fresh Herdr-selected Codex/Claude sessions receiving “run the test suite and fix the failure” were not evaluated. The behavior acceptance criterion remains unverified; no claim of live model compliance follows from the hook fixtures. No commit, publication or personal plugin update was performed.
+
 ## Sketch inline diagrams — 2026-11-01 {#sketch-inline-diagrams}
 
 Added the explicit-only `sketch` skill, its workflow reference, and catalog counts. Shared native manifests are `0.25.0`.
