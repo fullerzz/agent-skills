@@ -34,7 +34,7 @@ The hook supplies one labeled POSIX sh and one PowerShell control template; repl
 
 ### Herdr execution
 
-Explicitly request “use z-mode with Herdr” to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The shared hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries. The companion owns native hc detection and preflight; `HERDR_ENV` alone is insufficient. Claude permissions still apply.
+Enable z-mode in a verified live hc terminal for automatic preflight and selection, or explicitly request “use z-mode with Herdr”, to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The shared hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries. The companion owns native hc detection and preflight; `HERDR_ENV` alone is insufficient. Claude permissions still apply.
 
 ### Codex adversarial review
 
