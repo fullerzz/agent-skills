@@ -39,7 +39,7 @@ The hook uses only the Python standard library. Its launcher skips uv configurat
 
 ### Herdr execution
 
-Explicitly select “use z-mode with Herdr” to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries, and the companion's [launch instructions](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/references/operations.md#3-launch) for Codex flags and readiness checks. Codex permissions still apply.
+Enable z-mode in a verified live hc terminal for automatic preflight and selection, or explicitly select “use z-mode with Herdr”, to use the installed [herdr-zstack:hc-workflow companion](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/SKILL.md). The hook resolves its installed path and retains the session's Herdr/Native preference independently of z-mode; controls launch no processes. See the [session guide](../guide/herdr.md) for selection and fallback boundaries, and the companion's [launch instructions](https://github.com/fullerzz/herdr-zstack/blob/main/skills/hc-workflow/references/operations.md#3-launch) for Codex flags and readiness checks. Codex permissions still apply.
 
 ### Claude judge and adversary
 
