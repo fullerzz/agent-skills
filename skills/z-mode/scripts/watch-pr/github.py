@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from typing import TYPE_CHECKING, Literal, NoReturn, Protocol, TypedDict, Unpack
 from urllib.parse import urlsplit
@@ -323,24 +322,9 @@ def parse_comment(value: object) -> Comment:
     }
 
 
-def is_bugbot(comment: Comment | None) -> bool:
-    if comment is None:
-        return False
-    author, body = (comment["authorLogin"] or "").lower(), comment["body"].lower()
-    return "bugbot" in author or (
-        author == "cursor"
-        and any(
-            token in body
-            for token in ("bugbot", "cursor_automation_id", "agentic security review", "description start", "severity")
-        )
-    )
-
-
 def parse_review_threads(value: object) -> list[Thread]:
     nodes = array(at(value, "data", "repository", "pullRequest", "reviewThreads", "nodes"), "reviewThreads.nodes")
-    unresolved: list[tuple[str, Comment | None, bool]] = []
-    keys: set[str] = set()
-    keyless = False
+    unresolved: list[Thread] = []
     for raw in nodes:
         node = record(raw, "review thread")
         resolved = node.get("isResolved")
@@ -348,22 +332,9 @@ def parse_review_threads(value: object) -> list[Thread]:
             missing("review thread.isResolved", resolved)
         comments = array(at(node, "comments", "nodes"), "comments.nodes")
         comment = parse_comment(comments[0]) if comments else None
-        bugbot = is_bugbot(comment)
-        if bugbot and comment is not None:
-            match = re.search(r"RUN_ID:\s*([a-zA-Z0-9_.:-]+)", comment["body"]) or re.search(
-                r"CURSOR_AUTOMATION_ID:\s*([a-zA-Z0-9_.:-]+)", comment["body"]
-            )
-            if match:
-                keys.add(match[1])
-            else:
-                keyless = True
         if not resolved:
-            unresolved.append((string(at(node, "id"), "review thread.id"), comment, bugbot))
-    passes = len(keys) or int(keyless)
-    return [
-        {"id": id, "firstComment": comment, "isBugbot": bugbot, "bugbotReviewPasses": passes}
-        for id, comment, bugbot in unresolved
-    ]
+            unresolved.append({"id": string(at(node, "id"), "review thread.id"), "firstComment": comment})
+    return unresolved
 
 
 def codex_review_kind(sha: str | None, status: str | None, head: str) -> CheckKind | None:

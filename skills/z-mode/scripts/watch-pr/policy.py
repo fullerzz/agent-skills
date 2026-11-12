@@ -313,7 +313,7 @@ def verdict_factory(clock: WatchClock, mode: Mode) -> Stamp:
     def stamp() -> Header:
         nonlocal sequence
         sequence += 1
-        return {"schemaVersion": 1, "sequence": sequence, "observedAt": clock.observed_at(), "mode": mode}
+        return {"schemaVersion": 2, "sequence": sequence, "observedAt": clock.observed_at(), "mode": mode}
 
     return stamp
 

@@ -352,7 +352,11 @@ class ThreadTests(unittest.TestCase):
                 "createdAt": "2026-01-01T00:00:00Z",
             },
         )
-        self.assertEqual((threads[1]["isBugbot"], threads[1]["bugbotReviewPasses"]), (True, 1))
+        self.assertEqual(set(threads[1]), {"id", "firstComment"})
+        comment = threads[1]["firstComment"]
+        if comment is None:
+            self.fail("unresolved thread lost its first comment")
+        self.assertEqual(comment["authorLogin"], "cursor-bugbot")
 
 
 class SnapshotTests(unittest.TestCase):
