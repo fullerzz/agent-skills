@@ -1328,3 +1328,13 @@ Execution choices use one atomically replaced `.execution.json` record, separate
 - Companion suite: 161 tests passed, including missing herdr-app with a valid hc terminal. A read-only probe accepted an explicitly supplied existing terminal and rejected the actual coordinator outside hc; neither queried an app window.
 - The full Node suite was attempted in an isolated checkout with existing dependencies; an unrelated statechart signal-handling test failed and the suite did not provide a clean completion. No statechart files changed. The publication-time project-wide mypy check reported one error in unchanged `scripts/test_pr_watcher.py:746`: `list[Mapping[str, object]]` passed where `list[Context]` is expected; 26 source files were checked.
 - Plugins were not refreshed and no fresh-host activation or worker launch was exercised.
+
+## Provider-neutral review threads — 2026-11-12
+
+The PR watcher now reports each unresolved review thread with its ID and first comment, without Bugbot classification or inferred review-pass counts. GitHub and GitLab retain the same thread filtering, validation, pagination, and readiness policy. Pending review checks and Codex comment-state parsing are unchanged.
+
+NDJSON advances to `schemaVersion: 2`: consumers must stop reading `isBugbot` and `bugbotReviewPasses`. Human output retains the thread ID, path, line, author, and comment excerpt. Existing JSON and text fixtures were regenerated; adapter tests assert the reduced thread shape and preservation of bot-authored comments.
+
+Validation: structural validation passed (58 skills, zero problems); all 152 Python tests passed, including isolated CLI subprocess checks for GitHub and GitLab. The first focused run hit sandbox-blocked mise shims in two subprocess tests; rerunning with Homebrew tools first on PATH passed. No live forge review or external consumer compatibility was exercised.
+
+The full Node suite was attempted: docs, helpers, and installer checks passed, but three untouched statechart signal tests failed (a signaled check, SIGINT during final TLC output, and SIGTERM during final TLC output). The suite did not terminate after reporting its tests, so its verified task-owned process tree was stopped. This is not a passing Node-suite result. Focused Ruff checks passed; all 67 watcher tests passed again after the final test edits. Golden-output equivalence confirmed that only the schema version and removed annotations differ. `git diff --check` passed.

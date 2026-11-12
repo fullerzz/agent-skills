@@ -90,8 +90,6 @@ class Comment(TypedDict):
 class Thread(TypedDict):
     id: str
     firstComment: Comment | None
-    isBugbot: bool
-    bugbotReviewPasses: int
 
 
 class AllowedMerge(TypedDict):
@@ -107,7 +105,7 @@ class RefusedMerge(TypedDict):
     kind: Literal["refused"]
 
 
-# schemaVersion 1 names: GitHubMerge, the `github` key, and ci-github-rejected carry any forge's merge assessment.
+# Legacy names: GitHubMerge, the `github` key, and ci-github-rejected carry any forge's merge assessment.
 type GitHubMerge = AllowedMerge | RefusedMerge
 
 
@@ -263,7 +261,7 @@ class StackPrs(TypedDict):
 
 
 class Header(TypedDict):
-    schemaVersion: Literal[1]
+    schemaVersion: Literal[2]
     sequence: int
     observedAt: str
     mode: Mode

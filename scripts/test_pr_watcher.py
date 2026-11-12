@@ -182,7 +182,7 @@ COMMENT: schema.Comment = {
     "line": 3,
     "createdAt": "now",
 }
-THREAD: schema.Thread = {"id": "t1", "firstComment": COMMENT, "isBugbot": False, "bugbotReviewPasses": 0}
+THREAD: schema.Thread = {"id": "t1", "firstComment": COMMENT}
 # One run per verdict, blocker, wait, and timeout shape; --pr 1 is added unless --stack-prs selects PRs.
 GOLDEN_SCENARIOS: list[tuple[str, list[str], Callable[[], Reader]]] = [
     ("ready", [], Reader),
@@ -194,22 +194,22 @@ GOLDEN_SCENARIOS: list[tuple[str, list[str], Callable[[], Reader]]] = [
         [],
         lambda: Reader(
             threads=[
-                {"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1},
-                {"id": "t2", "firstComment": None, "isBugbot": False, "bugbotReviewPasses": 1},
+                {"id": "t1", "firstComment": COMMENT},
+                {"id": "t2", "firstComment": None},
             ]
         ),
     ),
     (
         "threads-warn-ready",
         ["--threads", "warn"],
-        lambda: Reader(threads=[{"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1}]),
+        lambda: Reader(threads=[{"id": "t1", "firstComment": COMMENT}]),
     ),
     (
         "threads-warn-blocked",
         ["--threads", "warn"],
         lambda: Reader(
             overrides={"mergeStateStatus": "BLOCKED"},
-            threads=[{"id": "t1", "firstComment": COMMENT, "isBugbot": True, "bugbotReviewPasses": 1}],
+            threads=[{"id": "t1", "firstComment": COMMENT}],
         ),
     ),
     (
@@ -377,7 +377,7 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(self.run_simple()["exitCode"], 4)
 
     def test_priority_across_stack(self) -> None:
-        self.reader.threads = [{"id": "thread", "firstComment": None, "isBugbot": False, "bugbotReviewPasses": 0}]
+        self.reader.threads = [{"id": "thread", "firstComment": None}]
         first = self.snapshot()
         self.reader.threads = []
         second = self.snapshot(mergeable="CONFLICTING")
@@ -666,7 +666,7 @@ class WatcherTests(unittest.TestCase):
                 github.run_json([sys.executable, "-c", f"import sys; sys.stderr.buffer.write({error!r}); sys.exit(1)"])
             self.assertEqual(caught.exception.failure["detail"], error.decode("utf-8"))
 
-    def test_threads_pagination_and_bugbot_passes(self) -> None:
+    def test_threads_pagination_preserves_unresolved_comments(self) -> None:
         def thread(id: str, resolved: bool, run: str) -> dict[str, object]:
             return {
                 "id": id,
@@ -697,7 +697,11 @@ class WatcherTests(unittest.TestCase):
         rows = github.GitHubReader(query).review_threads(CONTEXT)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["id"], "unresolved")
-        self.assertEqual(rows[0]["bugbotReviewPasses"], 2)
+        self.assertEqual(set(rows[0]), {"id", "firstComment"})
+        comment = rows[0]["firstComment"]
+        if comment is None:
+            self.fail("unresolved thread lost its first comment")
+        self.assertEqual(comment["body"], "Bugbot RUN_ID: second")
         self.assertIn("after=next", calls[1])
 
     def warn_with_thread(self) -> None:

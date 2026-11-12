@@ -78,10 +78,7 @@ def blocker_text(blocker: Blocker, forge: Forge) -> str:
             c = thread["firstComment"]
             path, line, author = (c["path"], c["line"], c["authorLogin"]) if c else (None, None, None)
             body = c["body"].split("\n")[0].removesuffix("\r")[:180] if c else ""
-            lines.append(
-                f"{thread['id']} {path} {line} {author} "
-                f"isBugBot={str(thread['isBugbot']).lower()} bugbotReviewPasses={thread['bugbotReviewPasses']} {body}"
-            )
+            lines.append(f"{thread['id']} {path} {line} {author} {body}")
     elif blocker["kind"] == "failing-checks":
         ci = blocker["ci"]
         lines.append(f"failed={len(ci['failed'])}")
