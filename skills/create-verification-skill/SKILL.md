@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Create a verification skill
 
-Every serious project needs a scripted way to drive the real app and prove behavior: launch it, exercise a feature the way a user would, and capture evidence. This skill generates that as a project-local skill (Codex `.agents/skills/verify-<app>/` or Claude Code `.claude/skills/verify-<app>/`) tailored to the repo. You write the generator's output for the next agent, not for a human: it will be read cold, mid-task, by an agent that has never seen the app.
+Every serious project needs a scripted way to drive the real app and prove behavior: launch it, exercise a feature the way a user would, and capture evidence. This skill generates that as a project-local skill in `.agents/skills/verify-<app>/`, tailored to the repo. You write the generator's output for the next agent, not for a human: it will be read cold, mid-task, by an agent that has never seen the app.
 
 Resolve references and helpers from the real loaded skill location, independently of target cwd. Preserve the user's invocation policy. See the [native host contract](../z-mode/references/native-hosts.md).
 
@@ -24,7 +24,7 @@ If the checkout doesn't build or start as-is, report the blocker before generati
 
 ## 2. Generate the skill
 
-Preserve a source location explicitly requested by the user. Otherwise choose the selected host's project path and write `verify-<app>/SKILL.md` there. For both hosts, keep one canonical folder and collision-safe link it into the other host's discovery directory. If the host blocks discovery-directory writes, prepare the canonical skill in an ordinary source directory and report registration pending; do not bypass permissions. Write the entrypoint with YAML frontmatter (`name: verify-<app>` and a `description` that names the app, the surface, and when to reach for it) and these sections, each grounded in what the interview actually found (no placeholders left):
+Write `.agents/skills/verify-<app>/SKILL.md` relative to the project root. Keep `.agents/skills/verify-<app>/` as the canonical folder; when Claude Code discovery is needed, collision-safe link it into `.claude/skills/verify-<app>/`. If the host blocks discovery-directory writes, prepare the canonical skill in an ordinary source directory and report registration pending; do not bypass permissions. Write the entrypoint with YAML frontmatter (`name: verify-<app>` and a `description` that names the app, the surface, and when to reach for it) and these sections, each grounded in what the interview actually found (no placeholders left):
 
 - **Launch:** the exact command that starts the app for verification, and how to tell it's ready (a log line, a prompt). Launch must reach a usable state. For stateful targets, prove launch from empty isolated state (an empty data directory where applicable), including any required migrations and seed data. Ready means usable, not just that a process answers. A database health check can pass while its init scripts are still running. Include teardown. For a short-lived CLI or TUI there is no server to keep alive: launch means build the binary (or install deps) once, then start each drive in its own isolated PTY or tmux session.
 - **Doctor:** one read-only check that answers "is this instance worth driving?" — process up, right version/build, port owned by us, auth valid. An agent runs this first whenever anything looks off.
