@@ -6,6 +6,8 @@ outline: [2, 3]
 
 ## Herdr activation and persisted selection — 2026-11-15
 
+PR verification reproduced a symlink-based Node shim being dereferenced into the mise executable. The control now preserves the absolute shim path and lets the companion launcher obtain `process.execPath`. The new regression failed before this correction and passes afterward; focused activation coverage is now 14 tests.
+
 Publication verification bumps all three native manifests to `0.27.0`, with companion guidance version `0.1.2`. Fresh Python and Node suites retain the pass/skip counts below. Strict mypy passes on the changed hook and new tests; the full project check reports the same unrelated `scripts/test_pr_watcher.py:750` error on both this change and a clean archive of base `aef9f55`. No PR-watcher code changed.
 
 For [fullerzz/herdr-zstack#45](https://github.com/fullerzz/herdr-zstack/issues/45), the shared control now performs the activation-to-selection transition. It captures fresh host metadata, uses the selected companion's verified launcher, and re-checks Native and activation under a POSIX state lock before committing. Control JSON reports stored state, persistence outcome, reason, companion and guidance. A partially failed Disable reports what remains. The companion probe stays read-only; there is no second preference store or automatic escalation.

@@ -297,7 +297,7 @@ def probe_companion(host: str) -> dict[str, Any]:
                 [
                     "/bin/sh",
                     os.path.join(root, "scripts/preflight.sh"),
-                    os.path.realpath(node),
+                    os.path.abspath(node),  # noqa: PTH100 - Shims dispatch by their symlink name.
                     "--host",
                     host,
                     "--metadata",

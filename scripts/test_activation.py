@@ -167,6 +167,24 @@ class ActivationTests(unittest.TestCase):
             ):
                 self.assertEqual(hook.probe_companion(host), report)
 
+    def test_node_symlink_keeps_its_dispatch_name(self) -> None:
+        node = Path(self.path).parent.parent / "node"
+        node.symlink_to(node.parent / "mise")
+        listing = [{"id": "herdr-zstack@market", "enabled": True, "scope": "user", "installPath": "/fixture/companion"}]
+        with (
+            patch.dict(os.environ, {"HC_TERMINAL_ID": "t1"}),
+            patch("shutil.which", side_effect=lambda name: str(node) if name == "node" else "/fixture/claude"),
+            patch(
+                "subprocess.run",
+                side_effect=[
+                    SimpleNamespace(stdout=json.dumps(listing)),
+                    SimpleNamespace(returncode=0, stdout=json.dumps(self.report)),
+                ],
+            ) as run,
+        ):
+            hook.probe_companion("claude")
+        self.assertEqual(run.call_args_list[1].args[0][2], str(node))
+
     def test_bootstrap_failures_and_malformed_reports_fail_closed(self) -> None:
         listing = [{"id": "herdr-zstack@market", "enabled": True, "scope": "user", "installPath": "/fixture/companion"}]
         for code, payload in (
