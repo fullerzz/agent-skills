@@ -4,6 +4,21 @@ outline: [2, 3]
 
 # Validation
 
+## Herdr activation and persisted selection — 2026-11-15
+
+PR verification reproduced a symlink-based Node shim being dereferenced into the mise executable. The control now preserves the absolute shim path and lets the companion launcher obtain `process.execPath`. The new regression failed before this correction and passes afterward; focused activation coverage is now 14 tests.
+
+Publication verification bumps all three native manifests to `0.27.0`, with companion guidance version `0.1.2`. Fresh Python and Node suites retain the pass/skip counts below. Strict mypy passes on the changed hook and new tests; the full project check reports the same unrelated `scripts/test_pr_watcher.py:750` error on both this change and a clean archive of base `aef9f55`. No PR-watcher code changed.
+
+For [fullerzz/herdr-zstack#45](https://github.com/fullerzz/herdr-zstack/issues/45), the shared control now performs the activation-to-selection transition. It captures fresh host metadata, uses the selected companion's verified launcher, and re-checks Native and activation under a POSIX state lock before committing. Control JSON reports stored state, persistence outcome, reason, companion and guidance. A partially failed Disable reports what remains. The companion probe stays read-only; there is no second preference store or automatic escalation.
+
+- Python unittest discovery with rich and pyyaml: **165 passed**, exit 0, including 13 new activation tests. They cover both host names, supported and absent callers, Native opt-out, concurrent Native/Disable, reactivation during probing, failed/malformed probes, denied writes, partial Disable, resume/compact and fresh forks. Existing control tests were updated for the returned state and isolated from inherited hc identity.
+- `uv run scripts/validate.py`: **58 skills, zero structural problems**, exit 0. Ruff on `hooks/session_start.py` and `scripts/test_activation.py` passes. `git diff --check` passes.
+- `node --test scripts/*.test.mjs`: **212 passed, 61 optional skips**, exit 0. Initial runs hit existing mise trust and PTY output-format sensitivity in installer tests. Installed executable directories ahead of shims and output captured to a file resolved them; no installer code or personal trust configuration changed.
+- A temporary-state driver using the real Claude CLI and current directory-marketplace companion completed persisted selection on a headless hc 0.1.21 caller, restored it on resume/compact, retained Native on re-enable and cleared preferences on Disable. This exercised the control functions with real CLI/probe evidence, not a fresh Claude model session.
+- The initial live Codex listing exceeded 15 seconds; a separate listing completed in about 35 seconds. The listing bound is now 45 seconds and the probe bound is 15 seconds. The final Codex driver reached the companion and correctly reported source/cache mismatch after the companion guidance edits, retaining Native execution. No installation or personal configuration was changed. Happy-path Codex selection has fixture coverage; fresh-host success after coordinated installation remains untested.
+- Denied writes are fixture evidence, not a live approved/rejected permission-dialog evaluation. The hook cannot observe a refusal that the host never supplies; agent retries stop under the existing trusted approval guidance, and the user's refusal must stay in resume notes. Windows automatic bootstrap is unsupported. Inactive and already-selected sessions do not invoke the probe.
+
 ## Herdr execution guidance — 2026-11-03 {#herdr-execution-guidance}
 
 [Issue #79](https://github.com/fullerzz/agent-skills/issues/79) adds the same concrete execution boundary to the selected-Herdr hook context and the native host contract: file edits and checks expected under about 30 seconds stay direct; slower or unknown-duration commands use `hc run --bg` and `hc wait`. Authorized delegation uses hc. Existing permission, preflight, companion-resolution and no-legacy-fallback gates remain intact. The installed hc-workflow companion's substitution table uses the same boundary.

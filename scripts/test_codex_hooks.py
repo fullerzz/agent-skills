@@ -115,7 +115,7 @@ class CodexHooksTests(unittest.TestCase):
         inherited = {
             key: value
             for key, value in os.environ.items()
-            if not key.startswith("CLAUDE_PLUGIN_") and key != "ZSTACK_XRAY"
+            if not key.startswith("CLAUDE_PLUGIN_") and key != "ZSTACK_XRAY" and not key.startswith(("HC_", "HERDR_"))
         }
         self.env = dict(
             inherited,
@@ -304,13 +304,13 @@ class CodexHooksTests(unittest.TestCase):
         self.assertIn("No stored", self.hook(source="resume"))
         self.control("disable")
 
-    def test_active_mode_requests_preflight_but_native_opt_out_survives_resume(self) -> None:
+    def test_active_mode_reports_absent_caller_but_native_opt_out_survives_resume(self) -> None:
         self.assertNotIn("Automatically run", self.hook())
         self.control("enable")
         for source in ("startup", "resume", "compact"):
             context = self.hook(source=source)
-            self.assertIn("Automatically run", context)
-            self.assertIn("session.status is supported", context)
+            self.assertIn("No HC_TERMINAL_ID; caller absent", context)
+            self.assertIn("Automatic selection did not persist", context)
             self.assertNotIn("appSession", context)
         self.assertNotIn("Automatically run", self.hook(session="child", source="fork"))
         self.control("native")
@@ -320,7 +320,7 @@ class CodexHooksTests(unittest.TestCase):
         self.assertNotIn("Automatically run", context)
         self.control("disable")
         self.control("enable")
-        self.assertIn("Automatically run", self.hook())
+        self.assertIn("No HC_TERMINAL_ID; caller absent", self.hook())
 
     def test_concurrent_execution_controls_retain_a_choice_on_resume(self) -> None:
         functions = runpy.run_path(str(HELPER))
@@ -594,7 +594,7 @@ class CodexHooksTests(unittest.TestCase):
         Path(path).parent.joinpath("session-a.execution.json").mkdir()
         result = self.control("native", check=False)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("state not changed", result.stderr)
+        self.assertIn("actual stored state", result.stderr)
 
     @unittest.skipIf(os.name != "posix" or os.geteuid() == 0, "needs POSIX permissions that bind the current user")
     def test_blocked_state_write_names_the_sandbox_remedy(self) -> None:
@@ -606,7 +606,7 @@ class CodexHooksTests(unittest.TestCase):
         for action in ("enable", "herdr"):
             result = self.control(action, check=False)
             self.assertEqual(result.returncode, 1)
-            self.assertIn("state not changed", result.stderr)
+            self.assertIn("actual stored state", result.stderr)
             self.assertIn("follow this session's z-mode guidance for blocked controls", result.stderr)
             self.assertNotIn("outside the sandbox", result.stderr)
         self.assertEqual(list(directory.iterdir()), [])
@@ -627,7 +627,7 @@ class CodexHooksTests(unittest.TestCase):
             ):
                 main()
             self.assertEqual(exit_.exception.code, 1)
-            self.assertIn("state not changed", stderr.getvalue())
+            self.assertIn("actual stored state", stderr.getvalue())
             self.assertEqual("blocked controls" in stderr.getvalue(), code in (errno.EPERM, errno.EACCES, errno.EROFS))
         self.assertEqual(list(self.data.iterdir()), [])
 

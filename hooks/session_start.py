@@ -1,13 +1,14 @@
 """Shared host context and session-scoped mode and execution controls."""
 
 # Keep measured startup savings: avoid pathlib/contextlib imports on the hook path.
-# ruff: noqa: PTH103, PTH105, PTH108, PTH113, PTH117, PTH118, PTH120, PTH122, PTH123, SIM105
+# ruff: noqa: PTH103, PTH109, PTH111, PTH112, PTH116, PTH105, PTH108, PTH113, PTH117, PTH118, PTH120, PTH122, PTH123, SIM105
 
 import json
 import os
 import re
 import shlex
 import sys
+from typing import Any
 
 
 def state_path(data_dir: str, session_id: str) -> str:
@@ -85,7 +86,41 @@ def migrate_legacy(path: str) -> None:
         unlink(path)
 
 
+class StateLock:
+    """Serialize short state mutations without leaving another preference file."""
+
+    def __init__(self, path: str) -> None:
+        self.directory = os.path.dirname(path)
+        self.fd: int | None = None
+
+    def __enter__(self) -> "StateLock":
+        os.makedirs(self.directory, exist_ok=True)
+        if os.name == "posix":
+            import fcntl
+
+            self.fd = os.open(self.directory, os.O_RDONLY)
+            try:
+                fcntl.flock(self.fd, fcntl.LOCK_EX)
+            except OSError:
+                os.close(self.fd)
+                self.fd = None
+                raise
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        if self.fd is not None:
+            os.close(self.fd)
+
+
 def set_active(path: str, active: bool) -> None:
+    # No directory creation is needed for an already absent Disable.
+    if not active and not os.path.isdir(os.path.dirname(path)):
+        return
+    with StateLock(path):
+        _set_active(path, active)
+
+
+def _set_active(path: str, active: bool) -> None:
     # Re-selecting the mode preserves execution; stopping it clears both preferences.
     if not active:
         unlink(path)
@@ -100,8 +135,9 @@ def set_active(path: str, active: bool) -> None:
 def set_execution(path: str, execution: str) -> None:
     if execution not in ("herdr", "native"):
         raise ValueError("Invalid execution selection")
-    migrate_legacy(path)
-    write_state(execution_path(path), {"execution": execution})
+    with StateLock(path):
+        migrate_legacy(path)
+        write_state(execution_path(path), {"execution": execution})
 
 
 def restore_state(path: str, source: str) -> tuple[bool, str, str | None]:
@@ -115,7 +151,8 @@ def restore_state(path: str, source: str) -> tuple[bool, str, str | None]:
             "native",
             (
                 "z-mode state could not be removed on clear. Mode and Herdr execution are inactive, "
-                "but a later resume may see stale stored activation. Retry Disable "
+                f"but a later resume may see stale stored activation. Stored state: {json.dumps(stored_state(path))}. "
+                "Follow the host approval flow for Disable "
                 "and preserve this opt-out in resume notes; user opt-out always takes precedence."
             ),
         )
@@ -179,6 +216,213 @@ def companion_skill(host: str) -> str | None:
     return paths.pop() if len(paths) == 1 else None
 
 
+def bootstrap_root(host: str, metadata: object) -> str:
+    """Locate the launcher; the companion owns full installation validation."""
+    roots = set()
+    if host == "codex" and isinstance(metadata, dict):
+        base = os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex")
+        for entry in metadata["installed"]:
+            if entry.get("name") == "herdr-zstack" and entry.get("installed") is True and entry.get("enabled") is True:
+                market, version = entry["marketplaceName"], entry["version"]
+                if not all(
+                    isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", v) for v in (market, version)
+                ):
+                    raise ValueError("Invalid companion installation identity")
+                roots.add(os.path.join(base, "plugins/cache", market, "herdr-zstack", version))
+    elif host == "claude" and isinstance(metadata, list):
+        for entry in metadata:
+            if str(entry.get("id", "")).startswith("herdr-zstack@") and entry.get("enabled") is True:
+                if (
+                    entry.get("scope") in ("project", "local")
+                    and os.path.realpath(entry.get("projectPath", "")) != os.getcwd()
+                ):
+                    continue
+                roots.add(entry.get("readFromFolder") or entry["installPath"])
+    else:
+        raise ValueError("Invalid host plugin listing")
+    root = next(iter(roots), None)
+    if len(roots) != 1 or not isinstance(root, str) or not os.path.isabs(root):
+        raise ValueError("Missing, ambiguous or non-absolute companion root")
+    return os.path.realpath(root)
+
+
+def validate_probe(report: object, code: int, root: str, terminal: str) -> dict[str, Any]:
+    if not isinstance(report, dict):
+        raise ValueError("Invalid preflight report")
+    for key in ("session", "companion", "bootstrap", "probe"):
+        if key in report and not isinstance(report[key], dict):
+            raise ValueError(f"Invalid preflight {key} section")
+    companion = report.get("companion", {})
+    if companion.get("status") == "supported" and companion.get("path") != root:
+        raise ValueError("Preflight companion path does not match the selected launcher")
+    session = report.get("session", {}).get("status")
+    if code == 0:
+        if (
+            session != "supported"
+            or report.get("companion", {}).get("status") != "supported"
+            or report.get("bootstrap", {}).get("status") != "supported"
+            or report["companion"].get("path") != root
+            or report["session"].get("terminalId") != terminal
+        ):
+            raise ValueError("Preflight did not verify this companion and caller")
+    elif not ((code == 1 and session == "unavailable") or (code == 2 and session == "untested")):
+        raise ValueError("Preflight exit status and report disagree")
+    return report
+
+
+def probe_companion(host: str) -> dict[str, Any]:
+    """Capture host metadata and consume the companion's verified, read-only launcher."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    unavailable = {"status": "unavailable", "reason": "No HC_TERMINAL_ID; caller absent"}
+    if not os.environ.get("HC_TERMINAL_ID"):
+        return {"session": unavailable}
+    try:
+        if host not in ("claude", "codex") or os.name != "posix":
+            raise ValueError("Automatic companion bootstrap is supported on POSIX Claude and Codex only")
+        cli, node = shutil.which(host), shutil.which("node")
+        if not cli or not node:
+            raise ValueError("Host CLI or Node is missing from PATH")
+        listing = subprocess.run(  # noqa: S603 - Installed host CLI, fixed read-only argv.
+            [cli, "plugin", "list", "--json"], capture_output=True, text=True, timeout=45, check=True
+        )
+        metadata = json.loads(listing.stdout)
+        root = bootstrap_root(host, metadata)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as file:
+            file.write(listing.stdout)
+            file.flush()
+            result = subprocess.run(  # noqa: S603 - Host-selected companion validates metadata before probing.
+                [
+                    "/bin/sh",
+                    os.path.join(root, "scripts/preflight.sh"),
+                    os.path.abspath(node),  # noqa: PTH100 - Shims dispatch by their symlink name.
+                    "--host",
+                    host,
+                    "--metadata",
+                    file.name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        report = json.loads(result.stdout)
+        return validate_probe(report, result.returncode, root, os.environ["HC_TERMINAL_ID"])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as error:
+        return {"bootstrap": {"status": "failed", "reason": str(error)[:300]}, "session": {"status": "untested"}}
+
+
+def stored_state(path: str) -> dict[str, Any]:
+    active, execution = read_state(path)
+    return {"active": active, "execution": execution, "explicitNative": read_execution(path) == "native"}
+
+
+def persistence_failure(path: str, error: OSError) -> dict[str, Any]:
+    import errno
+
+    return {
+        "state": stored_state(path),
+        "persistence": "failed",
+        "reason": str(error),
+        "approvalRequired": error.errno in (errno.EPERM, errno.EACCES, errno.EROFS),
+    }
+
+
+def select_automatically(path: str, host: str) -> dict[str, Any]:
+    result: dict[str, Any] = {"state": stored_state(path), "persistence": "unchanged", "reason": None}
+    if not result["state"]["active"] or read_execution(path) is not None:
+        return result
+    try:
+        before = os.stat(path)
+        report = probe_companion(host)
+        result["preflight"] = report
+        companion = report.get("companion", {})
+        result["companion"] = companion.get("path")
+        if companion.get("status") == "supported":
+            result["guidance"] = os.path.join(companion["path"], "skills/hc-workflow/SKILL.md")
+        if (
+            report.get("session", {}).get("status") != "supported"
+            or companion.get("status") != "supported"
+            or report.get("bootstrap", {}).get("status") != "supported"
+        ):
+            result["reason"] = next(
+                (
+                    report[key]["reason"]
+                    for key in ("bootstrap", "companion", "probe", "session")
+                    if report.get(key, {}).get("reason")
+                ),
+                "Preflight did not verify selection",
+            )
+            result["state"] = stored_state(path)
+            return result
+        with StateLock(path):
+            # Native, Disable, or a new activation during the probe supersedes its result.
+            if (
+                read_state(path)[0]
+                and read_execution(path) is None
+                and (os.stat(path).st_ino, os.stat(path).st_mtime_ns) == (before.st_ino, before.st_mtime_ns)
+            ):
+                write_state(execution_path(path), {"execution": "herdr"})
+                result["persistence"] = "persisted"
+            else:
+                result["reason"] = "Session preference changed during preflight; retained the newer state"
+        result["state"] = stored_state(path)
+    except OSError as error:
+        result.update(persistence_failure(path, error))
+    return result
+
+
+def apply_control(path: str, host: str, action: str) -> dict[str, Any]:
+    try:
+        if action in ("enable", "disable"):
+            set_active(path, action == "enable")
+        else:
+            set_execution(path, action)
+        result = {"state": stored_state(path), "persistence": "persisted", "reason": None}
+        if action == "enable":
+            selection = select_automatically(path, host)
+            result.update(selection)
+            if selection["persistence"] == "unchanged":
+                result["persistence"] = "persisted"
+        return result
+    except OSError as error:
+        return persistence_failure(path, error)
+
+
+def execution_context(path: str, host: str, active: bool, execution: str, selection: dict[str, Any] | None) -> str:
+    context = ""
+    if execution == "herdr":
+        companion = (selection or {}).get("guidance") or companion_skill(host)
+        context += "\nHerdr execution is selected for this session. "
+        if companion:
+            context += f"Read {companion} (herdr-zstack:hc-workflow) alongside the selected playbook. "
+        else:
+            context += (
+                "Capability gap: herdr-zstack:hc-workflow is missing or ambiguous; "
+                "resolve it through the host catalog. "
+            )
+        context += (
+            "Keep file edits and quick checks (expected under about 30 seconds) direct. "
+            "Run slower or unknown-duration commands (tests, builds, installs, CI watches, servers) with "
+            "`hc run --bg` and `hc wait`, not host background shells, monitors or sleep/poll loops. "
+            "When the playbook delegates, use hc instead of native agent tools for authorized workers. "
+            "No legacy Herdr fallback. Native hc requires HC_TERMINAL_ID, a resolved caller and an answering core; "
+            "HERDR_ENV alone is insufficient. Do not dispatch until the companion's read-only preflight passes. "
+            "Never copy these controls into children. Later user instructions override stored state."
+        )
+    elif active and read_execution(path) != "native":
+        context += "\nHerdr execution is not enabled. Automatic selection did not persist: "
+        context += str((selection or {}).get("reason") or "preflight unavailable")[:300] + "."
+        context += " Do not substitute conversational selection for stored state."
+    else:
+        context += "\nHerdr execution is not enabled."
+        if read_execution(path) == "native":
+            context += " Native was explicitly selected; do not auto-select Herdr."
+    return context
+
+
 def build_context(host: str, session_id: str, data_dir: str, source: str) -> tuple[str, str | None]:
     """Restore scoped state and render controls without emitting output."""
     if host not in ("codex", "claude", "hermes"):
@@ -187,6 +431,10 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         raise ValueError("Invalid context source")
     path = state_path(data_dir, session_id)
     active, execution, clear_error = restore_state(path, source)
+    selection = None
+    if active and source != "clear":
+        selection = select_automatically(path, host)
+        active, execution = read_state(path)
     helper = os.path.realpath(__file__)
     # A control may rerun outside a sandbox, so emit the base interpreter fixed at hook start: a working-directory
     # .venv that uv chose (symlinked or copied) stays writable by sandboxed commands. This also skips blocked shims.
@@ -238,40 +486,9 @@ def build_context(host: str, session_id: str, data_dir: str, source: str) -> tup
         context += "z-mode is inactive for this cleared context."
     else:
         context += "No stored z-mode activation exists for this session."
-    if execution == "herdr":
-        companion = companion_skill(host)
-        context += "\nHerdr execution is selected for this session. "
-        if companion:
-            context += f"Read {companion} (herdr-zstack:hc-workflow) alongside the selected playbook. "
-        else:
-            context += (
-                "Capability gap: herdr-zstack:hc-workflow is missing or ambiguous; "
-                "resolve it through the host catalog. "
-            )
-        context += (
-            "Keep file edits and quick checks (expected under about 30 seconds) direct. "
-            "Run slower or unknown-duration commands (tests, builds, installs, CI watches, servers) with "
-            "`hc run --bg` and `hc wait`, not host background shells, monitors or sleep/poll loops. "
-            "When the playbook delegates, use hc instead of native agent tools for authorized workers. "
-            "No legacy Herdr fallback. Native hc requires HC_TERMINAL_ID, a resolved caller and an answering core; "
-            "HERDR_ENV alone is insufficient. Do not dispatch until the companion's read-only preflight passes. "
-            "Never copy these controls into children. Later user instructions override stored state."
-        )
-    elif active and read_execution(path) != "native":
-        companion = companion_skill(host)
-        context += "\nAutomatically run the hc companion's preflight before choosing execution. "
-        if companion:
-            context += f"Read {companion}. "
-        else:
-            context += "Resolve herdr-zstack:hc-workflow through the host catalog; missing or ambiguous means stay native. "
-        context += (
-            "Select Herdr with this session's control only if session.status is supported. "
-            "Otherwise stay native and report the gap. A later explicit Native choice overrides auto-selection."
-        )
-    else:
-        context += "\nHerdr execution is not enabled."
-        if read_execution(path) == "native":
-            context += " Native was explicitly selected; do not auto-select Herdr."
+    context += execution_context(path, host, active, execution, selection)
+    if selection and selection["persistence"] == "failed":
+        clear_error = "Automatic selection state write failed; follow the control approval guidance above."
     if clear_error:
         context += "\n" + clear_error
     return context, clear_error
@@ -308,17 +525,17 @@ def main() -> None:
     args = parser.parse_args()
     try:
         path = state_path(args.data_dir, args.session_id)
-        if args.action in ("enable", "disable"):
-            set_active(path, args.action == "enable")
-        else:
-            set_execution(path, args.action)
-    except (ValueError, OSError) as error:
-        import errno
-
-        # The remedy lives only in trusted hook context; tool output must not instruct a sandbox bypass.
-        blocked = isinstance(error, OSError) and error.errno in (errno.EPERM, errno.EACCES, errno.EROFS)
+        result = apply_control(path, args.host, args.action)
+    except ValueError as error:
+        parser.exit(1, f"z-mode control failed: {error}\n")
+    print(json.dumps(result))
+    if result["persistence"] == "failed":
         remedy = "If a sandbox blocked this write, follow this session's z-mode guidance for blocked controls.\n"
-        parser.exit(1, f"z-mode state not changed: {error}\n{remedy if blocked else ''}")
+        parser.exit(
+            1,
+            f"z-mode control failed; see actual stored state above: {result['reason']}\n"
+            + (remedy if result.get("approvalRequired") else ""),
+        )
 
 
 if __name__ == "__main__":
