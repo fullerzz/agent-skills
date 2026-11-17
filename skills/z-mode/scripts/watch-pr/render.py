@@ -70,7 +70,7 @@ def blocker_text(blocker: Blocker, forge: Forge) -> str:
         lines += [
             f"mergeable={blocker['facts']['mergeable']}",
             f"mergeStateStatus={blocker['facts']['mergeStateStatus']}",
-            "action=resolve merge conflicts before waiting for CI",
+            "action=branch owner must rebase before CI; Babysit reports the branch and stops",
         ]
     elif blocker["kind"] == "review-threads":
         lines.append(f"unresolved={len(blocker['threads'])}")

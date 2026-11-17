@@ -24,7 +24,7 @@ BLOCKER: merge-conflicts
 pr=1
 mergeable=CONFLICTING
 mergeStateStatus=CLEAN
-action=resolve merge conflicts before waiting for CI
+action=branch owner must rebase before CI; Babysit reports the branch and stops
 == review-threads exit=3
 {"schemaVersion":2,"sequence":1,"observedAt":"2026-10-04T00:00:00.000Z","mode":"single","kind":"BLOCKER","terminal":true,"exitCode":3,"blocker":{"kind":"review-threads","pr":{"owner":"owner","repo":"repo","number":1},"threads":[{"id":"t1","firstComment":{"authorLogin":"cursor","body":"Bugbot RUN_ID: one\nsecond line","path":"app.py","line":3,"createdAt":"now"}},{"id":"t2","firstComment":null}]}}
 == review-threads --pretty exit=3

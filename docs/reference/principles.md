@@ -72,7 +72,7 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 **Decision affected:** Choose core data structures and sequence shared foundations before dependent logic, after removing dead complexity.
 
-**Example:** For ID lookups, define one keyed session model before adding picker and API consumers; keep three simple statements instead of a premature generic abstraction.
+**Example:** For ID lookups, define one keyed session model before adding picker and API consumers.
 
 [Supporting principle](https://github.com/fullerzz/agent-skills/blob/main/skills/principle-foundational-thinking/SKILL.md).
 
@@ -110,7 +110,7 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Minimize reader load {#principle-minimize-reader-load}
 
-**Decision affected:** Judge maintainability by layers to trace and mutable state to remember; only add a layer when it reduces understanding cost elsewhere.
+**Decision affected:** Judge maintainability by layers to trace and mutable state to remember. Inline layers that only forward calls and shrink mutable state scope.
 
 **Example:** Inline an adapter that repeats identical arguments and turn a synchronized global selection flag into a value derived locally from selectedId.
 
@@ -118,7 +118,7 @@ Use `$z-mode Fix the restart crash; trace its root cause.` in Codex or `/z-mode 
 
 ## Model the domain {#principle-model-the-domain}
 
-**Decision affected:** Choose a structure that removes repeated rules, branches or invalid states; avoid abstractions that only add indirection.
+**Decision affected:** Choose a structure that removes branches or invalid states. Avoid abstractions that only add indirection.
 
 **Example:** Replace running, stopping and stopped booleans with one lifecycle state machine so impossible combinations cannot arise.
 

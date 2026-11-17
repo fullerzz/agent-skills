@@ -57,7 +57,6 @@ Read only the selected playbook. Resolve companion skills through the catalog or
 - [PR status and remediation](playbooks/babysit.md)
 - [Authorized landing](playbooks/shipping.md)
 - [Bounded autonomous task](playbooks/autonomous-run.md)
-- [Program coordination](playbooks/orchestrate.md)
 - [Autonomous queue](playbooks/autopilot-full.md)
 - [Autonomous queue, operator lands](playbooks/autopilot-stack.md)
 - [Session pickup](playbooks/session-pickup.md)
@@ -66,7 +65,7 @@ Read only the selected playbook. Resolve companion skills through the catalog or
 - [Worktree audit and cleanup](playbooks/worktree-cleanup.md)
 - [Requested PR publication](playbooks/opening-a-pr.md)
 
-If no playbook fits, read the installed figure-it-out skill and design a scoped workflow.
+For a program-scale effort, such as a multi-day program of many PRs and workers, or when no playbook fits, read the installed figure-it-out skill and design a scoped workflow.
 
 When running a benchmark or reporting a measured speedup or regression, read [benchmark-checklist](../benchmark-checklist/SKILL.md) before trusting or acting on the number. Before measuring an eval and before trusting its result, read [explain the number](../principle-explain-the-number/SKILL.md).
 
