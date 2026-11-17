@@ -1,5 +1,5 @@
 # Multi-phase plan
-Planning produces a plan; implementation begins only when requested.
+Planning produces a plan; implementation begins only when requested. When the change touches one or two files with an obvious approach, skip the plan, say so, and stop.
 1. Ground the affected flow and actual constraints. Prototype only unresolved facts that need an experiment.
 2. Write a task-sized plan at the user's path or docs/<slug>-plan.md. Use this contract:
    - H1 title.

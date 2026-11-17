@@ -6,28 +6,8 @@ disable-model-invocation: true
 
 # Architect
 
-Design the smallest coherent shape before code. A design request produces a design. Implement only if requested, honoring any review checkpoint.
+A design request produces a design. Implement only if requested, honoring any review checkpoint.
 
-## Phase A: Ground the problem
+Before writing code, trace every system the change touches through its runtime flow and callers. When the design changes ownership or layering, use why so the existing rationale becomes a constraint. Sketch two different shapes, writing caller usage first and then types, signatures, and module boundaries. Pick the one where each piece of state has one owner, each task has one way to do it, and callers need to know least. A constrained mechanical change needs one sketch and the constraint. Redesign instead of patching when workarounds repeat.
 
-Where useful, produce the architectural explanation that `how` prescribes, grounded in runtime flow and callers. Use why when changing ownership risks discarding a historical constraint. Greenfield work still has boundaries.
-
-## Phase B: Sketch
-
-Write caller usage first, then derive types, signatures, ownership, and invariants. For contested/novel designs compare structurally distinct candidates with arena and the [runner prompt](references/runner-prompt.md). A constrained mechanical change needs one sketch and the constraint.
-
-Use the [rationale template](references/rationale-template.md) at the task's scale; screen [red flags](references/design-red-flags.md). Assume the next contributor is an agent that sees only the files it opened, copies the nearest example, and takes the shortest path that compiles. Prefer the design where a change that looks right from one file is right for the whole repo. Prefer a small interface hiding meaningful complexity. Separate shared writes before synchronizing.
-
-## Phase C: Agree
-
-Present the choice and tradeoffs. Honor a requested checkpoint. Do not publish scaffolding by default.
-
-## Phase D: Implement
-
-When authorized, fill the sketch and verify caller behavior. Deviations are evidence to revisit design or requirements.
-
-## Phase E: Scrap
-
-Repeated workarounds, casts, synchronization, or caller knowledge of internals can refute a design. Re-ground and simplify around observed constraints.
-
-Follow the [native contract](../z-mode/references/native-hosts.md) for delegated candidates.
+For a large or contested design, run the [arena](../arena/SKILL.md) skill instead of sketching alone. Present the choice and its tradeoffs. Do not publish scaffolding by default.

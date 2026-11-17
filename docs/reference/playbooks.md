@@ -195,7 +195,7 @@ Codex: $z-mode Check PR 42 status in one read-only pass.
 Claude Code: /z-mode Check PR 42 status in one read-only pass.
 ```
 
-Choose check, drive, threads-only, or requested background mode; resolve exact heads and reviews; triage findings against code; verify requested fixes and re-query the new head. Return state, remediation, checks, and blockers.
+Choose check, drive, threads-only, or requested background mode; resolve exact heads and reviews; triage findings against code; verify requested fixes and re-query the new head. Babysit never rebases, retargets, or force-pushes: a conflict or stale base is reported with the branch that needs the rebase, and that PR stops there. Return state, remediation, checks, and blockers.
 
 **Prerequisites and limits:** The PR watcher (GitHub via gh, GitLab via glab) is an optional Python tool launched with uv and requiring forge access; use its --help and absolute installed path. Read-only status excludes fixes and replies; merge-ready is not merged. Background requires a supported live runtime.
 
@@ -230,21 +230,6 @@ State done predicate, scope, budget and capabilities; make justified verified it
 **Prerequisites and limits:** Does not supply overnight scheduling or wider publication authority. If persistence ends, write the pause-safely handoff.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/autonomous-run.md).
-
-## Program coordination {#playbook-orchestrate}
-
-Coordinate a program larger than one simple run.
-
-```text
-Codex: $z-mode Coordinate the parser and UI migration with exclusive owners and verified handoffs.
-Claude Code: /z-mode Coordinate the parser and UI migration with exclusive owners and verified handoffs.
-```
-
-The coordinator decides which agent does each piece of work, checks what each produces, and never writes code. One owner per PR carries it from build to merge within the authorized actions; only the owner pushes, rebases, or retargets it. Each PR needs a verifier from another model family at its current head. Pilot one unit before fan-out, read diffs rather than summaries, and check live PR state before reporting. Return what landed, each PR's live state and verdict, what was dropped, and the decisions waiting on the user.
-
-**Prerequisites and limits:** Needs native delegation. State lives in the host's task tracker where available and a user-owned notes file; PR watching uses native event subscriptions where the host has them. No bundled bookkeeping CLI remains. Without an other-family verifier or merge authority, a PR stops at merge-ready. No durable runtime means handoff.
-
-[Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/orchestrate.md).
 
 ## Autonomous queue {#playbook-autopilot-full}
 
@@ -315,9 +300,9 @@ Codex: $z-mode Plan the parser migration in docs/parser-plan.md; stop before imp
 Claude Code: /z-mode Plan the parser migration in docs/parser-plan.md; stop before implementation.
 ```
 
-Ground constraints, write Outcome, Scope, Phases, Risks and Handoff; give each phase Depends on, Files, Acceptance and Verification; run the bundled plan validator. Return path, dependencies, tradeoffs, and validator result.
+Skip the plan for a one- or two-file change with an obvious approach. Otherwise ground constraints, write Outcome, Scope, Phases, Risks and Handoff; give each phase Depends on, Files, Acceptance and Verification; run the bundled plan validator. Return path, dependencies, tradeoffs, and validator result.
 
-**Prerequisites and limits:** Planning stays read-only apart from the requested plan. Validator needs Node and its real installed script path; no automatic implementation, fixed lane count, or overnight promise.
+**Prerequisites and limits:** Planning stays read-only apart from the requested plan. Validator needs uv and its real installed script path; no automatic implementation, fixed lane count, or overnight promise.
 
 [Supporting playbook](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/playbooks/multi-phase-plan.md).
 

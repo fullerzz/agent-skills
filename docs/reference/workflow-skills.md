@@ -46,7 +46,7 @@ You need types, ownership, or module boundaries before a non-trivial implementat
 
 ### How it works
 
-The agent traces callers and runtime flow, sketches caller usage, derives types and invariants, and compares distinct designs when the choice warrants an arena. It presents tradeoffs before implementation. Authorized implementation tests the sketch against real caller behavior and revisits designs that require repeated workarounds.
+The agent traces every system the change touches through its callers and runtime flow, then sketches two shapes from caller usage. It picks the one where each piece of state has one owner, each task has one way to do it, and callers need to know least. A large or contested design runs arena instead. It presents tradeoffs before implementation and redesigns when workarounds repeat.
 
 ### Expected result
 
@@ -54,7 +54,7 @@ A grounded design with signatures, ownership, invariants, and tradeoffs. Code fo
 
 ### Dependencies and limits
 
-Uses how for flow, why for historical constraints, and arena for contested designs. A design request does not authorize scaffolding or implementation.
+Uses why for historical constraints and arena for large or contested designs. A design request does not authorize scaffolding or implementation.
 
 [Full architect instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/architect/SKILL.md)
 
@@ -516,7 +516,7 @@ The active session contains lessons worth proposing as durable skill guidance.
 
 ### How it works
 
-Independent read-only judgment, tooling, and divergent reviewers examine scoped session evidence. The coordinator verifies moments, reads target skills, prefers existing homes, and separates missing guidance from missed invocation. It presents Accepted, Rejected, and Backlog proposals. Approved edits receive metadata, link, and relevant scenario validation.
+The agent reads scoped session evidence itself, with no reviewer subagents. It keeps a lesson only if it will still hold, would change a future agent's work, and routes to a skill the session used. It reads that skill first and drops what it already says. A skill that should have fired gets its description tuned, and enforceable rules go to the Backlog. It presents Accepted, Rejected, and Backlog proposals. Approved edits go to the skill's source, never an installed copy in a host's plugin cache, and receive metadata, link, and relevant scenario validation.
 
 ### Expected result
 
@@ -524,7 +524,7 @@ Grounded proposals or authorized local edits, with the evidence basis and remain
 
 ### Dependencies and limits
 
-Applying edits requires approval or an existing explicit request that covers them. Filing backlog, writing memory, commits, and PRs are separate actions. Digest fallback and unavailable native reviewers remain visible.
+Applying edits requires approval or an existing explicit request that covers them. Filing backlog, writing memory, commits, and PRs are separate actions. A digest fallback remains visible.
 
 [Full reflect instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/reflect/SKILL.md)
 
@@ -565,7 +565,7 @@ You want a stronger prompt to review before starting a task.
 
 ### How it works
 
-Briefly identifies what an expert would add, the original source material, specific methods and tools, and an independent check. It then returns a complete rewritten prompt while preserving the goal, constraints, and choices that belong to you.
+Briefly identifies what an expert would add, the original source material, specific methods and tools, and an independent check. It then returns a complete rewritten prompt that preserves the goal and constraints. The rewrite asks the agent to prototype any choice an experiment can settle and recommend an option from what it observed, and leaves product or preference choices to you.
 
 ### Expected result
 
@@ -688,7 +688,7 @@ Clearer technical writing with a consistent document purpose, concrete names, re
 
 ### Dependencies and limits
 
-The rules serve clarity rather than mechanical compliance. Product UI copy follows product guidelines. New jargon offenders are proposed with the diff, not silently added to unslop. Counts and trees must match the repository state.
+The rules serve clarity rather than mechanical compliance. Product UI copy follows product guidelines. Counts and trees must match the repository state.
 
 [Full technical-writing instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/technical-writing/SKILL.md)
 
@@ -749,7 +749,7 @@ Requested writing contains filler, jargon, repetitive phrasing, or other AI patt
 
 ### How it works
 
-The agent scans the stable pattern catalog and rewrites wording, structure, punctuation, and tone. It removes vague attribution and generic conclusions, preserves meaning, and keeps concrete mechanisms and necessary confidence qualifiers.
+The agent scans the stable pattern catalog and rewrites wording, structure, punctuation, and tone. It removes vague attribution and generic conclusions, preserves meaning, and names concrete mechanisms. It allows at most one hedge, "may".
 
 ### Expected result
 
