@@ -4,6 +4,17 @@ outline: [2, 3]
 
 # Validation
 
+## Show me — 2026-11-17 {#show-me}
+
+Added the explicit-only `show-me` skill, its HumanLayer MIT notice, its workflow reference, and catalog counts. See [provenance](provenance.md). Shared native manifests are `0.29.0`. Checks ran on macOS in Claude Code, on the local branch `show-me`, with Node `24.22.3` and Sketch `0.4.0` from mise.
+
+- `uv run scripts/validate.py`: 59 skills, zero structural problems. Python unittest discovery with rich and pyyaml: 166 passed. `node --test scripts/*.test.mjs`, with output sent to a file: 283 tests, 214 passed, zero failed, and 69 skipped. The skips are 67 TLC tests without `TLA2TOOLS`, the differential suite without `fast-check`, and the render suite without `STATECHART_RENDER_TESTS`. The suite includes the VitePress builds. `git diff --check` passed.
+- Ran the skill's sequence example with `sketch - -f text -color always -cols 80`. It exited zero and wrote a box-drawing diagram with ANSI color through captured stdout, not SVG. A four-node flowchart gave the same result.
+- Read Sketch's `cmd/sketch/main.go` at tuios commit `89ae8eb6516f63e51d3efedbe90fc83545f30486`. It writes SVG when stdout is not a terminal unless `-f` is given. With `-color auto`, it turns color off unless stdout is a terminal, `NO_COLOR` is empty, and `TERM` is not `dumb`.
+- After seeing this session's Sketch runs in Claude Code, the user chose colored command output only, with no plain copy in the reply.
+- A Codex review of the working tree reported four findings, and all four are addressed. The skill body now stops when the agent loaded it without being asked, since the Hermes plugin registers skills without invocation metadata. It adds a plain fenced drawing where the user is not known to see command output, such as Hermes messaging gateways. It sends an HTML file through the host, or gives its path, in a remote or headless session. The reference now names `/zstack:show-me` for the native plugins. The review's Hermes claims were not reproduced here.
+- Not observed: a live `/show-me` or `$show-me` invocation in a fresh host session, and how Codex and Hermes display ANSI color in command output or a long diagram. No commit or publication was performed.
+
 ## pstack 0.15.43 port — 2026-11-16 {#pstack-0-15-43}
 
 Ported the selected parts of pstack #1236 and #1249 listed in [provenance](provenance.md). Shared native manifests are `0.28.0`. Final checks ran on macOS in Claude Code, on the local branch `port/pstack-0-15-43`, with Node `24.22.3`, Java `25.0.2`, and tla2tools `1.7.4`. The jar was downloaded with `gh release download` into a session scratch folder, and its SHA-256 `936a2620…0e88` matched upstream's pin. Slow suites ran in hc terminals.

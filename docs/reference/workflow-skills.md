@@ -577,6 +577,32 @@ Explicit invocation only. Unknown source contents, tool availability, and user d
 
 [Full sharpen instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/sharpen/SKILL.md)
 
+## Show me {#show-me}
+
+Explain the current topic with the smallest useful visual.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$show-me How does a save request reach the daemon?` |
+| Claude Code | `/show-me How does a save request reach the daemon?` |
+| Hermes | Load `zstack:show-me` with `skill_view` and name the topic. |
+
+For native plugins, select `zstack:show-me` through the Codex skill picker or invoke `/zstack:show-me` in Claude Code.
+
+### How it works
+
+The agent picks one or a few views: pseudocode, a call tree, a component tree, a file tree, a diff of one of these, a whole code block, or a Mermaid diagram. It renders each Mermaid diagram with Sketch as a visible shell command, `sketch - -f text -color always -cols 80`, so the colored terminal output is the diagram. It does not paste the captured escapes into the reply. Where the user may not see command output, such as a messaging gateway or remote session, it also puts a plain `-color never` drawing in a fenced text block. For a visual too dense for text, it writes one focused HTML file and opens it. In a remote or headless session, it sends the file through the host instead, or gives its path.
+
+### Expected result
+
+Short text with each visual beside the point it supports. Mermaid diagrams appear as colored Sketch output, not raw Mermaid source, plus a plain copy where the output may not reach the user.
+
+### Dependencies and limits
+
+Explicit-only on all three hosts. The skill body also stops if the agent loaded it without being asked. Mermaid views require the standalone `sketch` CLI and follow the [Sketch](#sketch) skill's install, check, and split rules, with color on instead of off. Color shows only where the host displays command output with ANSI color. Adapted from HumanLayer's show-me under the MIT license.
+
+[Full show-me instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/show-me/SKILL.md)
+
 ## Show me your work {#show-me-your-work}
 
 A long-running task needs a durable record of decisions and their evidence.

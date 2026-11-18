@@ -1,5 +1,18 @@
 # Upstream provenance
 
+## Show me — 2026-11-17
+
+The explicit-only `show-me` skill adapts HumanLayer's [show-me](https://github.com/humanlayer/skills/blob/4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329/plugins/show-me/skills/show-me/SKILL.md) at repository commit `4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329` (show-me plugin 1.0.1, last changed in `bba9d13ab34f0a87f1cc33df4dd196372393ddfc`), inspected 2026-11-17. The pseudocode, tree, diff, whole-block, HTML, and guidance text is kept. These things change:
+
+- The description adds the Sketch rendering, and the body opens with an attribution line.
+- Mermaid diagrams render through [Sketch](https://tuios.dev/docs/libraries/sketch) as a visible shell command with `-f text -color always -cols 80`, instead of a raw Mermaid block. A new section points to the Sketch skill for install, checks, and splitting. It says why both flags are required, from Sketch's CLI source at tuios commit `89ae8eb6516f63e51d3efedbe90fc83545f30486`. It also says not to paste the captured escapes into the reply. Where the user is not known to see command output, such as a messaging gateway or a remote session, it adds a plain `-color never` drawing in a fenced block.
+- The HTML bullet says "too dense for a text diagram" instead of "too dense for Mermaid". Opening the file names the platform's opener instead of only macOS `open`. In a remote or headless session, the file goes through the host's attachment or download feature, or its path is given.
+- The body stops when the agent loaded the skill without being asked, because the Hermes plugin registers skills without invocation metadata.
+
+The Codex policy keeps upstream's `agents/openai.yaml`, which disables implicit invocation.
+
+The Sketch skill still renders with `-color never` into a fenced block. The two skills differ on purpose. The full [HumanLayer MIT notice](../skills/show-me/references/HUMANLAYER-LICENSE.txt) ships beside the skill, and its text is the same as ketchup's copy in the documentation site's notices. No HumanLayer plugin is installed or required, and no upstream scripts were run. Native manifests advance together to `0.29.0` for the new skill.
+
 ## Shorter workflows, worker rules, and statechart fixes — 2026-11-16
 
 Selectively adapted pstack 0.15.37–0.15.43 from [PR #1236](https://github.com/cursor/plugins/pull/1236), merged at `bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7`, and [PR #1249](https://github.com/cursor/plugins/pull/1249), merged at `2f87c854fe3e2fcda44ca86b46ede35aad3c46b7`. The MIT license retains Lauren Tan's attribution.
