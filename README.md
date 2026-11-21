@@ -127,6 +127,18 @@ uv run --with mypy --with rich --with pyyaml --with types-pyyaml mypy
 
 Run `just mypy` as a shortcut for the project-wide mypy check.
 
+### Triage a pstack change
+
+From this checkout, set `OPENAI_API_KEY` in your environment and pass one UTF-8 JSON case per invocation.
+
+```sh
+uv run scripts/triage_upstream.py < case.json
+```
+
+Supply `case_id`, the public `upstream_url` for the `cursor/plugins` PR, `upstream_sha` and `downstream_sha` as full 40-character Git SHAs, and `evidence` as text. Pin both revisions before preparing the evidence and use the pre-port downstream SHA for historical replays. Include the relevant upstream change, matching public downstream code or shareable test observations, and any known platform requirements. Only the evidence text goes to the Decisions API as case input.
+
+The CLI writes one JSON record with the case metadata, routing label (`review`, `already_covered`, `out_of_scope`, or `needs_context`), per-label probabilities, confidence, and model. Failures exit nonzero with a diagnostic on stderr. Keep every case available for manual review during the pilot, including `needs_context`, refusals, and errors.
+
 ### Versioning
 
 The Codex, Claude Code, and Hermes plugins share one `0.MINOR.PATCH` version in `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and `plugin.yaml`. Validation fails if the manifests differ or leave `0.x`; reaching `1.0.0` is a deliberate change to that rule.
