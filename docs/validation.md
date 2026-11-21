@@ -4,6 +4,36 @@ outline: [2, 3]
 
 # Validation
 
+## Upstream Decisions CLI — 2026-11-21 {#upstream-decisions}
+
+Checked the maintainer CLI on macOS ARM64 with uv `0.13.9` and Node `24.22.3` on `decisions-script`.
+
+- The 10 focused Python tests exercise the CLI with stubbed HTTPS. They verify the fixed destination, exact evidence round trip, one named choice, response validation, and safe diagnostics for refusal, redirect, HTTP error, and timeout.
+- Structural validation found 59 skills and zero problems. Python unittest discovery passed all 176 tests. Ruff and ty passed for both new Python files.
+- The sandboxed Node run hit three statechart signal-test failures with `ps` blocked. The rerun with process inspection enabled passed 214 tests, with 69 optional TLC, differential, and render tests skipped.
+- All four historical case payloads passed input validation through `uv run scripts/triage_upstream.py` and stopped at the missing-key check. The prompt matched the handoff rubric exactly.
+
+### Live replay
+
+Ran the same four payloads through the CLI after configuring the restricted project key. All four returned `gpt-6-luna` and matched their expected labels. The following values came from the live CLI run. The handoff separately reports that the earlier Playground classifications matched expectations.
+
+| Case | Returned label | `review` | `already_covered` | `out_of_scope` | `needs_context` | API confidence |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `tlc-crlf` | `review` | 1.00 | 0.00 | 0.00 | 0.00 | 1.00 |
+| `windows-process` | `needs_context` | 0.21 | 0.02 | 0.01 | 0.76 | 0.68 |
+| `gemini-panel` | `out_of_scope` | 0.03 | 0.05 | 0.88 | 0.04 | 0.84 |
+| `skill-name` | `already_covered` | 0.31 | 0.57 | 0.06 | 0.06 | 0.43 |
+
+The holdout comparison remains pending before using labels to skip reviews.
+
+### Project-local skill
+
+`$triage-pstack` lives in `.agents/skills/triage-pstack` with explicit invocation. Skill metadata validation passed. Repository validation found 60 skills and zero structural problems, all 176 Python tests passed, and the Node suite passed 214 tests with 69 optional skips. Fresh-chat discovery and a live invocation of the skill remain unverified.
+
+### Response validation
+
+The 12 focused CLI tests reject boolean numeric values and invalid probability totals. They also accept totals of 0.98 and 1.02 while preserving the reported probabilities. All 178 Python tests passed, and structural validation found 60 skills and zero problems. Ruff, ty, and strict mypy passed for both triage files. Project-wide mypy still reports the existing argument type error at `scripts/test_pr_watcher.py:750`. These checks used stubbed HTTPS responses.
+
 ## Show me — 2026-11-17 {#show-me}
 
 Added the explicit-only `show-me` skill, its HumanLayer MIT notice, its workflow reference, and catalog counts. See [provenance](provenance.md). Shared native manifests are `0.29.0`. Checks ran on macOS in Claude Code, on the local branch `show-me`, with Node `24.22.3` and Sketch `0.4.0` from mise.
