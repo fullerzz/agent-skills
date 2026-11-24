@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 59 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 60 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -101,6 +101,7 @@ Enable z-mode in a verified live hc terminal, or explicitly select “use z-mode
 
 - Understand with how, why, teach, recall, and blast-radius.
 - Check that the agent understood a long or messy ask with explicitly invoked [in-your-own-words](docs/reference/workflow-skills.md#in-your-own-words), a restatement of your goals and the problem you are solving.
+- Find the words for what you want to build with [reframe](docs/reference/workflow-skills.md#reframe). It returns a brief grounded in verified examples.
 - Improve a prompt before sending it with explicitly invoked [sharpen](docs/reference/workflow-skills.md#sharpen): expert approach, original sources, methods and tools, and an independent check. It returns a rewrite, preserves your open choices, and stops before doing the task.
 - Design and review with architect, arena, swarm, interrogate, and no-comments.
 - Build with z-mode's bug, feature, refactoring, performance, and prototype playbooks.

@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 32 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
@@ -552,6 +552,18 @@ An installed-versus-loaded report, requested configuration changes, collision re
 Defaults to native model inheritance. Bundled roles are z-agent and comment-sicko. Modified agent copies survive installer reruns. Model entitlement, unsupported identifiers, and effort-suffixed IDs are never inferred. Delegation may be unavailable.
 
 [Full setup-zstack instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/setup-zstack/SKILL.md)
+
+## Reframe {#reframe}
+
+Use reframe when you can describe what you want to build but lack the vocabulary to ask for it. For instance, “Two people edit the same note and one person's changes disappear.” Reframe reads your description and relevant files, distinguishes plausible interpretations, and ranks terms with checked examples. Review the rewritten brief or take it to [sharpen](#sharpen).
+
+| Host | Explicit invocation |
+| --- | --- |
+| Codex | `$reframe <brief>` |
+| Claude Code | `/reframe <brief>` |
+| Hermes | `Load zstack:reframe with skill_view and reframe this brief.` |
+
+[Full reframe instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/reframe/SKILL.md)
 
 ## Sharpen {#sharpen}
 
