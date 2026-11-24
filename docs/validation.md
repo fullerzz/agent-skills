@@ -4,6 +4,13 @@ outline: [2, 3]
 
 # Validation
 
+## Reframe and project skill discovery — 2026-11-23
+
+- The Codex package built successfully. Its reframe entrypoint and invocation policy matched the source byte for byte. The package contained neither the project skill directory nor a shared triage-pstack entry.
+- `claude plugin validate .` passed and listed 60 skills including zstack:reframe. Its inventory omitted triage-pstack.
+- Calling the Hermes plugin entrypoint with the test registry registered 60 skills, including reframe at its shared path. The registry contained no triage-pstack entry.
+- These checks cover packaging and discovery. Live model behavior on clear and ambiguous briefs remains untested.
+
 ## Upstream Decisions CLI — 2026-11-21 {#upstream-decisions}
 
 Checked the maintainer CLI on macOS ARM64 with uv `0.13.9` and Node `24.22.3` on `decisions-script`.

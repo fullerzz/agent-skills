@@ -1,5 +1,9 @@
 # Upstream provenance
 
+## Reframe — 2026-11-23
+
+Adapted the vocabulary workflow from [cursor/plugins#1324](https://github.com/cursor/plugins/pull/1324) at `2dd5c0ccc5b207dc23a69759871a35954082cbf7` and ambiguous-brief handling from [cursor/plugins#1326](https://github.com/cursor/plugins/pull/1326) at `9e278fe4d4ecd8bfe98b1b79bf4be662efb338cc`. The shared skill allows fewer terms when examples cannot be verified. The [MIT license](../LICENSE) retains Lauren Tan's attribution.
+
 ## Show me — 2026-11-17
 
 The explicit-only `show-me` skill adapts HumanLayer's [show-me](https://github.com/humanlayer/skills/blob/4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329/plugins/show-me/skills/show-me/SKILL.md) at repository commit `4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329` (show-me plugin 1.0.1, last changed in `bba9d13ab34f0a87f1cc33df4dd196372393ddfc`), inspected 2026-11-17. The pseudocode, tree, diff, whole-block, HTML, and guidance text is kept. These things change:

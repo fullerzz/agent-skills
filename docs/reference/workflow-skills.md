@@ -553,6 +553,18 @@ Defaults to native model inheritance. Bundled roles are z-agent and comment-sick
 
 [Full setup-zstack instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/setup-zstack/SKILL.md)
 
+## Reframe {#reframe}
+
+Use reframe when you can describe what you want to build but lack the vocabulary to ask for it. For instance, “Two people edit the same note and one person's changes disappear.” Reframe reads your description and relevant files, distinguishes plausible interpretations, and ranks terms with checked examples. Review the rewritten brief or take it to [sharpen](#sharpen).
+
+| Host | Explicit invocation |
+| --- | --- |
+| Codex | `$reframe <brief>` |
+| Claude Code | `/reframe <brief>` |
+| Hermes | `Load zstack:reframe with skill_view and reframe this brief.` |
+
+[Full reframe instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/reframe/SKILL.md)
+
 ## Sharpen {#sharpen}
 
 You want a stronger prompt to review before starting a task.
