@@ -1,6 +1,6 @@
 # Workflow skills
 
-These entries describe the 32 workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
+These entries describe the workflow and style skills in this library. Each example is a chat prompt after installation. Codex uses `$skill-name`; Claude Code uses `/skill-name`. For the native plugins, use the namespaced equivalent: select `zstack:how` through the Codex skill picker or invoke `/zstack:how` in Claude Code. Replace the task details with your own files, feature, or repository.
 
 Codex permits automatic selection for the read-only `how` and `why` skills and for `python-best-practices` when working with Python; every other skill, including `setup-zstack`, requires explicit invocation. Claude Code retains explicit-only flags for `how`, `why`, and `python-best-practices`; `setup-zstack` permits implicit invocation there. Reading a companion inside an explicitly selected workflow does not change that companion’s invocation policy.
 
