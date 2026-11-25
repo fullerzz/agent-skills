@@ -104,6 +104,32 @@ Defaults to explicit-only invocation. Project paths are .agents/skills for Codex
 
 [Full automate-me instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/automate-me/SKILL.md)
 
+## Baton {#baton}
+
+You want to hand work to another agent, harness, session, or machine, or pick up work another agent left, and Atuin captures your agent threads.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$baton pass` or `$baton catch the last agent's work on this branch` |
+| Claude Code | `/baton pass` or `/baton catch the last agent's work on this branch` |
+| Hermes | `Load zstack:baton with skill_view and catch the last agent's work on this branch.` |
+
+The Codex and Claude Code rows are linked-install examples. For native plugins, select `zstack:baton` through the Codex skill picker or invoke `/zstack:baton pass` in Claude Code.
+
+### How it works
+
+`pass` stops at a safe point and writes a short card. The card names the Atuin thread, the time it was passed, the branch, head SHA, and uncommitted files, a few quoted anchors for decisions and corrections, the sender's claims, authority, and the first next action. `catch` reads the thread from the card. Without a card, it lists recent threads in this repository, picks one by branch, title, and recency, and asks you when several fit. It reads the thread's ending and the user's messages, then checks each load-bearing claim against Atuin's recorded commands and exit codes and against live Git and PR state.
+
+### Expected result
+
+From `pass`, a card in chat, or beside the pause note when pausing. From `catch`, the facts it inherited and refreshed, a table that marks each claim verified, unverified, or contradicted, any gaps, and the resume point.
+
+### Dependencies and limits
+
+Explicit-only on all hosts. Needs Atuin thread capture with its daemon, through the Atuin MCP server or the `atuin threads` and `atuin search` CLI. Without capture it falls back to the pause-safely and session-pickup playbooks. A thread does not hold uncommitted files, live processes, Herdr state, or redacted and clipped tool content, so the card and live checks cover them. Matching recorded commands to a thread uses agent, directory, and time, so matches are labeled as inferred. It prints `atuin threads resume --in` for a move to another harness but never runs it. The card stays in chat or the task directory; a PR, tracker, or message gets a summary without transcript quotes, and only when you ask. Before a commit, push, merge, or message, catch needs your own words granting it, not just the card's authority line.
+
+[Full baton instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/baton/SKILL.md)
+
 ## Blast radius {#blast-radius}
 
 You need to know what a change can break beyond its immediate callers or diff.

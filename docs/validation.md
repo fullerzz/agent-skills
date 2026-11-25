@@ -4,6 +4,19 @@ outline: [2, 3]
 
 # Validation
 
+## Baton — 2026-11-24
+
+Checked on macOS ARM64 with Atuin 18.25.1, thread capture on, and the Atuin MCP server in Claude Code.
+
+- `uv run scripts/validate.py`, the Node suites, and the Python unittest discovery passed.
+- `claude plugin validate .` passed and listed 61 skills, including zstack:baton. Calling the Hermes plugin entrypoint with a test registry registered 61 skills, including baton at its shared path. The Codex package was not built: the packager copies tracked files only, and the skill was not yet committed.
+- Pass ran on the authoring Claude Code session. `atuin_threads_read` accepted the harness session ID and returned the Atuin ID. The thread lacked the Plannotator Inbox answer that chose this skill, and the `user` role included a subagent hand-back. The skill now covers both.
+- Catch ran on a Codex thread from 2026-11-23 with no card, found by listing this repository's threads over seven days, and read by both its Atuin ID and its Codex session ID. It read the last ten messages and every user message, including the one that authorized the merge. All five claims in the final reply were verified. A Codex `gh pr merge 88` history row with exit code 0 inside the thread's time range, the thread's own tool result, and live PR state verified the merge; the row-to-thread match was inferred. Live `gh pr checks` verified the passed and skipped checks. A live review-thread query and the merge commit's diff verified the rest. `atuin_output` had no captured output for agent commands.
+- A fresh Claude Code subagent then ran catch from a card alone, read-only, on the authoring thread. It found all three anchors at their numbers, matched the card's Git state, and verified five claims with thread results, live reads, and reruns. It marked a planted false claim about the Codex package contradicted. The plant was not blind: the sender had described it in a message the receiver read. The receiver cited only independent evidence for that verdict.
+- That run led to a `passed` time on the card, reading up to it, recovering decisions from their source, naming each verdict's source, and rules for pipeline exit codes and missing history rows.
+- A read-only Codex reviewer (GPT-6.2-Astra, high effort), launched through the hc `alt-harness-review-codex` template, reviewed the uncommitted change. It reported seven findings: authority taken from the card alone, no cutoff for a catch without a card, CLI reads before a scope check, quoted cards in public places, no CLI path for receipts, a wrong claim that threads hold no reasoning, and a missing `--branch` for threads that diverged across machines. All seven were fixed. The `atuin search` flags and the reasoning claim were checked against `--help`. The new CLI receipts command, run from the repository root over a two-minute window, returned the matching Claude Code row with its time and exit code.
+- The links from the shared history reference, pause safely, and session pickup passed structural validation. The daemon refused connections for several minutes during parallel thread calls; the cause is unconfirmed. `atuin threads resume --in`, `--fork`, and `atuin threads push` were not run.
+
 ## Reframe and project skill discovery — 2026-11-23
 
 - The Codex package built successfully. Its reframe entrypoint and invocation policy matched the source byte for byte. The package contained neither the project skill directory nor a shared triage-pstack entry.

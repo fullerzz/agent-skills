@@ -4,5 +4,5 @@ Pause only on explicit pause/stop or when the session cannot continue.
 2. Preserve tracked, untracked, and concurrent files. Do not commit, push, or discard as a side effect of pausing.
 3. Write a durable note in a user-owned task directory (default .agent-work/<slug>, excluded locally from Git when appropriate).
 4. Record goal, active mode, execution preference, action authority, repository/worktree, branch/base/head SHAs, dirty files, completed checks and artifacts, decisions, children, blockers, and the exact first resume command/action. For Herdr include coordinator address, endpoint, run index, per-member bindings and state, and remaining supporting processes. Never copy executable session controls into the handoff.
-5. Link an existing decision trail rather than duplicating it. Verify the note survives process teardown.
+5. Link an existing decision trail rather than duplicating it. With Atuin thread capture, add a [baton](../../baton/SKILL.md#pass) card beside the note so the next session can read this thread. Verify the note survives process teardown.
 Return note path, on-disk state, and first next action. A new session re-checks live state before continuing.
