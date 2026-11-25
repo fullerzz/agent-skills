@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 60 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 61 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -111,6 +111,7 @@ Enable z-mode in a verified live hc terminal, or explicitly select “use z-mode
 - Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): one command checks a TLA+ model with TLC, draws a Mermaid statechart, and reports the shortest path to each broken rule, with optional Pele SVG rendering. Model findings need real-code reproduction before becoming software bug claims.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
+- Hand work to another agent, harness, or machine with explicitly invoked [baton](docs/reference/workflow-skills.md#baton): a short card that points into the Atuin thread, and a pickup that checks the earlier agent's claims against recorded commands.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.
 - Publish or merge only when the user's request authorizes those actions.
 
