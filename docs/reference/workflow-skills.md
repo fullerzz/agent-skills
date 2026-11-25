@@ -118,15 +118,19 @@ The Codex and Claude Code rows are linked-install examples. For native plugins, 
 
 ### How it works
 
-`pass` stops at a safe point and writes a short card. The card names the Atuin thread, the time it was passed, the branch, head SHA, and uncommitted files, a few quoted anchors for decisions and corrections, the sender's claims, authority, and the first next action. `catch` reads the thread from the card. Without a card, it lists recent threads in this repository, picks one by branch, title, and recency, and asks you when several fit. It reads the thread's ending and the user's messages, then checks each load-bearing claim against Atuin's recorded commands and exit codes and against live Git and PR state.
+`pass` stops at a safe point and writes a short card with the goal, checkout state, claims, authority, open items, and next action. It records every decision, correction, and constraint that still governs the remaining work. The Atuin thread ID, handoff time, and a few quoted anchors let the receiver look up supporting evidence.
+
+Start a fresh session in the destination checkout and invoke `catch` with the card or its file path. The receiver checks live state and can proceed directly when that explains the next step. If an earlier decision, result, or permission matters, it looks up the relevant evidence. Without a card, it finds the thread by repository, branch, title, and recency, asks when several fit, and reads the thread's ending and the user's messages to reconstruct the handoff.
 
 ### Expected result
 
-From `pass`, a card in chat, or beside the pause note when pausing. From `catch`, the facts it inherited and refreshed, a table that marks each claim verified, unverified, or contradicted, any gaps, and the resume point.
+From `pass`, a card in chat, or beside the pause note when pausing. From `catch`, the resume point, inherited and refreshed facts, any gaps, the IDs of any threads consulted, and a verdict with its source for each claim the next action depends on.
 
 ### Dependencies and limits
 
-Explicit-only on all hosts. Needs Atuin thread capture with its daemon, through the Atuin MCP server or the `atuin threads` and `atuin search` CLI. Without capture it falls back to the pause-safely and session-pickup playbooks. A thread does not hold uncommitted files, live processes, Herdr state, or redacted and clipped tool content, so the card and live checks cover them. Matching recorded commands to a thread uses agent, directory, and time, so matches are labeled as inferred. It prints `atuin threads resume --in` for a move to another harness but never runs it. The card stays in chat or the task directory; a PR, tracker, or message gets a summary without transcript quotes, and only when you ask. Before a commit, push, merge, or message, catch needs your own words granting it, not just the card's authority line.
+Explicit-only on all hosts. History lookups use the Atuin MCP server or the `atuin threads` and `atuin search` CLI with thread capture and its daemon. Without capture, Baton uses the pause-safely and session-pickup playbooks. The card and live checks cover uncommitted files, live processes, Herdr state, and gaps in captured tool output. Matching recorded commands to a thread uses agent, directory, and time, so matches are labeled as inferred.
+
+If you explicitly ask to import the conversation into another harness, Baton prints the `atuin threads resume --in` command for you to run. Invoke `catch` with the card in the imported session. The card stays in chat or the task directory. A PR, tracker, or message gets a summary without transcript quotes, and only when you ask. Pasting a card passes along the sender's account of your permissions. Before relying on inherited permission to commit, push, merge, or send a message, catch verifies your own grant at its source and checks for later changes.
 
 [Full baton instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/baton/SKILL.md)
 

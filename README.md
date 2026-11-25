@@ -111,7 +111,7 @@ Enable z-mode in a verified live hc terminal, or explicitly select “use z-mode
 - Explain models with explicitly invoked [statechart](docs/reference/workflow-skills.md#statechart): one command checks a TLA+ model with TLC, draws a Mermaid statechart, and reports the shortest path to each broken rule, with optional Pele SVG rendering. Model findings need real-code reproduction before becoming software bug claims.
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
-- Hand work to another agent, harness, or machine with explicitly invoked [baton](docs/reference/workflow-skills.md#baton): a short card that points into the Atuin thread, and a pickup that checks the earlier agent's claims against recorded commands.
+- Invoke [baton](docs/reference/workflow-skills.md#baton) explicitly to hand work to a fresh session in this harness or another, including on another machine. Its card carries the decisions and next action, with pointers into Atuin for evidence when needed.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.
 - Publish or merge only when the user's request authorizes those actions.
 
