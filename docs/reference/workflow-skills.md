@@ -114,6 +114,8 @@ You want to hand work to another agent, harness, session, or machine, or pick up
 | Claude Code | `/baton pass` or `/baton catch the last agent's work on this branch` |
 | Hermes | `Load zstack:baton with skill_view and catch the last agent's work on this branch.` |
 
+The Codex and Claude Code rows are linked-install examples. For native plugins, select `zstack:baton` through the Codex skill picker or invoke `/zstack:baton pass` in Claude Code.
+
 ### How it works
 
 `pass` stops at a safe point and writes a short card. The card names the Atuin thread, the time it was passed, the branch, head SHA, and uncommitted files, a few quoted anchors for decisions and corrections, the sender's claims, authority, and the first next action. `catch` reads the thread from the card. Without a card, it lists recent threads in this repository, picks one by branch, title, and recency, and asks you when several fit. It reads the thread's ending and the user's messages, then checks each load-bearing claim against Atuin's recorded commands and exit codes and against live Git and PR state.
