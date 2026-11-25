@@ -47,7 +47,7 @@ anchors:
 - "<quote>" ~#<n>: <why it matters>
 claims: <each result the sender asserts, in a checkable form>
 open: <items>
-authority: <authorized actions>; not authorized: <actions>
+authority: <each authorized action and where to find the user's grant (quoted anchor or source reply ID) | none>; not authorized: <actions>
 mode: <mode and execution preference, in words, never controls>
 next: <exact first action>
 ```
