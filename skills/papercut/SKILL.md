@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 A papercut is one concrete problem with zstack itself, recorded while the evidence is fresh, even if the task still succeeded. Examples: a skill or playbook gave a wrong instruction, left out a prerequisite, failed silently, errored, or forced a workaround. Bugs in the user's project, host bugs that zstack did not cause, and style preferences are not papercuts.
 
-Reports stay on this machine. Nothing in capture or export uses the network, a browser, a token, or an issue tracker. The helper needs a local secret scanner on `PATH`: BetterLeaks when installed, otherwise gitleaks. It runs the scanner on stdin with live validation off. Without either scanner, or if a scan fails, nothing is saved or exported.
+Reports stay on this machine. Nothing in capture or export uses the network, a browser, a token, or an issue tracker. The helper needs a local secret scanner on `PATH`: BetterLeaks when installed, otherwise gitleaks. It runs the scanner on stdin with its default rules and live validation off, ignoring scanner settings in the environment. Without either scanner, or if a scan fails, nothing is saved or exported.
 
 ## When to record
 
@@ -45,12 +45,12 @@ EOF
 | `zstack_version` | Optional. The helper reads it from the installed plugin manifest when omitted. |
 | `capture` | `explicit` (the default) or `opt-in`. |
 
-Write observations in your own words. Text fields hold up to 1,000 characters and 12 lines, which leaves room for one short quoted error line, not a transcript or log. Never include credentials or proprietary project details. Paths, hosts, and error text that show what zstack did may stay, because the saved report is private local evidence. When it saves a report, the helper removes the credentials the scanner finds. It also removes the value of an `Authorization` header that starts with an auth scheme such as `Basic` or `Bearer`, the `name=value` pairs of a `Cookie` header, and the user part of a URL; the scanners miss these shapes. Everything else stays as written. Export redacts much more, as described below.
+Write observations in your own words. Text fields hold up to 1,000 characters and 12 lines, which leaves room for one short quoted error line, not a transcript or log. Never include credentials or proprietary project details. Paths, hosts, and error text that show what zstack did may stay, because the saved report is private local evidence. When it saves a report, the helper removes the credentials the scanner finds. If the scanner still finds one afterward, such as a credential inside base64, nothing is saved. The helper also removes the value of an `Authorization` header that starts with an auth scheme such as `Basic` or `Bearer`, the `name=value` pairs of a `Cookie` header, and the user part of a URL; the scanners miss these shapes. Everything else stays as written. Export redacts much more, as described below.
 
 The helper prints `saved <id>: <path>` only after the report is on disk. Any other result means nothing was saved, and the task continues either way:
 
 - **Explicit capture.** Tell the user it was not saved, and why. If a host sandbox denied the write (`Operation not permitted`, `Permission denied`, or `Read-only file system`), ask once for an unsandboxed rerun through the host's permission flow. If that is refused or unavailable, give the user the command to run outside the sandbox, such as with Claude Code's `!` prefix or in their own terminal.
-- **Opted-in capture.** Do not prompt or retry. Stop opted-in writes for this session. In your final report, put `papercut not saved: <reason>` and the unsaved report's JSON, so the user can record it later.
+- **Opted-in capture.** Do not prompt or retry. Stop opted-in writes for this session. In your final report, put `papercut not saved: <reason>` with the report's component and summary. Do not repeat the rest of the report, because it did not pass the scan. The user can ask you to record it again.
 
 ## Inspect and delete
 
@@ -81,6 +81,7 @@ Give the user the draft's path and suggested title, and ask them to check it for
 - the value of a `key=value`;
 - a long mixed-case token;
 - the word after a credential key, a credential flag such as `--token`, or a session ID label.
+- any of these inside angle brackets, such as a Markdown autolink.
 
 So `exit:127` becomes `<host>`, and `Passwordless=true` loses its value. Finally the scanner checks the finished draft, and any finding stops the export before anything is written. The user restores what they want while editing. Redaction is still best-effort. Never file the report: no `gh issue create`, API call, prefilled issue URL, or browser. The user edits the draft and decides whether to file it. The zstack repository does not accept external issues, so its maintainer files their own reports by hand.
 

@@ -4,6 +4,18 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut PR review fixes — 2026-11-26
+
+Checked on macOS ARM64 with BetterLeaks 1.10.1 and gitleaks 8.30.1, from an unsandboxed Claude Code session. The fixes answer the Codex and Pullfrog reviews of PR #92 at `a2f0c6f`.
+
+- Both scanners decode base64 by default and report the decoded value as `Secret`. A GitHub-style token inside base64 was reported that way by each scanner, so literal removal could not reach it. `record` now scans again after removal and refuses to save when a finding remains. Both scanners refused the encoded token in the new test.
+- Both scanners read rules from `GITLEAKS_CONFIG` and `*_CONFIG_TOML`, and BetterLeaks also from `BETTERLEAKS_CONFIG`. The helper now drops every `GITLEAKS_` and `BETTERLEAKS_` variable. With a rule set that matches nothing in both `*_CONFIG_TOML` variables, each scanner still removed the token.
+- A scan that exits 0 with no report, or reports an empty `Secret`, now fails the record.
+- Export no longer keeps every `<...>` word. Only the placeholders it writes stay as they are. A private URL, email, or `host:port` inside a Markdown autolink is redacted, in the title too. A public repository autolink and `<component>` stay.
+- An opted-in capture that is not saved now names only the report's component and summary in the final report, not the unscanned JSON.
+- Storage and CLI tests now run against a stand-in scanner. With no scanner on `PATH`, 16 of the 20 papercut tests ran and 4 detection tests skipped, on Python 3.12. All four new or changed cases failed against the old helper. With both scanners installed, all 20 passed. The unittest discovery passed 198 tests, the docs tests passed, the validator reported no structural problems, and strict mypy passed for the helper and its test.
+- Not run: the host checks listed under Papercut below, which #91 still needs.
+
 ## Papercut secret scanner — 2026-11-26
 
 A third read-only Codex review of `2fc5942` (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) was given the agreed redaction rules up front. It reported 14 findings inside those rules, and nine were reproduced. The user asked to evaluate gitleaks and then BetterLeaks instead of extending the custom credential patterns.

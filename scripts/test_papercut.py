@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import base64
 import json
 import os
 import shutil
@@ -37,13 +38,21 @@ FAKE_SCANNER = """#!/usr/bin/env python3
 import json, os, sys
 text = sys.stdin.read()
 with open(os.environ["FAKE_SCANNER_LOG"], "a") as log:
-    log.write(json.dumps({"argv": sys.argv[1:], "validate": "BETTERLEAKS_VALIDATE" in os.environ}) + "\\n")
+    settings = sorted(key for key in os.environ if key.startswith(("GITLEAKS_", "BETTERLEAKS_")))
+    log.write(json.dumps({"argv": sys.argv[1:], "settings": settings}) + "\\n")
 mode = os.environ.get("FAKE_SCANNER_MODE", "clean")
 if mode == "fail":
     sys.stderr.write("scanner exploded\\n")
     sys.exit(3)
 if mode == "garbage":
     print("not json")
+elif mode == "blank":
+    print(json.dumps([{"RuleID": "fake", "Secret": ""}]))
+elif mode == "encoded":
+    # A decoded finding: its Secret is not in the scanned text, so it cannot be removed literally.
+    print(json.dumps([{"RuleID": "fake", "Secret": "decoded-value-not-in-text"}]))
+elif mode == "silent":
+    pass
 elif mode == "title" and "Suggested title" in text:
     print(json.dumps([{"RuleID": "fake", "Secret": "Suggested title"}]))
 else:
@@ -68,8 +77,6 @@ def sample(**changes: object) -> dict[str, object]:
 
 class PapercutTests(unittest.TestCase):
     def setUp(self) -> None:
-        if not SCANNERS:
-            self.skipTest("needs betterleaks or gitleaks on PATH")
         self.temp = Path(tempfile.mkdtemp(prefix="papercut test "))
         self.addCleanup(shutil.rmtree, self.temp)
         self.store = self.temp / "state" / "papercuts"
@@ -78,12 +85,19 @@ class PapercutTests(unittest.TestCase):
         # Run through a link from an unrelated cwd, as an installed skill would, with no network credentials.
         self.link = self.temp / "papercut.py"
         self.link.symlink_to(HELPER)
-        self.env = {
+        self.base_env = {
             key: value
             for key, value in os.environ.items()
             if not key.startswith(("GH_", "GITHUB_", "XDG_STATE_HOME", "ZSTACK_PAPERCUT"))
         }
-        self.env |= {"ZSTACK_PAPERCUT_DIR": str(self.store), "HTTPS_PROXY": "http://127.0.0.1:9", "NO_COLOR": "1"}
+        self.base_env |= {"ZSTACK_PAPERCUT_DIR": str(self.store), "HTTPS_PROXY": "http://127.0.0.1:9", "NO_COLOR": "1"}
+        # Storage and CLI contracts run against the stand-in scanner; detection tests ask for a real one.
+        self.env, _ = self.fake_scanner("clean")
+
+    def real_scanner(self) -> dict[str, str]:
+        if not SCANNERS:
+            self.skipTest("needs betterleaks or gitleaks on PATH")
+        return self.only_scanner(SCANNERS[0])
 
     def run_helper(
         self, *args: str, stdin: str = "", env: dict[str, str] | None = None
@@ -197,6 +211,7 @@ class PapercutTests(unittest.TestCase):
         self.assertNotEqual(self.run_helper("show", "../../etc/passwd").returncode, 0)
 
     def test_export_omits_secrets_paths_urls_and_session_ids(self) -> None:
+        self.env = self.real_scanner()
         home = str(Path.home())
         sensitive = (
             f"{TOKEN} at {home}/work/acme-secret/app.py, session id {UUID}, "
@@ -236,6 +251,7 @@ class PapercutTests(unittest.TestCase):
             self.assertIn("Review this draft before filing", draft)
 
     def test_saved_reports_keep_local_evidence_and_drafts_keep_zstack_context(self) -> None:
+        self.env = self.real_scanner()
         home = str(Path.home())
         evidence = (
             f"Operation not permitted: '{home}/.claude/plugins/data/zstack-zstack-local/z-mode/tmp97lll8yj' "
@@ -274,6 +290,8 @@ class PapercutTests(unittest.TestCase):
         self.assertIn("--offline --no-python-downloads", HELPER.read_text(encoding="utf-8").splitlines()[0])
 
     def test_record_keeps_evidence_and_export_removes_review_leaks(self) -> None:
+        if not SCANNERS:
+            self.skipTest("needs betterleaks or gitleaks on PATH")
         # Probes from three cross-harness reviews, each mapped to text that must not reach the draft.
         leaks = {
             "Authorization: Basic YWxpY2U6c2FtcGxl": "YWxpY2U6c2FtcGxl",
@@ -378,7 +396,7 @@ class PapercutTests(unittest.TestCase):
         link = directory / name
         if not link.exists():
             link.symlink_to(executable(name))
-        return self.env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
+        return self.base_env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
 
     def fake_scanner(self, mode: str) -> tuple[dict[str, str], Path]:
         directory = self.temp / "bin-fake"
@@ -387,11 +405,14 @@ class PapercutTests(unittest.TestCase):
         script.write_text(FAKE_SCANNER, encoding="utf-8")
         script.chmod(0o755)
         log = self.temp / "fake-scanner.log"
-        env = self.env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
-        return env | {"FAKE_SCANNER_MODE": mode, "FAKE_SCANNER_LOG": str(log), "BETTERLEAKS_VALIDATE": "true"}, log
+        env = self.base_env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
+        # Scanner settings in the environment could swap the rules or turn on live validation; none may reach it.
+        settings = {"BETTERLEAKS_VALIDATE": "true", "GITLEAKS_CONFIG": "/nowhere.toml", "BETTERLEAKS_CONFIG_TOML": "x"}
+        return env | settings | {"FAKE_SCANNER_MODE": mode, "FAKE_SCANNER_LOG": str(log)}, log
 
     def test_scanner_contract_and_failures(self) -> None:
         env, log = self.fake_scanner("clean")
+        log.unlink(missing_ok=True)
         result = self.run_helper("record", stdin=json.dumps(sample()), env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
@@ -400,7 +421,7 @@ class PapercutTests(unittest.TestCase):
             self.assertEqual(call["argv"][0], "stdin")
             self.assertIn("--ignore-gitleaks-allow", call["argv"])
             self.assertFalse(any("valid" in arg for arg in call["argv"]), call["argv"])
-            self.assertFalse(call["validate"], "BETTERLEAKS_VALIDATE must not reach the scanner")
+            self.assertEqual(call["settings"], [], "scanner settings must not reach the scanner")
         report_id = result.stdout.split()[1].rstrip(":")
 
         # The finished draft gets its own scan; a finding there stops the export before anything is written.
@@ -410,17 +431,52 @@ class PapercutTests(unittest.TestCase):
         self.assertIn("not written", blocked.stderr)
         self.assertFalse((self.store / "drafts" / f"{report_id}.md").exists())
 
-        for mode in ("fail", "garbage"):
+        for mode in ("fail", "garbage", "silent", "blank", "encoded"):
             with self.subTest(mode=mode):
                 env, _ = self.fake_scanner(mode)
                 result = self.run_helper("record", stdin=json.dumps(sample()), env=env)
                 self.assertEqual(result.returncode, 2, result.stdout)
-                self.assertIn("not saved: secret scan", result.stderr)
+                self.assertIn("not saved: ", result.stderr)
+                expected = "could not be removed" if mode == "encoded" else "secret scan"
+                self.assertIn(expected, result.stderr)
         missing = self.env | {"PATH": f"/usr/bin{os.pathsep}/bin"}
         result = self.run_helper("record", stdin=json.dumps(sample()), env=missing)
         self.assertEqual(result.returncode, 2)
         self.assertIn("needs a secret scanner", result.stderr)
         self.assertEqual(len(list((self.store / "reports").glob("*.json"))), 1)
+
+    def test_real_scanners_keep_default_rules_and_refuse_encoded_secrets(self) -> None:
+        if not SCANNERS:
+            self.skipTest("needs betterleaks or gitleaks on PATH")
+        encoded = base64.b64encode(f"token {TOKEN}".encode()).decode()
+        no_rules = '[[rules]]\nid = "nothing"\nregex = "zzqqzzqq"\n'
+        for scanner in SCANNERS:
+            with self.subTest(scanner=scanner):
+                env = self.only_scanner(scanner) | {
+                    "GITLEAKS_CONFIG_TOML": no_rules,
+                    "BETTERLEAKS_CONFIG_TOML": no_rules,
+                }
+                report_id = self.record_with(env, sample(actual=f"Leaked {TOKEN} in output."))
+                self.assertNotIn(TOKEN, (self.store / "reports" / f"{report_id}.json").read_text(encoding="utf-8"))
+                result = self.run_helper("record", stdin=json.dumps(sample(actual=f"blob {encoded} end")), env=env)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("could not be removed", result.stderr)
+
+    def record_with(self, env: dict[str, str], report: dict[str, object]) -> str:
+        result = self.run_helper("record", stdin=json.dumps(report), env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.split()[1].rstrip(":")
+
+    def test_export_redacts_inside_angle_brackets(self) -> None:
+        private = "<https://wiki.private.example/payroll> and <dev@acme.example> and <build.corp.example:8443>"
+        kept = "<https://github.com/fullerzz/agent-skills> and <component>"
+        report_id = self.record(sample(summary="See <https://wiki.private.example/x>", actual=f"{private}\n{kept}"))
+        result = self.run_helper("export", report_id)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        draft = Path(result.stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")
+        for leaked in ("wiki.private", "dev@acme", "build.corp"):
+            self.assertNotIn(leaked, draft)
+        self.assertIn(kept, draft)
 
     def test_export_output_cannot_overwrite_a_report(self) -> None:
         report_id = self.record(sample())

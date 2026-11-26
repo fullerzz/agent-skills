@@ -146,7 +146,9 @@ def zstack_version() -> str | None:
 # Credentials come from a secret scanner: BetterLeaks when installed, otherwise gitleaks. It runs locally on
 # stdin with live validation off. The two rules below cover what both scanners miss in report text.
 SCANNERS = ("betterleaks", "gitleaks")
-SCANNER_ENV_DROP = ("BETTERLEAKS_VALIDATE", "BETTERLEAKS_ANALYZE")
+# Both scanners read rules, allowlists, and live validation from their own variables (GITLEAKS_CONFIG,
+# BETTERLEAKS_CONFIG_TOML, BETTERLEAKS_VALIDATE, ...). Dropping them all keeps the default rules.
+SCANNER_ENV_PREFIXES = ("GITLEAKS_", "BETTERLEAKS_")
 SCANNER_TIMEOUT = 60
 # Both scanners accept these. --ignore-gitleaks-allow stops report text from silencing a finding.
 SCANNER_FLAGS = (
@@ -196,6 +198,8 @@ FILE_NAMES = frozenset(
     | {"license", "readme", "changelog"}
 )
 PUNCTUATION = "\"'`()[]{},;!?"
+# The placeholders redaction writes. Any other <...> word, such as a Markdown autolink, is redacted inside.
+PLACEHOLDERS = frozenset({"<redacted>", "<url>", "<email>", "<path>", "<id>", "<host>"})
 
 
 def scanner() -> str:
@@ -209,7 +213,7 @@ def scan(text: str) -> list[str]:
     """Return the secrets the scanner finds in text. Any scanner failure raises, so nothing passes unchecked."""
     if not text.strip():
         return []
-    environment = {k: v for k, v in os.environ.items() if k not in SCANNER_ENV_DROP}
+    environment = {k: v for k, v in os.environ.items() if not k.upper().startswith(SCANNER_ENV_PREFIXES)}
     # An empty working directory keeps any .gitleaksignore or target config out of the scan.
     with tempfile.TemporaryDirectory(prefix="papercut-scan-") as empty:
         try:
@@ -228,15 +232,16 @@ def scan(text: str) -> list[str]:
     if result.returncode != 0:
         detail = result.stderr.strip().splitlines()[-1:] or [f"exit {result.returncode}"]
         raise PapercutError(f"secret scan failed: {detail[0]}")
+    # Both scanners print [] when they find nothing, so an empty report means the scan did not finish.
     try:
-        findings = json.loads(result.stdout or "[]")
+        findings = json.loads(result.stdout)
     except ValueError as error:
         raise PapercutError("secret scan returned unreadable output") from error
     if not isinstance(findings, list) or any(
-        not isinstance(f, dict) or not isinstance(f.get("Secret"), str) for f in findings
+        not isinstance(f, dict) or not isinstance(f.get("Secret"), str) or not f["Secret"] for f in findings
     ):
         raise PapercutError("secret scan returned an unsupported report format")
-    return [f["Secret"] for f in findings if f["Secret"]]
+    return [f["Secret"] for f in findings]
 
 
 def remove(text: str, found: list[str]) -> str:
@@ -262,7 +267,14 @@ def scrub_structure(text: str) -> str:
 def scrub_record(fields: dict[str, str]) -> dict[str, str]:
     """Remove credentials from saved text. Everything else stays as local evidence."""
     found = scan("\n".join(fields.values()))
-    return {key: scrub_structure(remove(value, found)) for key, value in fields.items()}
+    if not found:
+        return {key: scrub_structure(value) for key, value in fields.items()}
+    scrubbed = {key: remove(value, found) for key, value in fields.items()}
+    # A scanner reports a decoded secret, such as one inside base64, by its decoded value, which the text does not
+    # hold. Scan again, and refuse to save a credential that literal removal could not reach.
+    if scan("\n".join(scrubbed.values())):
+        raise PapercutError("the scanner found a credential that could not be removed, maybe an encoded one")
+    return {key: scrub_structure(value) for key, value in scrubbed.items()}
 
 
 def zstack_file(core: str) -> bool:
@@ -310,8 +322,12 @@ def secret_shaped(core: str) -> bool:
 
 def redact_word(core: str) -> str:
     """Return the placeholder for one word, or the word itself when it is safe to keep."""
-    if not core or (core.startswith("<") and core.endswith(">")):
+    if not core or core in PLACEHOLDERS:
         return core
+    if core.startswith("<") or core.endswith(">"):
+        inner = core.removeprefix("<").removesuffix(">")
+        kept = redact_word(inner)
+        return core if kept == inner else kept
     if "://" in core:
         return core if PUBLIC_URL.fullmatch(core) else "<url>"
     if "@" in core:
@@ -350,8 +366,7 @@ def scrub_line(line: str) -> str:
     cores = [word.strip(PUNCTUATION) for word in words]
     replaced = [redact_word(core) for core in cores]
     for index, core in enumerate(cores):
-        placeholder = core.startswith("<") and core.endswith(">")
-        if core and not placeholder and replaced[index] == core and credential_follows(cores[:index], core):
+        if core and core not in PLACEHOLDERS and replaced[index] == core and credential_follows(cores[:index], core):
             replaced[index] = "<redacted>"
     # A path with spaces splits into several words: redact the words between two path pieces, and a file name
     # right after a path piece, so folder and file names do not leak.
