@@ -4,6 +4,26 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut secret scanner — 2026-11-26
+
+A third read-only Codex review of `2fc5942` (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) was given the agreed redaction rules up front. It reported 14 findings inside those rules, and nine were reproduced. The user asked to evaluate gitleaks and then BetterLeaks instead of extending the custom credential patterns.
+
+- **Scanners compared.** Both ran with `stdin -f json -r -`. One set of test inputs had 20 mostly synthetic lines, and one had 11 realistic random secrets.
+  - gitleaks 8.30.1 found 3 and 6. It ran in about 0.02 s.
+  - BetterLeaks 1.10.1 found 5 and 7, adding low-entropy passwords and URL credentials. It ran in 0.12–0.27 s. The release binary was first checked against its published checksum.
+  - Both found GitHub, GitLab, Slack, and Anthropic tokens, private keys, and curl auth headers. Both left alone an `sk-ecdsa-…` key type name and a bare `-----BEGIN PRIVATE KEY-----` mention. Neither found plain `Authorization: Basic` or `Bearer` lines, and gitleaks skips values containing `EXAMPLE`.
+  - The user chose BetterLeaks when installed, otherwise gitleaks, and refusal without either. They then installed BetterLeaks 1.10.1 with brew.
+- **Saving.** The helper runs the scanner from an empty temporary directory, so no ignore file or target config applies. It passes `--ignore-gitleaks-allow` and drops `BETTERLEAKS_VALIDATE` and `BETTERLEAKS_ANALYZE` from the environment. It replaces every reported `Secret`. Two structural rules cover what the scanners miss: an `Authorization` value that starts with an auth scheme, and `Cookie` pairs. Each value ends at the quote that opened it, so `curl -H "Authorization: Bearer X" returned exit 22` keeps `returned exit 22`. URL user info stops at `/?#`. The old token patterns are gone, so `sk-ecdsa-…` and a bare key header now survive. A scanner that fails, times out, or returns output without a `Secret` field stops the save.
+- **Export.** The scanner runs again on the report fields, and then each word is checked on its own:
+  - Replaced: paths (including words between two path pieces), URLs other than this repository's anchor-only public links, anything with `@`, `name:number` other than file references, domains, `key=value` and `key:"value"` values, long mixed-case tokens, and the word after a credential key, credential flag, or session ID label.
+  - A last scan of the finished draft stops the export on any finding.
+- **Store.** `--output` cannot point into the store outside `drafts/`, so `--force` cannot overwrite a report. `list` reads with `iterdir`, so an unreadable store fails instead of looking empty. Commands that read or write reports refuse a linked `reports/` or `drafts/`. A loaded report needs a nonempty, one-line component and summary. Drafts written with `--output` are documented as the user's to delete.
+- **Checks.** `scripts/test_papercut.py` has 18 cases. The scrub case runs once with only BetterLeaks and once with only gitleaks on `PATH`. A fake scanner checks the argument and environment contract, the final-draft gate, a failing scanner, unreadable output, and a missing scanner. Against `2fc5942`, six failed and one errored.
+  - All 18 pass on Python 3.15 and 3.12, with ResourceWarnings promoted to errors.
+  - The Python unittest discovery passed 196 tests. The validator, ruff, strict mypy on the helper, and the Codex package build passed.
+  - The only remaining failures are the existing `test_pr_watcher.py` mypy error and the three `install.test.mjs` failures that also occur on `main`.
+- **Not covered.** BetterLeaks v2 was not tested; its report format may change, and the helper then refuses. Windows was not run.
+
 ## Papercut second review fixes — 2026-11-26
 
 A second read-only Codex review (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) of `5592126` reported 13 findings. Eight of them were reproduced locally. The user chose to split the scrub instead of patching each case:

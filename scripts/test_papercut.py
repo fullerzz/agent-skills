@@ -31,6 +31,26 @@ def uv_run() -> list[str]:
     return [executable("uv"), "run", "--quiet", "--offline", "--no-python-downloads"]
 
 
+SCANNERS = [name for name in ("betterleaks", "gitleaks") if shutil.which(name)]
+# A stand-in scanner that records how it was called. FAKE_SCANNER_MODE picks its answer.
+FAKE_SCANNER = """#!/usr/bin/env python3
+import json, os, sys
+text = sys.stdin.read()
+with open(os.environ["FAKE_SCANNER_LOG"], "a") as log:
+    log.write(json.dumps({"argv": sys.argv[1:], "validate": "BETTERLEAKS_VALIDATE" in os.environ}) + "\\n")
+mode = os.environ.get("FAKE_SCANNER_MODE", "clean")
+if mode == "fail":
+    sys.stderr.write("scanner exploded\\n")
+    sys.exit(3)
+if mode == "garbage":
+    print("not json")
+elif mode == "title" and "Suggested title" in text:
+    print(json.dumps([{"RuleID": "fake", "Secret": "Suggested title"}]))
+else:
+    print("[]")
+"""
+
+
 def sample(**changes: object) -> dict[str, object]:
     report: dict[str, object] = {
         "component": "z-mode/playbooks/feature.md",
@@ -48,6 +68,8 @@ def sample(**changes: object) -> dict[str, object]:
 
 class PapercutTests(unittest.TestCase):
     def setUp(self) -> None:
+        if not SCANNERS:
+            self.skipTest("needs betterleaks or gitleaks on PATH")
         self.temp = Path(tempfile.mkdtemp(prefix="papercut test "))
         self.addCleanup(shutil.rmtree, self.temp)
         self.store = self.temp / "state" / "papercuts"
@@ -190,8 +212,7 @@ class PapercutTests(unittest.TestCase):
         (self.store / "reports" / f"{report_id}.json").write_text(json.dumps(raw), encoding="utf-8")
         recorded = self.record(sample(summary=f"Leak {TOKEN} {UUID}", actual=sensitive))
         stored = (self.store / "reports" / f"{recorded}.json").read_text(encoding="utf-8")
-        self.assertNotIn(TOKEN, stored, "record removes exact-format credentials")
-        self.assertIn("api_key=Zq9xPw7Lm3Kd", stored, "record keeps the rest as local evidence")
+        self.assertNotIn(TOKEN, stored, "record removes credentials the scanner finds")
 
         for target in (report_id, recorded):
             result = self.run_helper("export", target)
@@ -248,95 +269,177 @@ class PapercutTests(unittest.TestCase):
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imported.add(node.module.split(".")[0])
         self.assertTrue(imported, "no imports parsed")
-        forbidden = {"urllib", "http", "socket", "ssl", "webbrowser", "subprocess", "ftplib", "smtplib", "asyncio"}
+        forbidden = {"urllib", "http", "socket", "ssl", "webbrowser", "ftplib", "smtplib", "asyncio"}
         self.assertEqual(imported & forbidden, set())
         self.assertIn("--offline --no-python-downloads", HELPER.read_text(encoding="utf-8").splitlines()[0])
 
     def test_record_keeps_evidence_and_export_removes_review_leaks(self) -> None:
-        # Each probe maps to the text that must not reach the draft. They come from two cross-harness reviews.
+        # Probes from three cross-harness reviews, each mapped to text that must not reach the draft.
         leaks = {
             "Authorization: Basic YWxpY2U6c2FtcGxl": "YWxpY2U6c2FtcGxl",
             "Authorization: Basic YTpi": "YTpi",
-            'headers={"Authorization": "Basic QWxhZGRpbjpvcGVu"}, retry': "QWxhZGRpbjpvcGVu",
             'Authorization: Digest username="bob", response="6629fae49393a05397450978507c4ef1"': "6629fae4",
+            "Authorization: ApiKey example-key": "example-key",
+            'curl -H "Authorization: Bearer SAMPLEabc123" returned exit 22': "SAMPLEabc123",
+            'headers={"Authorization": "Basic QWxhZGRpbjpvcGVu"}, retry': "QWxhZGRpbjpvcGVu",
             "password=hunter": "hunter",
             '{"password": "hunter"}': "hunter",
-            "password: hunter2x": "hunter2x",
-            'password="correct horse battery"': "horse battery",
             "password: staple battery horse": "battery horse",
+            'password="correct horse battery"': "horse battery",
             'password="<payroll2026!"': "payroll2026",
             '{"password":"use\\"VeryPrivateTail"}': "VeryPrivateTail",
             "token=abcdefghijklmnop": "abcdefghijklmnop",
+            "uv publish --token simple-example-key": "simple-example-key",
             "session_id=abcdefghi": "abcdefghi",
             '{"session_id":"abcdefghijkl"}': "abcdefghijkl",
+            "session id alpha-bravo-charlie expired": "alpha-bravo",
             "registry.corp.example:443": "registry.corp",
-            "buildbox:22": "buildbox",
-            "BUILD-SERVER:8443": "BUILD-SERVER",
+            "buildbox:22 and BUILD-SERVER:8443": "BUILD-SERVER",
+            "10-42-0-3.build.svc:8080 and buildbox:7": "build.svc",
+            "[2001:4860:4860:0:0:0:0:8888]:443": "4860",
             "https://[fd00::1]:8443/client-payroll": "client-payroll",
             f"https://{TOKEN}@build.private.corp/internal": "build.private",
+            "https://github.com/fullerzz/agent-skills#access_token=sample-only-value": "sample-only",
+            "GET https://wiki.private.example/pages/Setup_(Payroll)/client-plan.md returned 404": "client-plan",
+            "git@code.corp.example:finance/payroll.git": "payroll.git",
+            "//registry.corp.example/payroll/": "registry.corp",
             "/Users/alice/Ze Vault/Payroll.md": "Vault",
             "/Users/alice/Top Secret Project/Payroll.md": "Secret Project",
-            "\\\\corp\\finance\\ProjectDelta": "ProjectDelta",
+            "/Users/alice/Documents/Team/Client (Payroll)/report.txt not found": "Client",
+            "/Applications/project financial records/private.md was missing": "financial",
+            "C:/Users/alice/finance/report.json": "finance",
             "\\\\corp\\Finance Team\\Payroll.xlsx": "Finance",
-            "/opt/acme/skills/unreleased-customer/SKILL.md": "unreleased-customer",
             "/opt/acme/skills/baton/customer-payroll/private.md": "customer-payroll",
             "'/Users/alice/My Files/q3 plan.md'": "q3 plan",
             "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY": "bPxRfiCY",
         }
         draft_kept = (
-            "Error in Dockerfile:12",
-            "SKILL.md:12",
-            "`/baton pass`",
-            "`/baton catch docs/plan.md`",
-            "/zstack:papercut",
+            "Error in Dockerfile:12 and SKILL.md:12",
+            "`/baton pass` and /zstack:papercut",
             "the session ID handling",
             "Basic authentication",
             "a basic README.md check",
             "token SessionStart hook",
-            "at 12:30:45 in step:3",
+            "at 12:30:45, version 0.31.0",
             "sha 6ffd2f9dd09ea02c86db6364a7c26ea70ef14d42",
             "https://github.com/fullerzz/agent-skills/blob/6ffd2f9dd09ea02c86db6364a7c26ea70ef14d42/skills/baton/SKILL.md",
+            "skills/z-mode/SKILL.md and z-mode/playbooks/feature.md",
         )
         # Export may redact these, but the saved report must keep them exactly.
         record_kept = (
             "token: authentication failed",
-            "a basic NullPointerException",
-            "Passwordless=true",
-            "--token-budget=high",
-            "digest sha256:abc",
+            "a basic NullPointerException in Passwordless=true",
+            "--token-budget=high and digest sha256:abc",
             "step 1, authorization: steps, then /baton pass failed",
             "cookie: none set yet",
+            "unsupported SSH key type sk-ecdsa-sha2-nistp256@openssh.com",
+            'parse failed: missing "-----BEGIN PRIVATE KEY-----" marker in input',
+            "GET https://svc.example?ref=alice@team failed",
         )
         lines = list(leaks)
-        report_id = self.record(
-            sample(
-                summary="Title buildbox:22 token=abcdefghijklmnop",
-                actual="\n".join(lines[:12]),
-                suspected_fix="\n".join(lines[12:24]),
-                workaround="\n".join(lines[24:36]),
-                tried="\n".join(draft_kept),
-                expected="\n".join(record_kept),
-            )
-        )
-        saved = json.loads(self.run_helper("show", report_id).stdout)
-        self.assertEqual(saved["tried"], "\n".join(draft_kept))
-        self.assertEqual(saved["expected"], "\n".join(record_kept), "record keeps prose and settings as evidence")
-        stored = json.dumps(saved)
-        for credential in ("YWxpY2U6c2FtcGxl", "YTpi", "6629fae4", "QWxhZGRpbjpvcGVu", TOKEN):
-            self.assertNotIn(credential, stored, "record removes exact-format credentials and header values")
-        self.assertIn("password=hunter", stored, "record leaves guesses to export")
+        fields = {"actual": lines[:12], "suspected_fix": lines[12:24], "workaround": lines[24:]}
+        for scanner in SCANNERS:
+            with self.subTest(scanner=scanner):
+                env = self.only_scanner(scanner)
+                report = sample(
+                    summary="Title buildbox:22 token=abcdefghijklmnop",
+                    tried="\n".join(draft_kept),
+                    expected="\n".join(record_kept),
+                    **{key: "\n".join(value) for key, value in fields.items()},
+                )
+                result = self.run_helper("record", stdin=json.dumps(report), env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                report_id = result.stdout.split()[1].rstrip(":")
+                saved = json.loads(self.run_helper("show", report_id, env=env).stdout)
+                self.assertEqual(saved["tried"], "\n".join(draft_kept))
+                self.assertEqual(saved["expected"], "\n".join(record_kept), "record keeps non-credential evidence")
+                stored = json.dumps(saved)
+                for credential in ("YWxpY2U6c2FtcGxl", "YTpi", "6629fae4", "QWxhZGRpbjpvcGVu", "SAMPLEabc123", TOKEN):
+                    self.assertNotIn(credential, stored, "record removes header values and scanned secrets")
+                self.assertIn("exit 22", stored, "a shell-quoted header keeps the rest of its line")
 
-        draft = Path(self.run_helper("export", report_id).stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")
-        title = draft.splitlines()[1]
-        self.assertTrue(title.startswith("Suggested title: "), title)
-        for secret in ("buildbox", "abcdefghijklmnop"):
-            self.assertNotIn(secret, title)
-        for case, secret in leaks.items():
-            with self.subTest(leak=case):
-                self.assertNotIn(secret, draft)
-        for case in draft_kept:
-            with self.subTest(kept=case):
-                self.assertIn(case, draft)
+                exported = self.run_helper("export", report_id, env=env)
+                self.assertEqual(exported.returncode, 0, exported.stderr)
+                draft = Path(exported.stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")
+                title = draft.splitlines()[1]
+                for secret in ("buildbox", "abcdefghijklmnop"):
+                    self.assertNotIn(secret, title)
+                for case, secret in leaks.items():
+                    with self.subTest(scanner=scanner, leak=case):
+                        self.assertNotIn(secret, draft)
+                for case in draft_kept:
+                    with self.subTest(scanner=scanner, kept=case):
+                        self.assertIn(case, draft)
+
+    def only_scanner(self, name: str) -> dict[str, str]:
+        """An environment whose PATH offers exactly one scanner, so each adapter path is exercised."""
+        directory = self.temp / f"bin-{name}"
+        directory.mkdir(exist_ok=True)
+        link = directory / name
+        if not link.exists():
+            link.symlink_to(executable(name))
+        return self.env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
+
+    def fake_scanner(self, mode: str) -> tuple[dict[str, str], Path]:
+        directory = self.temp / "bin-fake"
+        directory.mkdir(exist_ok=True)
+        script = directory / "betterleaks"
+        script.write_text(FAKE_SCANNER, encoding="utf-8")
+        script.chmod(0o755)
+        log = self.temp / "fake-scanner.log"
+        env = self.env | {"PATH": f"{directory}{os.pathsep}/usr/bin{os.pathsep}/bin"}
+        return env | {"FAKE_SCANNER_MODE": mode, "FAKE_SCANNER_LOG": str(log), "BETTERLEAKS_VALIDATE": "true"}, log
+
+    def test_scanner_contract_and_failures(self) -> None:
+        env, log = self.fake_scanner("clean")
+        result = self.run_helper("record", stdin=json.dumps(sample()), env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertTrue(calls)
+        for call in calls:
+            self.assertEqual(call["argv"][0], "stdin")
+            self.assertIn("--ignore-gitleaks-allow", call["argv"])
+            self.assertFalse(any("valid" in arg for arg in call["argv"]), call["argv"])
+            self.assertFalse(call["validate"], "BETTERLEAKS_VALIDATE must not reach the scanner")
+        report_id = result.stdout.split()[1].rstrip(":")
+
+        # The finished draft gets its own scan; a finding there stops the export before anything is written.
+        env, _ = self.fake_scanner("title")
+        blocked = self.run_helper("export", report_id, env=env)
+        self.assertEqual(blocked.returncode, 2, blocked.stdout)
+        self.assertIn("not written", blocked.stderr)
+        self.assertFalse((self.store / "drafts" / f"{report_id}.md").exists())
+
+        for mode in ("fail", "garbage"):
+            with self.subTest(mode=mode):
+                env, _ = self.fake_scanner(mode)
+                result = self.run_helper("record", stdin=json.dumps(sample()), env=env)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("not saved: secret scan", result.stderr)
+        missing = self.env | {"PATH": f"/usr/bin{os.pathsep}/bin"}
+        result = self.run_helper("record", stdin=json.dumps(sample()), env=missing)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("needs a secret scanner", result.stderr)
+        self.assertEqual(len(list((self.store / "reports").glob("*.json"))), 1)
+
+    def test_export_output_cannot_overwrite_a_report(self) -> None:
+        report_id = self.record(sample())
+        report = self.store / "reports" / f"{report_id}.json"
+        before = report.read_text(encoding="utf-8")
+        result = self.run_helper("export", report_id, "--force", "--output", str(report))
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertEqual(report.read_text(encoding="utf-8"), before)
+
+    def test_list_fails_when_the_store_cannot_be_read(self) -> None:
+        if os.geteuid() == 0:
+            self.skipTest("root ignores directory permissions")
+        self.record(sample())
+        reports = self.store / "reports"
+        reports.chmod(0o000)
+        self.addCleanup(reports.chmod, 0o700)
+        result = self.run_helper("list", "--json")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("[]", result.stdout)
 
     def test_forced_export_keeps_the_old_draft_when_the_write_fails(self) -> None:
         if os.geteuid() == 0:
@@ -371,10 +474,13 @@ class PapercutTests(unittest.TestCase):
         loose |= {"id": "20261126T000000Z-feedface", "schema": True, "workaround": {"private": "corrupt"}}
         del loose["capture"]
         (reports / "20261126T000000Z-feedface.json").write_text(json.dumps(loose), encoding="utf-8")
+        split = json.loads((reports / f"{healthy}.json").read_text(encoding="utf-8"))
+        split |= {"id": "20261126T000000Z-0badc0de", "summary": "first\nsecond"}
+        (reports / "20261126T000000Z-0badc0de.json").write_text(json.dumps(split), encoding="utf-8")
         result = self.run_helper("list", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([r["id"] for r in json.loads(result.stdout)], [healthy])
-        for bad in ("deadbeef", "feedface"):
+        for bad in ("deadbeef", "feedface", "0badc0de"):
             self.assertIn(f"skipped 20261126T000000Z-{bad}.json", result.stderr)
             self.assertNotEqual(self.run_helper("show", f"20261126T000000Z-{bad}").returncode, 0)
 
@@ -453,6 +559,14 @@ class PapercutTests(unittest.TestCase):
             (("list",), ""),
             (("show", report_id), ""),
         ]
+        drafts_only = self.temp / "drafts link store"
+        (drafts_only / "drafts").parent.mkdir()
+        (drafts_only / "drafts").symlink_to(outside)
+        refused = self.run_helper(
+            "record", stdin=json.dumps(sample()), env=self.env | {"ZSTACK_PAPERCUT_DIR": str(drafts_only)}
+        )
+        self.assertEqual(refused.returncode, 2, refused.stdout)
+        self.assertFalse((drafts_only / "reports").exists())
         for command, stdin in commands:
             with self.subTest(command=command):
                 result = self.run_helper(*command, stdin=stdin, env=env)
