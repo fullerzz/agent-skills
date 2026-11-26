@@ -6,6 +6,8 @@
 """Record zstack papercuts in a private local store and export one as an editable issue draft.
 
 Capture and export stay local: this helper opens no network connection, browser, or subprocess.
+Saved reports are private evidence, so recording removes only credentials with an exact format.
+Exported drafts are meant to be shared, so export redacts aggressively and the user edits the result.
 """
 
 from __future__ import annotations
@@ -16,9 +18,13 @@ import os
 import re
 import secrets
 import sys
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 SCHEMA = 1
 STORE_ENV = "ZSTACK_PAPERCUT_DIR"
@@ -32,13 +38,10 @@ TEXT_LIMIT, TEXT_LINES = 1000, 12
 REQUIRED_TEXT = ("component", "summary", "tried", "expected", "actual")
 OPTIONAL_TEXT = ("workaround", "suspected_fix", "zstack_version")
 FIELDS = {*REQUIRED_TEXT, *OPTIONAL_TEXT, "host", "kind", "blocked", "capture"}
+STORED_FIELDS = {*FIELDS, "schema", "id", "created"}
 MAX_INPUT = 64 * 1024
-STORED = dict.fromkeys(("created", *REQUIRED_TEXT, "host", "kind"), str) | {"blocked": bool}
 # The skill's real install root: <root>/skills/papercut/scripts/papercut.py.
 INSTALL_ROOT = Path(__file__).resolve().parents[3]
-PUBLIC_URL = re.compile(
-    r"https://(?:github\.com/fullerzz/agent-skills|fullerzz\.github\.io/agent-skills)(?:[/#][^\s?]*)?"
-)
 
 
 class PapercutError(Exception):
@@ -77,7 +80,7 @@ def private_dir(path: Path, *, allow_link: bool = False) -> Path:
     """Create a missing directory as owner-only. Existing directories keep their mode."""
     # POSIX modes only; on Windows the per-user %LOCALAPPDATA% ACL is what keeps the store private.
     if path.is_symlink() and not allow_link:
-        raise PapercutError(f"{path} is a symbolic link; refusing to write through it")
+        raise PapercutError(f"{path} is a symbolic link; refusing to use it")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         path.mkdir(mode=0o700)
@@ -89,8 +92,33 @@ def private_dir(path: Path, *, allow_link: bool = False) -> Path:
     return path
 
 
-def store_subdir(name: str) -> Path:
-    return private_dir(private_dir(store_dir(), allow_link=True) / name)
+def store_subdir(name: str, *, create: bool = True) -> Path:
+    """reports/ or drafts/ inside the store. Every command refuses a linked one, so none reaches outside."""
+    root = store_dir()
+    path = root / name
+    if path.is_symlink():
+        raise PapercutError(f"{path} is a symbolic link; refusing to use it")
+    if create:
+        private_dir(private_dir(root, allow_link=True) / name)
+    return path
+
+
+@contextmanager
+def store_lock() -> Generator[None]:
+    """Serialize export and delete, so neither leaves or removes a draft the other just handled."""
+    descriptor = os.open(private_dir(store_dir(), allow_link=True) / ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+
+            msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def zstack_version() -> str | None:
@@ -110,7 +138,8 @@ def zstack_version() -> str | None:
     return match[1] if match else None
 
 
-SECRET_PATTERNS = (
+# Recording: only credentials whose format is exact. Everything else stays as local evidence.
+TOKEN_FORMATS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)"),
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,})"),
     re.compile(r"\b(?:sk|rk|pk)-[A-Za-z0-9_-]{16,}"),
@@ -118,21 +147,49 @@ SECRET_PATTERNS = (
     re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}"),
     re.compile(r"\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}"),
 )
-AUTH_SCHEME = re.compile(
-    r"(?i)\b((?:proxy-)?authorization\s*[:=]\s*[\"']?)?(bearer|basic|digest|negotiate|token)(\s+)([A-Za-z0-9+/=._~-]{6,})"
+# A credential header loses its value: an auth scheme after Authorization, or name=value pairs after Cookie.
+# A quoted value ends at its closing quote; an unquoted one runs to the end of the line.
+AUTH_HEADER = re.compile(
+    r"(?im)\b((?:proxy-)?authorization)([\"']?\s*[:=]\s*)([\"']?)"
+    r"((?:basic|bearer|digest|negotiate|token|hoba|mutual|vapid|aws4-hmac-sha256|scram-sha-\d+)\b[^\n]*)"
 )
-BASE64_VALUE = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
-KEY_VALUE_SECRET = re.compile(
-    r"(?i)\b([\w-]*(?:token|secret|password|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key"
-    r"|authorization|cookie|credential)s?[\w-]*)([\"']?\s*[:=]\s*)(\"[^\"\n]*\"|'[^'\n]*'|[^\s\"',;]+)"
+COOKIE_HEADER = re.compile(r"(?im)\b((?:set-)?cookie)([\"']?\s*:\s*)([\"']?)([^\s=;\"']+=[^\n]*)")
+URL_USERINFO = re.compile(r"(?<=://)[^\s/@<>]+@")
+
+# Export: aggressive. Over-redaction is fine in a draft the user edits before filing.
+PUBLIC_URL = re.compile(
+    r"https://(?:github\.com/fullerzz/agent-skills|fullerzz\.github\.io/agent-skills)(?:[/#][^\s?]*)?"
 )
-STRONG_KEY = re.compile(r"(?i)secret|password|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key|credential")
-URL = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.-]*://(?:\[[0-9A-Za-z:.%]+\])?[^\s<>\"'`)\]]*")
+URL = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.-]*://(?:<redacted>|\[[0-9A-Za-z:.%]+\]|[^\s<>\"'`)\]])*")
+CREDENTIAL_NAME = (
+    r"[\w-]*(?:token|secret|passw|pwd|api[_-]?key|access[_-]?key|private[_-]?key|auth|cookie|credential"
+    r"|(?:session|thread|conversation|run|request|trace)[ _-]?id|sessionid)[\w-]*"
+)
+SECRET_KEY_VALUE = re.compile(
+    rf"(?i)([\"']?)\b({CREDENTIAL_NAME})\1(\s*[:=]\s*)(\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'|[^\s\"',;}}\]]+)"
+)
+# An unquoted password-like value can hold spaces, so it runs to the end of the line.
+PASSWORD_LINE = re.compile(
+    r"(?i)\b([\w-]*(?:passw|pwd|secret|credential|private[_-]?key)[\w-]*)(\s*[:=]\s*)(?![\"'])[^\n]+"
+)
+SCHEME_VALUE = re.compile(r"(?i)\b(bearer|basic|digest|negotiate)(\s+)([A-Za-z0-9+/=._~-]{4,})")
 EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
-IP_ADDRESS = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b")
-NAME_NUMBER = re.compile(r"(?<![\w.-])([A-Za-z][\w-]*(?:\.[\w-]+)*):(\d{2,5})\b")
+IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b")
+IPV6 = re.compile(r"(?i)(?<![\w:])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?![\w:])")
+UUID = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
+HOST_SESSION = re.compile(r"\bsession_[A-Za-z0-9]{8,}\b")
+SESSION_PROSE = re.compile(r"(?i)\b((?:session|thread|conversation|run)[ _-]?id)(\s+)(?=[\w.-]*\d)[\w.-]{6,}")
+# A quoted path may hold spaces after its first segment; it needs two segments, so quoted slash commands such
+# as `/baton catch docs/plan.md` survive.
+QUOTED_PATH = re.compile(r"([\"'`])((?:~/|/[^\"'`\n/ ]+/|[A-Za-z]:\\|\\\\)[^\"'`\n]*)\1")
+# Unquoted paths continue past a space into a capitalized word, a word with another segment, or a file name.
+POSIX_CONTINUE = r"(?: (?:[A-Z][\w.@+-]*|[\w.@+-]+(?=/)|[\w@+-]+\.[A-Za-z0-9]{1,8}(?!\w))(?:/[\w.@+-]+)*)*"
+WINDOWS_CONTINUE = r"(?: (?:[A-Z][^\s\"'`\\]*|[^\s\"'`\\]+(?=\\)|[\w@+-]+\.[A-Za-z0-9]{1,8}(?!\w))(?:\\[^\s\"'`\\]+)*)*"
+POSIX_PATH = re.compile(rf"(?<![\w:/.~<>-])(?:~(?:/[\w.@+-]+)+|(?:/[\w.@+-]+){{2,}}){POSIX_CONTINUE}/?")
+WINDOWS_PATH = re.compile(rf"(?:\b[A-Za-z]:|\\\\[\w.$-]+)(?:\\[^\s\"'`\\]+)+\\?{WINDOWS_CONTINUE}")
+NAME_PORT = re.compile(r"(?<![\w.<>-])([A-Za-z][\w.-]*):(\d{2,5})\b")
 FILE_SUFFIXES = frozenset(
-    [
+    {
         "md",
         "mdx",
         "py",
@@ -181,114 +238,117 @@ FILE_SUFFIXES = frozenset(
         "tf",
         "nix",
         "lua",
-    ]
+    }
 )
-UUID = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
-SESSION = re.compile(r"(?i)\b((?:session|thread|conversation|run)[ _-]?id)(\s*[:=]\s*|\s+)([\w.-]{6,})")
-HOST_SESSION = re.compile(r"\bsession_[A-Za-z0-9]{8,}\b")
-# A quoted path may hold spaces after its first segment; it needs two segments, so quoted slash commands such
-# as `/baton catch docs/plan.md` survive.
-QUOTED_PATH = re.compile(r"([\"'`])((?:~/|/[^\"'`\n/ ]+/|[A-Za-z]:\\|\\\\)[^\"'`\n]*)\1")
-UNC_PATH = re.compile(r"\\\\[\w.$-]+\\[^\s\"'`]*")
-WINDOWS_PATH = re.compile(r"\b[A-Za-z]:\\[^\s\"'`]+(?: [^\s\"'`\\]+\\[^\s\"'`]*)*")
-# Unquoted paths continue past a space when the next word holds another segment or is a file name.
-POSIX_PATH = re.compile(
-    r"(?<![\w:/.~<>-])(?:~(?:/[\w.@+-]+)+|(?:/[\w.@+-]+){2,})"
-    r"(?: [\w.@+-]+(?:/[\w.@+-]+)+| [\w@+-]+\.[A-Za-z0-9]{1,8}(?![\w/]))*/?"
+FILE_NAMES = frozenset(
+    {
+        "dockerfile",
+        "containerfile",
+        "makefile",
+        "justfile",
+        "gemfile",
+        "rakefile",
+        "procfile",
+        "vagrantfile",
+        "license",
+        "readme",
+    }
 )
-LONG_TOKEN = re.compile(r"[A-Za-z0-9_+=-]{32,}")
-# Export only, after paths are gone: base64 secrets such as AWS keys can hold slashes.
-LONG_SLASH_TOKEN = re.compile(r"[A-Za-z0-9_+/=-]{32,}")
+LONG_TOKEN = re.compile(r"[A-Za-z0-9_+/=-]{24,}")
 
 
-def looks_secret(value: str) -> bool:
-    mixed = any(c.islower() for c in value) and any(c.isupper() for c in value)
-    return len(value) >= 6 and (mixed or any(c.isdigit() or c in "=+/" for c in value))
+def redact_header(match: re.Match[str]) -> str:
+    name, separator, quote, value = match.groups()
+    end = value.find(quote) if quote else -1
+    rest = value[end:] if end >= 0 else ""
+    return f"{name}{separator}{quote}<redacted>{rest}"
 
 
-def scrub_auth(match: re.Match[str]) -> str:
-    header, scheme, space, value = match.groups()
-    # Outside an Authorization header, "basic README.md check" is prose; a long base64 value is not.
-    encoded = BASE64_VALUE.fullmatch(value) is not None and looks_secret(value)
-    if header or scheme.lower() == "bearer" or encoded:
-        return f"{header or ''}{scheme}{space}<redacted>"
-    return match[0]
+def scrub_record(text: str) -> str:
+    """Remove credentials with an exact format. Saved reports keep everything else as local evidence."""
+    for pattern in TOKEN_FORMATS:
+        text = pattern.sub("<redacted>", text)
+    text = AUTH_HEADER.sub(redact_header, text)
+    text = COOKIE_HEADER.sub(redact_header, text)
+    return URL_USERINFO.sub("<redacted>@", text)
 
 
-def scrub_key_value(match: re.Match[str]) -> str:
-    key, separator, value = match.groups()
-    quoted = len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]
-    inner = value[1:-1] if quoted else value
-    if not inner or inner.startswith("<"):
+def redact_key_value(match: re.Match[str]) -> str:
+    key_quote, key, separator, value = match.groups()
+    if value.strip("\"'") == "<redacted>":
         return match[0]
-    # Any value of a password-like key is secret. For token, cookie, and authorization keys, only a quoted
-    # or secret-shaped value is: "token: authentication failed" and --token-budget=high are not credentials.
-    if STRONG_KEY.search(key) or quoted or looks_secret(inner):
-        replacement = f"{value[0]}<redacted>{value[0]}" if quoted else "<redacted>"
-        return f"{key}{separator}{replacement}"
-    return match[0]
+    quote = value[0] if value[0] in "\"'" else ""
+    return f"{key_quote}{key}{key_quote}{separator}{quote}<redacted>{quote}"
 
 
-def scrub_token(match: re.Match[str]) -> str:
+def redact_scheme(match: re.Match[str]) -> str:
+    scheme, space, value = match.groups()
+    mixed = any(c.islower() for c in value) and any(c.isupper() for c in value)
+    encoded = any(c.isdigit() or c in "+/=" for c in value) or (len(value) >= 16 and mixed)
+    return f"{scheme}{space}<redacted>" if scheme.lower() == "bearer" or encoded else match[0]
+
+
+def redact_ipv6(match: re.Match[str]) -> str:
+    address = match[0]
+    hexlike = "::" in address or (address.count(":") >= 4 and any(c.isalpha() for c in address))
+    return "<host>" if hexlike else address
+
+
+def redact_path(path: str) -> str:
+    # Keep the tail of a path into a file this install ships; it names the zstack component.
+    posix = path.replace("\\", "/")
+    tail = posix.rfind("/skills/")
+    if tail >= 0:
+        rest = posix[tail + 1 :].rstrip("/")
+        if (INSTALL_ROOT / rest).is_file():
+            return f"<path>/{rest}"
+    return "<path>"
+
+
+def redact_name_port(match: re.Match[str]) -> str:
+    name = match[1].lower()
+    # Dockerfile:12 and SKILL.md:12 are file references; every other name:number is treated as a host.
+    if name in FILE_NAMES or ("." in name and name.rsplit(".", 1)[1] in FILE_SUFFIXES):
+        return match[0]
+    return "<host>"
+
+
+def redact_long_token(match: re.Match[str]) -> str:
     # Mixed case plus a digit: Git SHAs and UUIDs are lowercase and survive.
     token = match[0]
     mixed = any(c.islower() for c in token) and any(c.isupper() for c in token)
     return "<redacted>" if mixed and any(c.isdigit() for c in token) else token
 
 
-def scrub_secrets(text: str) -> str:
-    """Best-effort removal of credentials. Saved reports keep paths and hosts as local evidence."""
-    for pattern in SECRET_PATTERNS:
-        text = pattern.sub("<redacted>", text)
-    text = AUTH_SCHEME.sub(scrub_auth, text)
-    text = KEY_VALUE_SECRET.sub(scrub_key_value, text)
-    return LONG_TOKEN.sub(scrub_token, text)
-
-
-def scrub_name_number(match: re.Match[str]) -> str:
-    name, number = match[1], int(match[2])
-    if "." in name:
-        return match[0] if name.rsplit(".", 1)[1].lower() in FILE_SUFFIXES else "<host>"
-    # Dockerfile:12 and step:3 are references; nas:3035 and localhost:8080 are hosts.
-    return match[0] if name[0].isupper() or number < 80 else "<host>"
-
-
-def scrub_session(match: re.Match[str]) -> str:
-    label, separator, value = match.groups()
-    # "session_id=abc" is an ID whatever it holds; "session ID handling" is prose.
-    if separator.strip() or any(c.isdigit() for c in value):
-        return f"{label}{separator}<id>"
-    return match[0]
-
-
-def scrub_path(path: str) -> str:
-    # Keep the tail of a path into one of this install's own skills; it names the component.
-    posix = path.replace("\\", "/")
-    tail = posix.rfind("/skills/")
-    parts = posix[tail + 1 :].split("/") if tail >= 0 else []
-    if len(parts) > 2 and (INSTALL_ROOT / "skills" / parts[1] / "SKILL.md").is_file():
-        return "<path>/" + "/".join(parts)
-    return "<path>"
-
-
-def scrub(text: str) -> str:
-    """Best-effort removal of credentials, private URLs and paths, hosts, emails, and session IDs."""
-    text = scrub_secrets(text)
-    text = URL.sub(lambda m: m[0] if PUBLIC_URL.fullmatch(m[0]) else "<url>", text)
+def scrub_plain(text: str) -> str:
+    text = PASSWORD_LINE.sub(r"\1\2<redacted>", text)
+    text = SECRET_KEY_VALUE.sub(redact_key_value, text)
+    text = SCHEME_VALUE.sub(redact_scheme, text)
     text = EMAIL.sub("<email>", text)
-    text = IP_ADDRESS.sub("<host>", text)
-    text = NAME_NUMBER.sub(scrub_name_number, text)
+    text = IPV4.sub("<host>", text)
+    text = IPV6.sub(redact_ipv6, text)
     text = UUID.sub("<id>", text)
     text = HOST_SESSION.sub("<id>", text)
-    text = SESSION.sub(scrub_session, text)
+    text = SESSION_PROSE.sub(r"\1\2<id>", text)
     home = str(Path.home())
     if len(home) > 1:
         text = text.replace(home, "~")
-    text = QUOTED_PATH.sub(lambda m: f"{m[1]}{scrub_path(m[2])}{m[1]}", text)
-    text = UNC_PATH.sub("<path>", text)
-    text = WINDOWS_PATH.sub(lambda m: scrub_path(m[0]), text)
-    text = POSIX_PATH.sub(lambda m: scrub_path(m[0]), text)
-    return LONG_SLASH_TOKEN.sub(scrub_token, text)
+    text = QUOTED_PATH.sub(lambda m: f"{m[1]}{redact_path(m[2])}{m[1]}", text)
+    text = WINDOWS_PATH.sub(lambda m: redact_path(m[0]), text)
+    text = POSIX_PATH.sub(lambda m: redact_path(m[0]), text)
+    text = NAME_PORT.sub(redact_name_port, text)
+    return LONG_TOKEN.sub(redact_long_token, text)
+
+
+def scrub_export(text: str) -> str:
+    """Best-effort removal of credentials, private URLs and paths, hosts, emails, and session IDs."""
+    text = scrub_record(text)
+    # URLs are settled first and kept whole: this repository's public links survive, and every other URL goes.
+    parts, last = [], 0
+    for match in URL.finditer(text):
+        parts += [scrub_plain(text[last : match.start()]), match[0] if PUBLIC_URL.fullmatch(match[0]) else "<url>"]
+        last = match.end()
+    return "".join([*parts, scrub_plain(text[last:])])
 
 
 def text_field(report: dict[str, object], key: str, *, required: bool) -> str | None:
@@ -303,7 +363,7 @@ def text_field(report: dict[str, object], key: str, *, required: bool) -> str | 
     if len(value) > limit or (single_line and "\n" in value) or value.count("\n") >= TEXT_LINES:
         shape = "one line" if single_line else f"{TEXT_LINES} lines"
         raise PapercutError(f"{key}: keep it to {limit} characters and {shape}; summarize instead of pasting logs")
-    return scrub_secrets(value)
+    return scrub_record(value)
 
 
 def choice(report: dict[str, object], key: str, options: tuple[str, ...], default: str | None = None) -> str:
@@ -337,6 +397,22 @@ def validate(report: object) -> dict[str, object]:
         "workaround": optional["workaround"],
         "suspected_fix": optional["suspected_fix"],
     }
+
+
+def well_formed(report: object, report_id: str) -> bool:
+    if not isinstance(report, dict) or set(report) - STORED_FIELDS:
+        return False
+    return (
+        type(report.get("schema")) is int
+        and report["schema"] == SCHEMA
+        and report.get("id") == report_id
+        and all(isinstance(report.get(key), str) for key in ("created", *REQUIRED_TEXT))
+        and all(report.get(key) is None or isinstance(report.get(key), str) for key in OPTIONAL_TEXT)
+        and report.get("host") in HOSTS
+        and report.get("kind") in KINDS
+        and report.get("capture") in CAPTURES
+        and isinstance(report.get("blocked"), bool)
+    )
 
 
 def write_file(directory: Path, name: str, content: str, *, replace: bool = False) -> Path:
@@ -381,7 +457,7 @@ def record(stdin: str) -> str:
 def report_path(report_id: str) -> Path:
     if not ID.fullmatch(report_id):
         raise PapercutError(f"not a papercut ID: {report_id!r}")
-    return store_dir() / "reports" / f"{report_id}.json"
+    return store_subdir("reports", create=False) / f"{report_id}.json"
 
 
 def load(report_id: str) -> dict[str, object]:
@@ -392,15 +468,13 @@ def load(report_id: str) -> dict[str, object]:
         raise PapercutError(f"no papercut {report_id}") from error
     except ValueError as error:
         raise PapercutError(f"papercut {report_id} is not valid JSON") from error
-    if not isinstance(report, dict) or report.get("schema") != SCHEMA:
-        raise PapercutError(f"papercut {report_id} has an unsupported schema")
-    if report.get("id") != report_id or any(not isinstance(report.get(k), t) for k, t in STORED.items()):
-        raise PapercutError(f"papercut {report_id} is missing fields or has the wrong types")
-    return report
+    if not well_formed(report, report_id):
+        raise PapercutError(f"papercut {report_id} is malformed or uses an unsupported schema")
+    return dict(report)
 
 
 def all_reports() -> list[dict[str, object]]:
-    directory = store_dir() / "reports"
+    directory = store_subdir("reports", create=False)
     if not directory.is_dir():
         return []
     found: list[dict[str, object]] = []
@@ -425,51 +499,63 @@ def list_reports(component: str | None, as_json: bool) -> str:
     return "\n".join(rows)
 
 
+def delete_one(report_id: str) -> str:
+    path = report_path(report_id)
+    draft = store_subdir("drafts", create=False) / f"{report_id}.md"
+    # The draft goes first, so a retry after a partial failure still finds the report and finishes.
+    had_draft = draft.exists()
+    draft.unlink(missing_ok=True)
+    try:
+        path.unlink()
+    except FileNotFoundError as error:
+        if not had_draft:
+            raise PapercutError(f"no papercut {report_id}") from error
+        return f"deleted leftover draft {report_id}"
+    return f"deleted {report_id}"
+
+
 def delete(report_ids: list[str]) -> str:
-    lines = []
-    for report_id in report_ids:
-        path = report_path(report_id)
-        # The draft goes first, so a retry after a partial failure still finds the report and finishes.
-        draft = store_dir() / "drafts" / f"{report_id}.md"
-        had_draft = draft.exists()
-        draft.unlink(missing_ok=True)
-        try:
-            path.unlink()
-        except FileNotFoundError as error:
-            if not had_draft:
-                raise PapercutError(f"no papercut {report_id}") from error
-            lines.append(f"deleted leftover draft {report_id}")
-            continue
-        lines.append(f"deleted {report_id}")
-    return "\n".join(lines)
+    # Each ID stands alone: one missing or failing ID does not stop the rest, and a rerun finishes the job.
+    done, failed = [], []
+    with store_lock():
+        for report_id in report_ids:
+            try:
+                done.append(delete_one(report_id))
+            except (PapercutError, OSError) as error:
+                failed.append(str(error))
+    if failed:
+        if done:
+            print("\n".join(done))
+        raise PapercutError("; ".join(failed))
+    return "\n".join(done)
 
 
 def clean(value: object) -> str:
     # Drafts open with an HTML comment, so report text must not close it early.
-    return scrub(str(value)).replace("-->", "-- >").strip()
+    return scrub_export(str(value)).replace("-->", "-- >").strip()
 
 
 def render(report: dict[str, object]) -> str:
-    title = f"papercut({clean(report.get('component', 'zstack'))}): {clean(report.get('summary', 'untitled'))}"
+    title = f"papercut({clean(report['component'])}): {clean(report['summary'])}"
     lines = [
         "<!--",
         f"Suggested title: {title}",
         "",
-        "Review this draft before filing. Automatic redaction is best-effort: it replaces known",
-        "credential, private URL, path, host, email, and session-ID patterns. Remove anything else",
-        "sensitive, such as project names or proprietary details. Nothing has been filed;",
-        "copying the edited text into an issue is up to you.",
+        "Review this draft before filing. Redaction is aggressive and still best-effort: it replaces",
+        "credential, private URL, path, host, email, and session-ID patterns, and can remove harmless",
+        "text too. Restore what you want, and remove anything else sensitive, such as project names.",
+        "Nothing has been filed; copying the edited text into an issue is up to you.",
         "",
-        f"Local papercut: {clean(report.get('id', 'unknown'))}",
+        f"Local papercut: {report['id']}",
         "-->",
         "",
         "## Context",
         "",
-        f"- Component: {clean(report.get('component', 'unknown'))}",
-        f"- Host: {clean(report.get('host', 'unknown'))}",
+        f"- Component: {clean(report['component'])}",
+        f"- Host: {report['host']}",
         f"- zstack version: {clean(report.get('zstack_version') or 'unknown')}",
-        f"- Kind: {clean(report.get('kind', 'unknown'))}",
-        f"- Blocked progress: {'yes' if report.get('blocked') is True else 'no'}",
+        f"- Kind: {report['kind']}",
+        f"- Blocked progress: {'yes' if report['blocked'] else 'no'}",
     ]
     sections = [
         ("What was tried", "tried"),
@@ -485,19 +571,17 @@ def render(report: dict[str, object]) -> str:
 
 
 def export(report_id: str, output: str | None, force: bool) -> str:
-    draft = render(load(report_id))
-    if output is None:
-        directory, name = store_subdir("drafts"), f"{report_id}.md"
-    else:
-        target = Path(output).expanduser().resolve()
-        directory, name = target.parent, target.name
-    try:
-        path = write_file(directory, name, draft, replace=force)
-    except FileExistsError as error:
-        raise PapercutError(f"{directory / name} exists; edit it, or pass --force to replace it") from error
-    if not report_path(report_id).exists():
-        path.unlink(missing_ok=True)
-        raise PapercutError(f"papercut {report_id} was deleted during export")
+    with store_lock():
+        draft = render(load(report_id))
+        if output is None:
+            directory, name = store_subdir("drafts"), f"{report_id}.md"
+        else:
+            target = Path(output).expanduser().resolve()
+            directory, name = target.parent, target.name
+        try:
+            path = write_file(directory, name, draft, replace=force)
+        except FileExistsError as error:
+            raise PapercutError(f"{directory / name} exists; edit it, or pass --force to replace it") from error
     return f"exported {report_id}: {path}"
 
 

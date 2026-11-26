@@ -4,6 +4,23 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut second review fixes — 2026-11-26
+
+A second read-only Codex review (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) of `5592126` reported 13 findings. Eight of them were reproduced locally. The user chose to split the scrub instead of patching each case:
+
+- **Recording** removes only credentials with an exact format: known token formats, an `Authorization` value that starts with an auth scheme (quoted or not), `Cookie` header `name=value` pairs, and URL user info. The Cookie rule goes beyond the approved design, which named only `Authorization`. An earlier draft also cut everything after `Authorization:`, `Cookie:`, or `X-Api-Key:`. A probe showed it erased prose such as `authorization: steps, then /baton pass failed` while missing a JSON `"Authorization": "Basic ..."`, so it was narrowed. `a basic NullPointerException`, `Passwordless=true`, `token: authentication failed`, and `--token-budget=high` now stay in saved reports. The cost is that a guessed secret such as `password=hunter` also stays in the private saved report.
+- **Export** redacts aggressively:
+  - Credentials: Digest headers, a short Basic value, `token=` and quoted or escaped passwords, and quoted JSON session IDs.
+  - Hosts: every `name:port` except a file reference.
+  - Paths: paths whose later folder names have spaces, and a `skills/` tail unless it names a file this install ships.
+  - URLs: a URL whose user info recording had already replaced. URLs are now settled before any other rule, so an allowlisted repository link containing a commit SHA is kept whole.
+  - Passwords: an unquoted value after a password-like key is cut to the end of the line, so `password: correct horse battery` loses all three words.
+  - Not caught: a bare host name with no port.
+- **Store:** every command refuses a linked `reports/` or `drafts/`. Export and delete hold an `fcntl` lock (`msvcrt` on Windows) in the store, and export no longer deletes by name after writing. `delete` handles each ID on its own. A loaded report must have an integer schema, known host, kind, and capture values, string or null optional fields, and no unknown keys.
+- **Test fix:** the concurrency test read through `communicate()` after closing stdin, which raises on Python 3.12. It now reads each process's output directly.
+
+`scripts/test_papercut.py` now has 15 cases. Against `5592126`, eight failed and one errored. All 15 pass here on Python 3.15 and 3.12, with ResourceWarnings promoted to errors. The Python unittest discovery passed 193 tests. The validator, ruff, the Codex package build, and strict mypy on the helper also passed, with only the existing `test_pr_watcher.py` mypy error and the three `install.test.mjs` failures that also occur on `main`. A new lock test holds the store lock, checks that `export` waits without writing, then releases the lock and checks that export succeeds. No test forces the exact export-and-delete interleavings the reviewer described. Windows locking was not run. The Codex reviewer's read-only sandbox could not create uv's cache lock, so in such a sandbox the helper fails before it starts. The skill's not-saved path covers that case.
+
 ## Papercut review fixes — 2026-11-26
 
 A read-only Codex reviewer (GPT-6.2-Astra, high effort), launched through the hc `alt-harness-review-codex` template, reviewed commit `2b22075`. It reported eleven findings. Ten were fixed. For the Windows half of the permissions finding, the limit is documented rather than fixed:

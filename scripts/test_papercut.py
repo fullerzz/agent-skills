@@ -7,7 +7,9 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -132,7 +134,11 @@ class PapercutTests(unittest.TestCase):
             pipe.flush()
         for pipe in pipes:
             pipe.close()
-        outputs = [process.communicate()[0] for process in processes]
+        # communicate() would flush the closed stdin and raise on Python 3.12.
+        outputs = []
+        for process in processes:
+            with process:
+                outputs.append(process.stdout.read() if process.stdout else "")
         self.assertTrue(all(p.returncode == 0 for p in processes), outputs)
         ids = {line.split()[1].rstrip(":") for line in outputs}
         self.assertEqual(len(ids), 8)
@@ -184,8 +190,8 @@ class PapercutTests(unittest.TestCase):
         (self.store / "reports" / f"{report_id}.json").write_text(json.dumps(raw), encoding="utf-8")
         recorded = self.record(sample(summary=f"Leak {TOKEN} {UUID}", actual=sensitive))
         stored = (self.store / "reports" / f"{recorded}.json").read_text(encoding="utf-8")
-        for secret in (TOKEN, "Zq9xPw7Lm3Kd"):
-            self.assertNotIn(secret, stored)
+        self.assertNotIn(TOKEN, stored, "record removes exact-format credentials")
+        self.assertIn("api_key=Zq9xPw7Lm3Kd", stored, "record keeps the rest as local evidence")
 
         for target in (report_id, recorded):
             result = self.run_helper("export", target)
@@ -229,8 +235,8 @@ class PapercutTests(unittest.TestCase):
             "https://github.com/fullerzz/agent-skills/blob/main/skills/baton/SKILL.md",
             "6ffd2f9dd09ea02c86db6364a7c26ea70ef14d42",
             "SKILL.md:12",
-            "authorization: steps",
             "/baton pass",
+            "authorization: <redacted>",
         ):
             self.assertIn(kept, draft)
 
@@ -246,57 +252,89 @@ class PapercutTests(unittest.TestCase):
         self.assertEqual(imported & forbidden, set())
         self.assertIn("--offline --no-python-downloads", HELPER.read_text(encoding="utf-8").splitlines()[0])
 
-    def test_export_scrubs_review_leaks_without_destroying_references(self) -> None:
+    def test_record_keeps_evidence_and_export_removes_review_leaks(self) -> None:
+        # Each probe maps to the text that must not reach the draft. They come from two cross-harness reviews.
         leaks = {
             "Authorization: Basic YWxpY2U6c2FtcGxl": "YWxpY2U6c2FtcGxl",
+            "Authorization: Basic YTpi": "YTpi",
+            'headers={"Authorization": "Basic QWxhZGRpbjpvcGVu"}, retry': "QWxhZGRpbjpvcGVu",
+            'Authorization: Digest username="bob", response="6629fae49393a05397450978507c4ef1"': "6629fae4",
             "password=hunter": "hunter",
             '{"password": "hunter"}': "hunter",
-            "session_id=abcdefghi": "abcdefghi",
-            "registry.corp.example:443": "registry.corp",
-            "https://[fd00::1]:8443/client-payroll": "client-payroll",
-            "/Users/alice/Ze Vault/Payroll.md": "Payroll",
-            "\\\\corp\\finance\\ProjectDelta": "ProjectDelta",
-            "/opt/acme/skills/unreleased-customer/SKILL.md": "unreleased-customer",
-            "'/Users/alice/My Files/q3 plan.md'": "q3 plan",
             "password: hunter2x": "hunter2x",
             'password="correct horse battery"': "horse battery",
+            "password: staple battery horse": "battery horse",
+            'password="<payroll2026!"': "payroll2026",
+            '{"password":"use\\"VeryPrivateTail"}': "VeryPrivateTail",
+            "token=abcdefghijklmnop": "abcdefghijklmnop",
+            "session_id=abcdefghi": "abcdefghi",
+            '{"session_id":"abcdefghijkl"}': "abcdefghijkl",
+            "registry.corp.example:443": "registry.corp",
+            "buildbox:22": "buildbox",
+            "BUILD-SERVER:8443": "BUILD-SERVER",
+            "https://[fd00::1]:8443/client-payroll": "client-payroll",
+            f"https://{TOKEN}@build.private.corp/internal": "build.private",
+            "/Users/alice/Ze Vault/Payroll.md": "Vault",
+            "/Users/alice/Top Secret Project/Payroll.md": "Secret Project",
+            "\\\\corp\\finance\\ProjectDelta": "ProjectDelta",
+            "\\\\corp\\Finance Team\\Payroll.xlsx": "Finance",
+            "/opt/acme/skills/unreleased-customer/SKILL.md": "unreleased-customer",
+            "/opt/acme/skills/baton/customer-payroll/private.md": "customer-payroll",
+            "'/Users/alice/My Files/q3 plan.md'": "q3 plan",
             "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY": "bPxRfiCY",
         }
-        kept = (
+        draft_kept = (
             "Error in Dockerfile:12",
-            "token: authentication failed",
             "SKILL.md:12",
-            "authorization: steps",
             "`/baton pass`",
+            "`/baton catch docs/plan.md`",
             "/zstack:papercut",
             "the session ID handling",
             "Basic authentication",
             "a basic README.md check",
             "token SessionStart hook",
-            "digest sha256:abc",
-            "--token-budget=high",
-            "`/baton catch docs/plan.md`",
+            "at 12:30:45 in step:3",
+            "sha 6ffd2f9dd09ea02c86db6364a7c26ea70ef14d42",
+            "https://github.com/fullerzz/agent-skills/blob/6ffd2f9dd09ea02c86db6364a7c26ea70ef14d42/skills/baton/SKILL.md",
         )
-        leak_lines, kept_lines = list(leaks), list(kept)
+        # Export may redact these, but the saved report must keep them exactly.
+        record_kept = (
+            "token: authentication failed",
+            "a basic NullPointerException",
+            "Passwordless=true",
+            "--token-budget=high",
+            "digest sha256:abc",
+            "step 1, authorization: steps, then /baton pass failed",
+            "cookie: none set yet",
+        )
+        lines = list(leaks)
         report_id = self.record(
             sample(
-                summary="Scrub cases",
-                actual="\n".join(leak_lines[:7]),
-                suspected_fix="\n".join(leak_lines[7:]),
-                tried="\n".join(kept_lines[:7]),
-                expected="\n".join(kept_lines[7:]),
+                summary="Title buildbox:22 token=abcdefghijklmnop",
+                actual="\n".join(lines[:12]),
+                suspected_fix="\n".join(lines[12:24]),
+                workaround="\n".join(lines[24:36]),
+                tried="\n".join(draft_kept),
+                expected="\n".join(record_kept),
             )
         )
         saved = json.loads(self.run_helper("show", report_id).stdout)
-        self.assertEqual(saved["tried"] + "\n" + saved["expected"], "\n".join(kept), "record keeps prose evidence")
-        for secret in ("YWxpY2U6c2FtcGxl", "hunter", "horse battery"):
-            self.assertNotIn(secret, saved["actual"] + saved["suspected_fix"], "record removes credentials")
+        self.assertEqual(saved["tried"], "\n".join(draft_kept))
+        self.assertEqual(saved["expected"], "\n".join(record_kept), "record keeps prose and settings as evidence")
+        stored = json.dumps(saved)
+        for credential in ("YWxpY2U6c2FtcGxl", "YTpi", "6629fae4", "QWxhZGRpbjpvcGVu", TOKEN):
+            self.assertNotIn(credential, stored, "record removes exact-format credentials and header values")
+        self.assertIn("password=hunter", stored, "record leaves guesses to export")
 
         draft = Path(self.run_helper("export", report_id).stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")
+        title = draft.splitlines()[1]
+        self.assertTrue(title.startswith("Suggested title: "), title)
+        for secret in ("buildbox", "abcdefghijklmnop"):
+            self.assertNotIn(secret, title)
         for case, secret in leaks.items():
             with self.subTest(leak=case):
                 self.assertNotIn(secret, draft)
-        for case in kept:
+        for case in draft_kept:
             with self.subTest(kept=case):
                 self.assertIn(case, draft)
 
@@ -327,12 +365,50 @@ class PapercutTests(unittest.TestCase):
 
     def test_list_skips_malformed_reports(self) -> None:
         healthy = self.record(sample())
-        (self.store / "reports" / "20261126T000000Z-deadbeef.json").write_text('{"schema": 1}', encoding="utf-8")
-        result = self.run_helper("list")
+        reports = self.store / "reports"
+        (reports / "20261126T000000Z-deadbeef.json").write_text('{"schema": 1}', encoding="utf-8")
+        loose = json.loads((reports / f"{healthy}.json").read_text(encoding="utf-8"))
+        loose |= {"id": "20261126T000000Z-feedface", "schema": True, "workaround": {"private": "corrupt"}}
+        del loose["capture"]
+        (reports / "20261126T000000Z-feedface.json").write_text(json.dumps(loose), encoding="utf-8")
+        result = self.run_helper("list", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(healthy, result.stdout)
-        self.assertIn("skipped 20261126T000000Z-deadbeef.json", result.stderr)
-        self.assertNotEqual(self.run_helper("show", "20261126T000000Z-deadbeef").returncode, 0)
+        self.assertEqual([r["id"] for r in json.loads(result.stdout)], [healthy])
+        for bad in ("deadbeef", "feedface"):
+            self.assertIn(f"skipped 20261126T000000Z-{bad}.json", result.stderr)
+            self.assertNotEqual(self.run_helper("show", f"20261126T000000Z-{bad}").returncode, 0)
+
+    @unittest.skipIf(sys.platform == "win32", "uses POSIX flock")
+    def test_export_waits_for_the_store_lock(self) -> None:
+        import fcntl
+
+        report_id = self.record(sample())
+        with (self.store / ".lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with subprocess.Popen(  # noqa: S603 - Fixed local helper argument vectors; no shell.
+                [*uv_run(), str(self.link), "export", report_id],
+                cwd=self.cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=self.env,
+            ) as process:
+                time.sleep(2)
+                self.assertIsNone(process.poll(), "export ran while another command held the lock")
+                self.assertFalse((self.store / "drafts" / f"{report_id}.md").exists())
+                fcntl.flock(lock, fcntl.LOCK_UN)
+                stdout, stderr = process.communicate(timeout=60)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertIn(f"exported {report_id}", stdout)
+
+    def test_delete_continues_past_a_missing_id(self) -> None:
+        first, second = self.record(sample()), self.record(sample())
+        self.assertEqual(self.run_helper("delete", first).returncode, 0)
+        result = self.run_helper("delete", first, second)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(f"no papercut {first}", result.stderr)
+        self.assertIn(f"deleted {second}", result.stdout)
+        self.assertFalse((self.store / "reports" / f"{second}.json").exists())
 
     def test_default_store_inside_a_checkout_is_refused(self) -> None:
         checkout = self.temp / "other checkout"
@@ -347,20 +423,41 @@ class PapercutTests(unittest.TestCase):
     def test_existing_directories_keep_their_mode_and_links_are_refused(self) -> None:
         self.store.mkdir(parents=True, mode=0o755)
         self.store.chmod(0o755)
-        self.record(sample())
+        report_id = self.record(sample())
         self.assertEqual(self.store.stat().st_mode & 0o777, 0o755)
         self.assertEqual((self.store / "reports").stat().st_mode & 0o777, 0o700)
 
+        # A linked drafts/ must not let delete or export reach the file it points at.
+        outside = self.temp / "outside drafts"
+        outside.mkdir()
+        victim = outside / f"{report_id}.md"
+        victim.write_text("not the store's", encoding="utf-8")
+        (self.store / "drafts").symlink_to(outside)
+        for args in (("delete", report_id), ("export", report_id)):
+            with self.subTest(args=args):
+                result = self.run_helper(*args)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("symbolic link", result.stderr)
+        self.assertEqual(victim.read_text(encoding="utf-8"), "not the store's")
+        self.assertTrue((self.store / "reports" / f"{report_id}.json").exists())
+
+        # A linked reports/ is refused for writes and reads alike.
         elsewhere = self.temp / "elsewhere store"
         elsewhere.mkdir()
         other = self.temp / "linked"
         other.mkdir()
         (other / "reports").symlink_to(elsewhere)
-        result = self.run_helper(
-            "record", stdin=json.dumps(sample()), env=self.env | {"ZSTACK_PAPERCUT_DIR": str(other)}
-        )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn("symbolic link", result.stderr)
+        env = self.env | {"ZSTACK_PAPERCUT_DIR": str(other)}
+        commands: list[tuple[tuple[str, ...], str]] = [
+            (("record",), json.dumps(sample())),
+            (("list",), ""),
+            (("show", report_id), ""),
+        ]
+        for command, stdin in commands:
+            with self.subTest(command=command):
+                result = self.run_helper(*command, stdin=stdin, env=env)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("symbolic link", result.stderr)
         self.assertEqual(list(elsewhere.iterdir()), [])
 
 
