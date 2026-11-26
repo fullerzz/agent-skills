@@ -4,7 +4,7 @@ My personal engineering skill library for Codex, Claude Code, and Hermes Agent, 
 
 Maintained for my own use and shared for reference and reuse under the [MIT license](LICENSE). I do not accept external issues or pull requests, and I do not provide user support. Please fork the repository for your own changes.
 
-Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 61 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
+Shared instructions live in `skills/`. Workflows use native host agents by default, or Herdr execution when selected explicitly or automatically by z-mode in a verified live hc terminal. The library includes 62 skills, 24 engineering principles, 22 workflow playbooks, two native agent roles, and portable helpers.
 
 > [!NOTE]
 > Lauren Tan's upstream pstack library can be found at [**pstack**](https://github.com/cursor/plugins/tree/main/pstack) in the GitHub repo [cursor/plugins](https://github.com/cursor/plugins).
@@ -112,6 +112,7 @@ Enable z-mode in a verified live hc terminal, or explicitly select “use z-mode
 - Prevent repeated agent mistakes with correct, using architecture and automated enforcement before prose rules.
 - Resume long work with scoped history, durable handoffs, and show-me-your-work's decision log.
 - Invoke [baton](docs/reference/workflow-skills.md#baton) explicitly to hand work to a fresh session in this harness or another, including on another machine. Its card carries the decisions and next action, with pointers into Atuin for evidence when needed.
+- Record zstack friction with explicitly invoked [papercut](docs/reference/workflow-skills.md#papercut): a short private report kept on your machine, which you can export as an issue draft to review and file yourself. In z-mode, ask the agent to record papercuts as you go.
 - Catch up on the current chat with explicitly invoked [ketchup](docs/reference/workflow-skills.md#ketchup): a concise, read-only reply on what changed since your last message, with enough context to decide every open item, including earlier ones, and visuals when they clarify status or a decision.
 - Publish or merge only when the user's request authorizes those actions.
 

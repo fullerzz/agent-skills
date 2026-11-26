@@ -4,6 +4,18 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut — 2026-11-26
+
+Checked on macOS ARM64 with uv 0.13.10, from an unsandboxed Claude Code session.
+
+- `uv run scripts/validate.py` passed. The Python unittest discovery passed 185 tests, including seven new `scripts/test_papercut.py` cases. Every case runs the helper through a symlink, from an unrelated working directory, with a temporary `ZSTACK_PAPERCUT_DIR`. GitHub variables are stripped, and the proxy points at a closed local port.
+- The cases cover the round trip from record to delete, with owner-only modes on the store, `reports/`, and each file. Eight concurrent records all survived with no leftover temporary files. A store whose parent is a regular file printed `not saved` with empty stdout. Oversized, multi-line, unknown, and mistyped fields were refused, and so was a store inside this checkout. An ID with `../` was refused. Export refuses to replace an edited draft without `--force`. The helper imports no network, browser, or subprocess module.
+- A synthetic privacy case seeds a GitHub-style token, the home path, a UUID session ID, a private URL with a query token, an `api_key=` value, an email, a `host:port`, and an IP. The values go in both the summary, which feeds the suggested title, and the body. One report goes through `record`, and one is written straight to the store to bypass record-time scrubbing. Neither draft kept any seeded value, and the recorded file kept no credential. A second case records the denied-write text from #65 with a home path, plugin data path, UUID, and `host:port`. The saved report kept that text exactly, except for the seeded token. Its draft dropped the private parts and kept the zstack-relative skill path, this repository's public URL, a Git SHA, a `file:line` reference, and ordinary prose.
+- Node suites: the docs, helpers, and statechart tests passed. Three `install.test.mjs` cases also failed on a clean clone of `main` at `6ffd2f9`, so this change did not cause them; their cause was not investigated. Ruff and strict mypy passed for the helper and its test. Repo-wide, `ruff check` and `ruff format --check` flag only untouched files (`test_codex_hooks.py`, `test_hermes_hooks.py`, `test_triage_upstream.py`, `triage_upstream.py`), and the project-wide mypy run reports one existing error in `scripts/test_pr_watcher.py`.
+- The Codex package was built from a scratch clone with the change staged, so this checkout's index was untouched. `skills/papercut` matched the source byte for byte, and its `openai.yaml` disables implicit invocation. The packaged helper read version `0.32.0` from `.codex-plugin/plugin.json`. `claude plugin validate .` passed and listed 62 skills, including zstack:papercut. Calling the Hermes plugin entrypoint with a test registry registered 62 skills, including papercut at its shared path.
+- A write to the default `~/.local/state/zstack/papercuts` succeeded from this unsandboxed session. That does not show that a sandboxed Claude Code or Codex session can write there (see #65). The skill handles a denied write by reporting `not saved`. Opted-in capture also puts the unsaved report in the final report.
+- Not run: native `/papercut`, `$papercut`, and Hermes `skill_view` invocations on fresh installs; opt-in and opt-out during a live z-mode workflow; retrieval after a session restart and a plugin refresh; and a sandboxed Claude Code session. These acceptance criteria from #91 remain open.
+
 ## Baton — 2026-11-24
 
 Checked on macOS ARM64 with Atuin 18.25.1, thread capture on, and the Atuin MCP server in Claude Code.

@@ -484,6 +484,39 @@ Persists until you say stop z-mode or choose another style, subject to retained 
 
 [Full z-mode instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md)
 
+## Papercut {#papercut}
+
+A zstack skill gave the agent a wrong instruction, left out a prerequisite, failed silently, or forced a workaround, and you want a record to follow up on later. It works even when the task succeeded.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$papercut record the missing package check in the feature playbook` or `$papercut export <id>` |
+| Claude Code | `/papercut record the missing package check in the feature playbook` or `/papercut list` |
+| Hermes | `Load zstack:papercut with skill_view and record the missing package check in the feature playbook.` |
+| Any host, in z-mode | `Record papercuts as you go.` |
+
+The Codex and Claude Code rows are linked-install examples. For native plugins, select `zstack:papercut` through the Codex skill picker or invoke `/zstack:papercut` in Claude Code.
+
+### How it works
+
+The agent writes a short structured report and saves it with a bundled standard-library helper. The report names the zstack component, host, zstack version, kind of problem, what was tried, what was expected, what happened, whether it blocked progress, and any workaround. A suspected fix is optional and kept apart from these observations. Field length limits keep transcripts and raw logs out. When it saves a report, the helper replaces known credential patterns. It keeps paths, hosts, and error text as private local evidence. Export also replaces private paths, URLs, hosts, emails, and session IDs.
+
+During a z-mode workflow, you can ask the agent to record papercuts as you go. The agent then records zstack friction without asking first, marks those reports as opt-in, and lists their IDs in its final report. Saying stop, stopping z-mode, or finishing the workflow ends capture. Installing or enabling zstack never starts it.
+
+`export` renders one report as a Markdown draft with a suggested title. You review and edit it, then decide whether to file it.
+
+### Expected result
+
+`saved <id>: <path>` for a new report. `list` shows one line per report, `list --component <name>` shows one component's reports, and `list --json` returns full reports so the agent can group repeats. `show` prints one report, `delete` removes reports and their drafts, and `path` prints the store directory. `export` writes `drafts/<id>.md` in the store.
+
+### Dependencies and limits
+
+Explicit-only on all hosts, and uses `uv` with Python 3.12 or newer. Reports are owner-only files in `~/.local/state/zstack/papercuts` (or `$XDG_STATE_HOME/zstack/papercuts`, or `%LOCALAPPDATA%\zstack\papercuts` on Windows). Set `ZSTACK_PAPERCUT_DIR` to an absolute path outside any Git checkout to use another directory. The store belongs to your operating-system user and is shared by every host on that machine. It is not synced to other machines, and it survives new sessions and plugin refreshes. To remove everything, delete the directory.
+
+A failed write prints `papercut: not saved:` and the reason, and the task continues. A host sandbox can deny the write. For a report you asked for, the agent asks once to rerun the helper outside the sandbox, or gives you the command. For an opted-in report, it puts the unsaved report in its final report. Redaction is best-effort, so read every draft before sharing it. Capture and export never use the network, a GitHub token, a browser, a prefilled issue URL, or `gh issue create`. This repository does not accept external issues; its maintainer files reports by hand. The report structure follows [Uber's papercut workflow](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/#continuous-improvement-and-agents-filing-their-own-bugs) without its central intake.
+
+[Full papercut instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/papercut/SKILL.md)
+
 ## Ketchup {#ketchup}
 
 You want to catch up on this chat since your last message and decide anything still awaiting you.
