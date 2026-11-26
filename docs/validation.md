@@ -4,6 +4,33 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut review fixes — 2026-11-26
+
+A read-only Codex reviewer (GPT-6.2-Astra, high effort), launched through the hc `alt-harness-review-codex` template, reviewed commit `2b22075`. It reported eleven findings. Ten were fixed. For the Windows half of the permissions finding, the limit is documented rather than fixed:
+
+- Basic, Digest, and Negotiate credentials, short assigned or quoted passwords, labeled session IDs without digits, dotted `host:port` endpoints, and bracketed IPv6 URLs are now scrubbed.
+- Paths with spaces, quoted paths, and Windows network paths are now scrubbed. A `/skills/` tail survives only when it names a skill in this install.
+- `Dockerfile:12`, `token: authentication failed`, and other references and prose now survive.
+- A forced export renames a complete temporary file over the old draft.
+- Every store location, including the `XDG_STATE_HOME` and `LOCALAPPDATA` defaults, gets the checkout guard. The guard skips the home directory and its parents, so a dotfiles repository does not block the default store. A relative `LOCALAPPDATA` falls back to the home-based default.
+- Existing directories keep their mode. A symbolic-linked `reports/` or `drafts/` is refused. Windows file modes are documented as not enforced.
+- Every command runs with `uv run --offline --no-python-downloads`, and the shebang uses the same flags. The import check now parses the helper's imports with `ast`.
+- `delete` removes the draft before the report, so a retry finishes a partial delete. An export whose report was deleted meanwhile removes its draft and fails; no test covers that race.
+- `list` skips a report file that lacks required fields or has the wrong types.
+- The concurrency test now feeds all eight processes before closing any stdin, so their writes can overlap.
+
+`scripts/test_papercut.py` now has 13 cases. Copied into a clean clone at `2b22075`, seven of them failed against the old helper. The concurrency test passed there too; it checks overlapping writes, not a reported bug. Here all thirteen pass. The forced-export failure case uses a read-only drafts directory and is skipped when run as root.
+
+A second probe found that the first round of fixes over-redacted saved evidence, so the rules were narrowed:
+
+- `a basic README.md check`, `token SessionStart hook`, `digest sha256:abc`, and `--token-budget=high` were redacted at record time; they now survive.
+- Basic, Digest, and Negotiate values are now redacted only after an `Authorization` key or when the value is base64-shaped and at least 16 characters. A value for a password-like key is always redacted. A token, cookie, or authorization key's value is redacted only when it is quoted or looks secret.
+- Two leaks were fixed: `password: hunter` (colon form) and a quoted password with spaces.
+- Export adds a second long-token pass that allows slashes, so AWS-style secret keys are caught. Saved reports keep such keys.
+- A quoted slash command such as `` `/baton catch docs/plan.md` `` now survives export.
+
+The probe strings are in the scrub test. The Windows behavior and the live host checks listed in the next entry were not run.
+
 ## Papercut — 2026-11-26
 
 Checked on macOS ARM64 with uv 0.13.10, from an unsandboxed Claude Code session.

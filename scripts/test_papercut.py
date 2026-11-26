@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import shutil
@@ -21,6 +22,11 @@ def executable(name: str) -> str:
     if path is None:
         raise RuntimeError(f"Required test executable not found: {name}")
     return path
+
+
+def uv_run() -> list[str]:
+    # The documented invocation: no package index and no interpreter download.
+    return [executable("uv"), "run", "--quiet", "--offline", "--no-python-downloads"]
 
 
 def sample(**changes: object) -> dict[str, object]:
@@ -59,7 +65,7 @@ class PapercutTests(unittest.TestCase):
         self, *args: str, stdin: str = "", env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603 - Fixed local helper argument vectors; no shell.
-            [executable("uv"), "run", "--quiet", str(self.link), *args],
+            [*uv_run(), str(self.link), *args],
             cwd=self.cwd,
             input=stdin,
             capture_output=True,
@@ -108,7 +114,7 @@ class PapercutTests(unittest.TestCase):
     def test_concurrent_records_all_survive(self) -> None:
         processes = [
             subprocess.Popen(  # noqa: S603 - Fixed local helper argument vectors; no shell.
-                [executable("uv"), "run", "--quiet", str(self.link), "record"],
+                [*uv_run(), str(self.link), "record"],
                 cwd=self.cwd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -118,7 +124,15 @@ class PapercutTests(unittest.TestCase):
             )
             for _ in range(8)
         ]
-        outputs = [p.communicate(json.dumps(sample(summary=f"Report {i}")))[0] for i, p in enumerate(processes)]
+        # Feed every process before closing any stdin, so all eight reach the empty store together.
+        pipes = [process.stdin for process in processes if process.stdin is not None]
+        self.assertEqual(len(pipes), len(processes))
+        for index, pipe in enumerate(pipes):
+            pipe.write(json.dumps(sample(summary=f"Report {index}")))
+            pipe.flush()
+        for pipe in pipes:
+            pipe.close()
+        outputs = [process.communicate()[0] for process in processes]
         self.assertTrue(all(p.returncode == 0 for p in processes), outputs)
         ids = {line.split()[1].rstrip(":") for line in outputs}
         self.assertEqual(len(ids), 8)
@@ -221,9 +235,133 @@ class PapercutTests(unittest.TestCase):
             self.assertIn(kept, draft)
 
     def test_helper_has_no_network_browser_or_subprocess_path(self) -> None:
-        source = HELPER.read_text(encoding="utf-8")
-        for module in ("urllib", "http", "socket", "webbrowser", "subprocess", "ssl"):
-            self.assertNotRegex(source, rf"^\s*(?:import|from) {module}\b", module)
+        imported = set()
+        for node in ast.walk(ast.parse(HELPER.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                imported |= {alias.name.split(".")[0] for alias in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".")[0])
+        self.assertTrue(imported, "no imports parsed")
+        forbidden = {"urllib", "http", "socket", "ssl", "webbrowser", "subprocess", "ftplib", "smtplib", "asyncio"}
+        self.assertEqual(imported & forbidden, set())
+        self.assertIn("--offline --no-python-downloads", HELPER.read_text(encoding="utf-8").splitlines()[0])
+
+    def test_export_scrubs_review_leaks_without_destroying_references(self) -> None:
+        leaks = {
+            "Authorization: Basic YWxpY2U6c2FtcGxl": "YWxpY2U6c2FtcGxl",
+            "password=hunter": "hunter",
+            '{"password": "hunter"}': "hunter",
+            "session_id=abcdefghi": "abcdefghi",
+            "registry.corp.example:443": "registry.corp",
+            "https://[fd00::1]:8443/client-payroll": "client-payroll",
+            "/Users/alice/Ze Vault/Payroll.md": "Payroll",
+            "\\\\corp\\finance\\ProjectDelta": "ProjectDelta",
+            "/opt/acme/skills/unreleased-customer/SKILL.md": "unreleased-customer",
+            "'/Users/alice/My Files/q3 plan.md'": "q3 plan",
+            "password: hunter2x": "hunter2x",
+            'password="correct horse battery"': "horse battery",
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY": "bPxRfiCY",
+        }
+        kept = (
+            "Error in Dockerfile:12",
+            "token: authentication failed",
+            "SKILL.md:12",
+            "authorization: steps",
+            "`/baton pass`",
+            "/zstack:papercut",
+            "the session ID handling",
+            "Basic authentication",
+            "a basic README.md check",
+            "token SessionStart hook",
+            "digest sha256:abc",
+            "--token-budget=high",
+            "`/baton catch docs/plan.md`",
+        )
+        leak_lines, kept_lines = list(leaks), list(kept)
+        report_id = self.record(
+            sample(
+                summary="Scrub cases",
+                actual="\n".join(leak_lines[:7]),
+                suspected_fix="\n".join(leak_lines[7:]),
+                tried="\n".join(kept_lines[:7]),
+                expected="\n".join(kept_lines[7:]),
+            )
+        )
+        saved = json.loads(self.run_helper("show", report_id).stdout)
+        self.assertEqual(saved["tried"] + "\n" + saved["expected"], "\n".join(kept), "record keeps prose evidence")
+        for secret in ("YWxpY2U6c2FtcGxl", "hunter", "horse battery"):
+            self.assertNotIn(secret, saved["actual"] + saved["suspected_fix"], "record removes credentials")
+
+        draft = Path(self.run_helper("export", report_id).stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")
+        for case, secret in leaks.items():
+            with self.subTest(leak=case):
+                self.assertNotIn(secret, draft)
+        for case in kept:
+            with self.subTest(kept=case):
+                self.assertIn(case, draft)
+
+    def test_forced_export_keeps_the_old_draft_when_the_write_fails(self) -> None:
+        if os.geteuid() == 0:
+            self.skipTest("root ignores directory permissions")
+        report_id = self.record(sample())
+        draft = Path(self.run_helper("export", report_id).stdout.strip().partition(": ")[2])
+        draft.write_text("my edits", encoding="utf-8")
+        draft.parent.chmod(0o500)
+        self.addCleanup(draft.parent.chmod, 0o700)
+        result = self.run_helper("export", report_id, "--force")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(draft.read_text(encoding="utf-8"), "my edits")
+        draft.parent.chmod(0o700)
+        self.assertEqual(self.run_helper("export", report_id, "--force").returncode, 0)
+        self.assertNotEqual(draft.read_text(encoding="utf-8"), "my edits")
+
+    def test_delete_retry_removes_a_leftover_draft(self) -> None:
+        report_id = self.record(sample())
+        draft = Path(self.run_helper("export", report_id).stdout.strip().partition(": ")[2])
+        (self.store / "reports" / f"{report_id}.json").unlink()
+        result = self.run_helper("delete", report_id)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("deleted leftover draft", result.stdout)
+        self.assertFalse(draft.exists())
+        self.assertNotEqual(self.run_helper("delete", report_id).returncode, 0)
+
+    def test_list_skips_malformed_reports(self) -> None:
+        healthy = self.record(sample())
+        (self.store / "reports" / "20261126T000000Z-deadbeef.json").write_text('{"schema": 1}', encoding="utf-8")
+        result = self.run_helper("list")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(healthy, result.stdout)
+        self.assertIn("skipped 20261126T000000Z-deadbeef.json", result.stderr)
+        self.assertNotEqual(self.run_helper("show", "20261126T000000Z-deadbeef").returncode, 0)
+
+    def test_default_store_inside_a_checkout_is_refused(self) -> None:
+        checkout = self.temp / "other checkout"
+        (checkout / ".git").mkdir(parents=True)
+        env = {k: v for k, v in self.env.items() if k != "ZSTACK_PAPERCUT_DIR"}
+        env["XDG_STATE_HOME"] = str(checkout / ".state")
+        result = self.run_helper("record", stdin=json.dumps(sample()), env=env)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("inside a Git checkout", result.stderr)
+        self.assertFalse((checkout / ".state").exists())
+
+    def test_existing_directories_keep_their_mode_and_links_are_refused(self) -> None:
+        self.store.mkdir(parents=True, mode=0o755)
+        self.store.chmod(0o755)
+        self.record(sample())
+        self.assertEqual(self.store.stat().st_mode & 0o777, 0o755)
+        self.assertEqual((self.store / "reports").stat().st_mode & 0o777, 0o700)
+
+        elsewhere = self.temp / "elsewhere store"
+        elsewhere.mkdir()
+        other = self.temp / "linked"
+        other.mkdir()
+        (other / "reports").symlink_to(elsewhere)
+        result = self.run_helper(
+            "record", stdin=json.dumps(sample()), env=self.env | {"ZSTACK_PAPERCUT_DIR": str(other)}
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("symbolic link", result.stderr)
+        self.assertEqual(list(elsewhere.iterdir()), [])
 
 
 if __name__ == "__main__":

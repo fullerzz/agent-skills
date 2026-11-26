@@ -19,10 +19,10 @@ Installing or enabling zstack, z-mode, or Herdr never opts in. Without one of th
 
 ## Record
 
-Set `PAPERCUT_DIR` to the real parent directory of this `SKILL.md` (resolve links). Pass one JSON object on stdin. A quoted heredoc keeps the shell from expanding the text:
+Set `PAPERCUT_DIR` to the real parent directory of this `SKILL.md` (resolve links). Run every command with `uv run --offline --no-python-downloads`, so uv never reaches the network; without Python 3.12 or newer installed, the command fails instead of downloading one. Pass one JSON object on stdin. A quoted heredoc keeps the shell from expanding the text:
 
 ```sh
-uv run "$PAPERCUT_DIR/scripts/papercut.py" record <<'EOF'
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" record <<'EOF'
 {"component": "z-mode/playbooks/feature.md", "host": "claude-code", "kind": "missing-prerequisite",
  "summary": "Feature playbook omits the Codex package check",
  "tried": "Followed the feature playbook after adding a skill.",
@@ -55,22 +55,24 @@ The helper prints `saved <id>: <path>` only after the report is on disk. Any oth
 ## Inspect and delete
 
 ```sh
-uv run "$PAPERCUT_DIR/scripts/papercut.py" list                   # oldest first: id, component, kind, blocked, summary
-uv run "$PAPERCUT_DIR/scripts/papercut.py" list --component baton
-uv run "$PAPERCUT_DIR/scripts/papercut.py" list --json            # every full report
-uv run "$PAPERCUT_DIR/scripts/papercut.py" show <id>
-uv run "$PAPERCUT_DIR/scripts/papercut.py" delete <id> [<id>...]  # also removes each report's draft
-uv run "$PAPERCUT_DIR/scripts/papercut.py" path                   # the store directory
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" list        # oldest first
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" list --component baton
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" list --json # every full report
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" show <id>
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" delete <id> [<id>...]
+uv run --offline --no-python-downloads "$PAPERCUT_DIR/scripts/papercut.py" path        # the store directory
 ```
+
+`list` shows each report's ID, component, kind, whether it blocked progress, and summary. It skips a malformed report file with a warning. `delete` removes each report and its draft; rerun it if it fails partway.
 
 To look for repeats, read `list --json` and group reports by component and by what went wrong. Report the groups and their IDs. Do not merge or delete reports unless the user asks.
 
 ## Export
 
-`export <id>` writes `<store>/drafts/<id>.md`, or the file given with `--output`. It refuses to replace an existing draft, because the user may have edited it, unless they ask you to pass `--force`. The draft opens with an HTML comment that holds the suggested title and a review reminder, followed by the issue body.
+`export <id>` writes `<store>/drafts/<id>.md`, or the file given with `--output`. It refuses to replace an existing draft, because the user may have edited it, unless they ask you to pass `--force`. A forced export swaps in the new draft only once it is fully written, so a failed write leaves the old draft in place. The draft opens with an HTML comment that holds the suggested title and a review reminder, followed by the issue body.
 
-Give the user the draft's path and suggested title, and ask them to check it for sensitive details the scrub missed. Never file the report: no `gh issue create`, API call, prefilled issue URL, or browser. The user edits the draft and decides whether to file it. The zstack repository does not accept external issues, so its maintainer files their own reports by hand.
+Give the user the draft's path and suggested title, and ask them to check it for sensitive details the scrub missed. The scrub can also over-redact: a lowercase `name:number` with a number of 80 or more, such as `exit:127`, becomes `<host>`. Never file the report: no `gh issue create`, API call, prefilled issue URL, or browser. The user edits the draft and decides whether to file it. The zstack repository does not accept external issues, so its maintainer files their own reports by hand.
 
 ## Store
 
-Reports live in `$ZSTACK_PAPERCUT_DIR` when it is set to an absolute path outside any Git checkout. Otherwise they live in `$XDG_STATE_HOME/zstack/papercuts`, which defaults to `~/.local/state/zstack/papercuts`, or `%LOCALAPPDATA%\zstack\papercuts` on Windows. Each report is one owner-only JSON file under `reports/`, and drafts go under `drafts/`. The store belongs to the operating-system user, so Claude Code, Codex, and Hermes on one machine share it. It is not synced to other machines. Because it sits outside checkouts and plugin install trees, reports survive new sessions, plugin refreshes, and reinstalls. Delete the directory to remove every report.
+Reports live in `$ZSTACK_PAPERCUT_DIR` when it is set to an absolute path. Otherwise they live in `$XDG_STATE_HOME/zstack/papercuts`, which defaults to `~/.local/state/zstack/papercuts`, or `%LOCALAPPDATA%\zstack\papercuts` on Windows. The helper refuses any of these inside a Git checkout or the zstack install tree. It ignores a repository rooted at your home directory or above, such as a dotfiles repository. Each report is one owner-only JSON file under `reports/`, and drafts go under `drafts/`. The helper creates missing directories as owner-only and leaves the mode of an existing directory alone. It refuses a `reports/` or `drafts/` that is a symbolic link. On Windows, owner-only modes are not enforced; privacy there comes from `%LOCALAPPDATA%` being per-user. The store belongs to the operating-system user, so Claude Code, Codex, and Hermes on one machine share it. It is not synced to other machines. Because it sits outside checkouts and plugin install trees, reports survive new sessions, plugin refreshes, and reinstalls. Delete the directory to remove every report.
