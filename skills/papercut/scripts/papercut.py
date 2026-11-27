@@ -150,9 +150,11 @@ SCANNERS = ("betterleaks", "gitleaks")
 # BETTERLEAKS_CONFIG_TOML, BETTERLEAKS_VALIDATE, ...). Dropping them all keeps the default rules.
 SCANNER_ENV_PREFIXES = ("GITLEAKS_", "BETTERLEAKS_")
 SCANNER_TIMEOUT = 60
-# Both scanners accept these. --ignore-gitleaks-allow stops report text from silencing a finding.
+# Both scanners accept these. --ignore-gitleaks-allow stops report text from silencing a finding. Decoding is
+# pinned because older gitleaks releases default to none, which would let an encoded credential pass unseen.
 SCANNER_FLAGS = (
     *("--no-banner", "--no-color", "--log-level", "error", "--exit-code", "0", "--ignore-gitleaks-allow"),
+    *("--max-decode-depth", "5"),
     *("--report-format", "json", "--report-path", "-"),
 )
 AUTH_SCHEMES = (
@@ -320,12 +322,18 @@ def secret_shaped(core: str) -> bool:
     return len(core) >= 16 and mixed and any(c.isdigit() for c in core)
 
 
+def unwrap(core: str) -> str:
+    """Strip angle brackets, such as a Markdown autolink's, until a placeholder or a bare word is left."""
+    while core not in PLACEHOLDERS and (core.startswith("<") or core.endswith(">")):
+        core = core.removeprefix("<").removesuffix(">")
+    return core
+
+
 def redact_word(core: str) -> str:
     """Return the placeholder for one word, or the word itself when it is safe to keep."""
     if not core or core in PLACEHOLDERS:
         return core
-    if core.startswith("<") or core.endswith(">"):
-        inner = core.removeprefix("<").removesuffix(">")
+    if (inner := unwrap(core)) != core:
         kept = redact_word(inner)
         return core if kept == inner else kept
     if "://" in core:

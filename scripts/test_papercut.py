@@ -420,6 +420,8 @@ class PapercutTests(unittest.TestCase):
         for call in calls:
             self.assertEqual(call["argv"][0], "stdin")
             self.assertIn("--ignore-gitleaks-allow", call["argv"])
+            depth = call["argv"].index("--max-decode-depth") + 1
+            self.assertGreater(int(call["argv"][depth]), 0, "decoding must not depend on the scanner's default")
             self.assertFalse(any("valid" in arg for arg in call["argv"]), call["argv"])
             self.assertEqual(call["settings"], [], "scanner settings must not reach the scanner")
         report_id = result.stdout.split()[1].rstrip(":")
@@ -470,7 +472,9 @@ class PapercutTests(unittest.TestCase):
     def test_export_redacts_inside_angle_brackets(self) -> None:
         private = "<https://wiki.private.example/payroll> and <dev@acme.example> and <build.corp.example:8443>"
         kept = "<https://github.com/fullerzz/agent-skills> and <component>"
-        report_id = self.record(sample(summary="See <https://wiki.private.example/x>", actual=f"{private}\n{kept}"))
+        nested = "<" * 999  # One word per bracket layer must not exhaust the stack.
+        report = sample(summary="See <https://wiki.private.example/x>", actual=f"{private}\n{kept}", workaround=nested)
+        report_id = self.record(report)
         result = self.run_helper("export", report_id)
         self.assertEqual(result.returncode, 0, result.stderr)
         draft = Path(result.stdout.strip().partition(": ")[2]).read_text(encoding="utf-8")

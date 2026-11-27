@@ -14,6 +14,7 @@ Checked on macOS ARM64 with BetterLeaks 1.10.1 and gitleaks 8.30.1, from an unsa
 - Export no longer keeps every `<...>` word. Only the placeholders it writes stay as they are. A private URL, email, or `host:port` inside a Markdown autolink is redacted, in the title too. A public repository autolink and `<component>` stay.
 - An opted-in capture that is not saved now names only the report's component and summary in the final report, not the unscanned JSON.
 - Storage and CLI tests now run against a stand-in scanner. With no scanner on `PATH`, 16 of the 20 papercut tests ran and 4 detection tests skipped, on Python 3.12. All four new or changed cases failed against the old helper. With both scanners installed, all 20 passed. The unittest discovery passed 198 tests, the docs tests passed, the validator reported no structural problems, and strict mypy passed for the helper and its test.
+- A second Pullfrog pass at `490061d` found two more gaps. gitleaks releases before 8.30 do not decode by default, so the helper now passes `--max-decode-depth 5`. With depth 0, gitleaks 8.30.1 missed the base64 token. Export also hit `RecursionError` on a word of 999 `<` characters. Brackets are now stripped in a loop. Both new checks failed against `490061d`, and all 20 papercut tests passed after the fix.
 - Not run: the host checks listed under Papercut below, which #91 still needs.
 
 ## Papercut secret scanner — 2026-11-26
