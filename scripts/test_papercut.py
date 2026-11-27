@@ -473,6 +473,16 @@ class PapercutTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout.split()[1].rstrip(":")
 
+    def test_record_ends_a_header_value_at_its_closing_quote(self) -> None:
+        cases = {
+            # A backslash is literal inside a shell single-quoted argument, so the next quote still closes it.
+            "curl -H 'Cookie: id=test\\' localhost, exit 7": "curl -H 'Cookie: <redacted>' localhost, exit 7",
+            '{"Cookie": "a=\\"b\\"; sid=c"} then exit 9': '{"Cookie": "<redacted>"} then exit 9',
+        }
+        report_id = self.record(sample(actual="\n".join(cases)))
+        saved = json.loads(self.run_helper("show", report_id).stdout)["actual"]
+        self.assertEqual(saved, "\n".join(cases.values()))
+
     def test_export_redacts_inside_angle_brackets(self) -> None:
         private = "<https://wiki.private.example/payroll> and <dev@acme.example> and <build.corp.example:8443>"
         kept = "<https://github.com/fullerzz/agent-skills> and <component>"

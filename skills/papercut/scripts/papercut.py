@@ -253,7 +253,10 @@ def remove(text: str, found: list[str]) -> str:
 
 
 def closing_quote(value: str, quote: str) -> int:
-    """Index of the first quote not escaped by a backslash, or -1."""
+    """Index of the closing quote, or -1. A backslash escapes a double quote (JSON, shell) but not a single one,
+    because it is literal inside a shell single-quoted argument."""
+    if quote == "'":
+        return value.find(quote)
     escaped = False
     for index, char in enumerate(value):
         if char == quote and not escaped:
