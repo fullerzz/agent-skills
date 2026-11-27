@@ -252,10 +252,20 @@ def remove(text: str, found: list[str]) -> str:
     return text
 
 
+def closing_quote(value: str, quote: str) -> int:
+    """Index of the first quote not escaped by a backslash, or -1."""
+    escaped = False
+    for index, char in enumerate(value):
+        if char == quote and not escaped:
+            return index
+        escaped = char == "\\" and not escaped
+    return -1
+
+
 def redact_header(match: re.Match[str]) -> str:
     outer, name, separator, inner, value = match.groups()
     quote = inner or outer
-    end = value.find(quote) if quote else -1
+    end = closing_quote(value, quote) if quote else -1
     return f"{outer}{name}{separator}{inner}<redacted>{value[end:] if end >= 0 else ''}"
 
 

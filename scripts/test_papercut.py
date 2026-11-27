@@ -300,6 +300,8 @@ class PapercutTests(unittest.TestCase):
             "Authorization: ApiKey example-key": "example-key",
             'curl -H "Authorization: Bearer SAMPLEabc123" returned exit 22': "SAMPLEabc123",
             'headers={"Authorization": "Basic QWxhZGRpbjpvcGVu"}, retry': "QWxhZGRpbjpvcGVu",
+            '{"Cookie": "session=\\"sample-session-value\\"; sid=another-private-session"}': "another-private",
+            '{"Authorization": "Digest username=\\"bob\\", response=\\"escaped-digest-value\\""}': "escaped-digest",
             "password=hunter": "hunter",
             '{"password": "hunter"}': "hunter",
             "password: staple battery horse": "battery horse",
@@ -355,13 +357,14 @@ class PapercutTests(unittest.TestCase):
             "GET https://svc.example?ref=alice@team failed",
         )
         lines = list(leaks)
-        fields = {"actual": lines[:12], "suspected_fix": lines[12:24], "workaround": lines[24:]}
+        # Text fields hold 12 lines each, so the leaks past 36 share the tried field with the kept text.
+        fields = {"actual": lines[:12], "suspected_fix": lines[12:24], "workaround": lines[24:36]}
         for scanner in SCANNERS:
             with self.subTest(scanner=scanner):
                 env = self.only_scanner(scanner)
                 report = sample(
                     summary="Title buildbox:22 token=abcdefghijklmnop",
-                    tried="\n".join(draft_kept),
+                    tried="\n".join((*draft_kept, *lines[36:])),
                     expected="\n".join(record_kept),
                     **{key: "\n".join(value) for key, value in fields.items()},
                 )
@@ -369,10 +372,11 @@ class PapercutTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 report_id = result.stdout.split()[1].rstrip(":")
                 saved = json.loads(self.run_helper("show", report_id, env=env).stdout)
-                self.assertEqual(saved["tried"], "\n".join(draft_kept))
+                self.assertTrue(saved["tried"].startswith("\n".join(draft_kept)), saved["tried"])
                 self.assertEqual(saved["expected"], "\n".join(record_kept), "record keeps non-credential evidence")
                 stored = json.dumps(saved)
-                for credential in ("YWxpY2U6c2FtcGxl", "YTpi", "6629fae4", "QWxhZGRpbjpvcGVu", "SAMPLEabc123", TOKEN):
+                record_removed = ("YWxpY2U6c2FtcGxl", "YTpi", "6629fae4", "QWxhZGRpbjpvcGVu", "SAMPLEabc123", TOKEN)
+                for credential in (*record_removed, "sample-session", "another-private", "escaped-digest"):
                     self.assertNotIn(credential, stored, "record removes header values and scanned secrets")
                 self.assertIn("exit 22", stored, "a shell-quoted header keeps the rest of its line")
 
