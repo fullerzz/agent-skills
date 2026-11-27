@@ -38,6 +38,8 @@ Delegate when the selected workflow requests it and the host permits it. Follow 
 
 Local edits, commits, pushes, PRs, messages, tickets, merges, deployment, and checkout resets are distinct actions governed by the user's request.
 
+Papercut capture is off by default. If the user explicitly asks you to record papercuts during this workflow, follow [papercut](../papercut/SKILL.md): record concrete zstack friction, not project bugs, without asking first. Declining, saying stop, stopping z-mode, or leaving the workflow ends further writes. Keep the opt-in in resume notes.
+
 ## Routing
 
 Read only the selected playbook. Resolve companion skills through the catalog or real sibling directories. Explicit-only companions may be read as instructions for this user-selected workflow; that does not enable automatic selection.

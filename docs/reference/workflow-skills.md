@@ -484,6 +484,39 @@ Persists until you say stop z-mode or choose another style, subject to retained 
 
 [Full z-mode instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/z-mode/SKILL.md)
 
+## Papercut {#papercut}
+
+A zstack skill gave the agent a wrong instruction, left out a prerequisite, failed silently, or forced a workaround, and you want a record to follow up on later. It works even when the task succeeded.
+
+| Host | Example invocation |
+| --- | --- |
+| Codex | `$papercut record the missing package check in the feature playbook` or `$papercut export <id>` |
+| Claude Code | `/papercut record the missing package check in the feature playbook` or `/papercut list` |
+| Hermes | `Load zstack:papercut with skill_view and record the missing package check in the feature playbook.` |
+| Any host, in z-mode | `Record papercuts as you go.` |
+
+The Codex and Claude Code rows are linked-install examples. For native plugins, select `zstack:papercut` through the Codex skill picker or invoke `/zstack:papercut` in Claude Code.
+
+### How it works
+
+The agent writes a short structured report and saves it with a bundled standard-library helper. The helper runs a local secret scanner: BetterLeaks when installed, otherwise gitleaks. The report names the zstack component, host, zstack version, kind of problem, what was tried, what was expected, what happened, whether it blocked progress, and any workaround. A suspected fix is optional and kept apart from these observations. Field length limits keep transcripts and raw logs out. When it saves a report, the helper removes the credentials the scanner finds. It also removes an `Authorization` value that starts with an auth scheme, the `name=value` pairs of a `Cookie` header, and the user part of a URL, which the scanners miss. Everything else stays as private local evidence. Export redacts aggressively, because you edit the draft before sharing it. It checks each word and removes paths, URLs, hosts and ports, domains, emails, session IDs, and values after credential keys or flags. The scanner then checks the finished draft, and a finding stops the export.
+
+During a z-mode workflow, you can ask the agent to record papercuts as you go. The agent then records zstack friction without asking first, marks those reports as opt-in, and lists their IDs in its final report. Saying stop, stopping z-mode, or finishing the workflow ends capture. Installing or enabling zstack never starts it.
+
+`export` renders one report as a Markdown draft with a suggested title. You review and edit it, then decide whether to file it.
+
+### Expected result
+
+`saved <id>: <path>` for a new report. `list` shows one line per report, `list --component <name>` shows one component's reports, and `list --json` returns full reports so the agent can group repeats. `show` prints one report, `delete` removes reports and their drafts, and `path` prints the store directory. `export` writes `drafts/<id>.md` in the store.
+
+### Dependencies and limits
+
+Explicit-only on all hosts. Needs BetterLeaks (`brew install betterleaks`) or gitleaks on `PATH`; without one, or when a scan fails, nothing is saved or exported. The scanner runs locally on stdin with live validation off and `gitleaks:allow` comments ignored. Also needs `uv` and an installed Python 3.12 or newer; the helper runs with `uv run --offline --no-python-downloads`, so it never downloads an interpreter or package. Reports are owner-only files in `~/.local/state/zstack/papercuts` (or `$XDG_STATE_HOME/zstack/papercuts`, or `%LOCALAPPDATA%\zstack\papercuts` on Windows). Set `ZSTACK_PAPERCUT_DIR` to an absolute path to use another directory. The helper refuses a store inside a Git checkout or the zstack install tree, ignoring a repository rooted at your home directory or above, such as a dotfiles repository. It leaves the mode of an existing directory alone, refuses a symbolic-linked `reports/` or `drafts/` for every command, and on Windows relies on `%LOCALAPPDATA%` being per-user rather than on file modes. The store belongs to your operating-system user and is shared by every host on that machine. It is not synced to other machines, and it survives new sessions and plugin refreshes. To remove everything, delete the directory.
+
+A failed write prints `papercut: not saved:` and the reason, and the task continues. A host sandbox can deny the write. For a report you asked for, the agent asks once to rerun the helper outside the sandbox, or gives you the command. For an opted-in report, it names the unsaved report's component and summary in its final report, without the rest of the unscanned text. Redaction is best-effort, so read every draft before sharing it. It also removes harmless text: every `name:number` except a file reference becomes `<host>`, so `exit:127` does, and `Passwordless=true` loses its value. `delete` removes default drafts; drafts written with `--output` are yours to delete. Capture and export never use the network, a GitHub token, a browser, a prefilled issue URL, or `gh issue create`. This repository does not accept external issues; its maintainer files reports by hand. The report structure follows [Uber's papercut workflow](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/#continuous-improvement-and-agents-filing-their-own-bugs) without its central intake.
+
+[Full papercut instructions](https://github.com/fullerzz/agent-skills/blob/main/skills/papercut/SKILL.md)
+
 ## Ketchup {#ketchup}
 
 You want to catch up on this chat since your last message and decide anything still awaiting you.

@@ -4,6 +4,98 @@ outline: [2, 3]
 
 # Validation
 
+## Papercut PR review fixes — 2026-11-26
+
+Checked on macOS ARM64 with BetterLeaks 1.10.1 and gitleaks 8.30.1, from an unsandboxed Claude Code session. The fixes answer the Codex and Pullfrog reviews of PR #92 at `a2f0c6f`.
+
+- Both scanners decode base64 by default and report the decoded value as `Secret`. A GitHub-style token inside base64 was reported that way by each scanner, so literal removal could not reach it. `record` now scans again after removal and refuses to save when a finding remains. Both scanners refused the encoded token in the new test.
+- Both scanners read rules from `GITLEAKS_CONFIG` and `*_CONFIG_TOML`, and BetterLeaks also from `BETTERLEAKS_CONFIG`. The helper now drops every `GITLEAKS_` and `BETTERLEAKS_` variable. With a rule set that matches nothing in both `*_CONFIG_TOML` variables, each scanner still removed the token.
+- A scan that exits 0 with no report, or reports an empty `Secret`, now fails the record.
+- Export no longer keeps every `<...>` word. Only the placeholders it writes stay as they are. A private URL, email, or `host:port` inside a Markdown autolink is redacted, in the title too. A public repository autolink and `<component>` stay.
+- An opted-in capture that is not saved now names only the report's component and summary in the final report, not the unscanned JSON.
+- Storage and CLI tests now run against a stand-in scanner. With no scanner on `PATH`, 16 of the 20 papercut tests ran and 4 detection tests skipped, on Python 3.12. All four new or changed cases failed against the old helper. With both scanners installed, all 20 passed. The unittest discovery passed 198 tests, the docs tests passed, the validator reported no structural problems, and strict mypy passed for the helper and its test.
+- A second Pullfrog pass at `490061d` found two more gaps. gitleaks releases before 8.30 do not decode by default, so the helper now passes `--max-decode-depth 5`. With depth 0, gitleaks 8.30.1 missed the base64 token. Export also hit `RecursionError` on a word of 999 `<` characters. Brackets are now stripped in a loop. Both new checks failed against `490061d`, and all 20 papercut tests passed after the fix.
+- A Codex pass at `89eb3d0` found that a JSON-escaped quote inside a `Cookie` or `Digest` header value ended the redaction early, so the saved report kept the rest of the value. The header rules now end the value at the first unescaped quote. The new cases kept `sample-session` against `89eb3d0` and were removed after the fix, with both scanners. All 20 papercut tests passed.
+- Pullfrog then found that a backslash before a closing single quote, as in `curl -H 'Cookie: id=test\' localhost`, made the redaction drop the rest of the line. A backslash is literal inside a shell single-quoted argument, so only double quotes now honor it. The new case failed against `372d004`, and all 21 papercut tests passed.
+- Pullfrog then found the reverse case: in a single-quoted Python or JavaScript field such as `{'Cookie': 'a=it\'s; sid=...'}`, the escaped apostrophe belongs to the value, so the cookie tail was kept. A quote around the value now honors backslash escapes, and a quote around the whole shell header honors them only for double quotes. The new case failed against `5c8e914`, and all 21 papercut tests passed.
+- Not run: the host checks listed under Papercut below, which #91 still needs.
+
+## Papercut secret scanner — 2026-11-26
+
+A third read-only Codex review of `2fc5942` (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) was given the agreed redaction rules up front. It reported 14 findings inside those rules, and nine were reproduced. The user asked to evaluate gitleaks and then BetterLeaks instead of extending the custom credential patterns.
+
+- **Scanners compared.** Both ran with `stdin -f json -r -`. One set of test inputs had 20 mostly synthetic lines, and one had 11 realistic random secrets.
+  - gitleaks 8.30.1 found 3 and 6. It ran in about 0.02 s.
+  - BetterLeaks 1.10.1 found 5 and 7, adding low-entropy passwords and URL credentials. It ran in 0.12–0.27 s. The release binary was first checked against its published checksum.
+  - Both found GitHub, GitLab, Slack, and Anthropic tokens, private keys, and curl auth headers. Both left alone an `sk-ecdsa-…` key type name and a bare `-----BEGIN PRIVATE KEY-----` mention. Neither found plain `Authorization: Basic` or `Bearer` lines, and gitleaks skips values containing `EXAMPLE`.
+  - The user chose BetterLeaks when installed, otherwise gitleaks, and refusal without either. They then installed BetterLeaks 1.10.1 with brew.
+- **Saving.** The helper runs the scanner from an empty temporary directory, so no ignore file or target config applies. It passes `--ignore-gitleaks-allow` and drops `BETTERLEAKS_VALIDATE` and `BETTERLEAKS_ANALYZE` from the environment. It replaces every reported `Secret`. Two structural rules cover what the scanners miss: an `Authorization` value that starts with an auth scheme, and `Cookie` pairs. Each value ends at the quote that opened it, so `curl -H "Authorization: Bearer X" returned exit 22` keeps `returned exit 22`. URL user info stops at `/?#`. The old token patterns are gone, so `sk-ecdsa-…` and a bare key header now survive. A scanner that fails, times out, or returns output without a `Secret` field stops the save.
+- **Export.** The scanner runs again on the report fields, and then each word is checked on its own:
+  - Replaced: paths (including words between two path pieces), URLs other than this repository's anchor-only public links, anything with `@`, `name:number` other than file references, domains, `key=value` and `key:"value"` values, long mixed-case tokens, and the word after a credential key, credential flag, or session ID label.
+  - A last scan of the finished draft stops the export on any finding.
+- **Store.** `--output` cannot point into the store outside `drafts/`, so `--force` cannot overwrite a report. `list` reads with `iterdir`, so an unreadable store fails instead of looking empty. Commands that read or write reports refuse a linked `reports/` or `drafts/`. A loaded report needs a nonempty, one-line component and summary. Drafts written with `--output` are documented as the user's to delete.
+- **Checks.** `scripts/test_papercut.py` has 18 cases. The scrub case runs once with only BetterLeaks and once with only gitleaks on `PATH`. A fake scanner checks the argument and environment contract, the final-draft gate, a failing scanner, unreadable output, and a missing scanner. Against `2fc5942`, six failed and one errored.
+  - All 18 pass on Python 3.15 and 3.12, with ResourceWarnings promoted to errors.
+  - The Python unittest discovery passed 196 tests. The validator, ruff, strict mypy on the helper, and the Codex package build passed.
+  - The only remaining failures are the existing `test_pr_watcher.py` mypy error and the three `install.test.mjs` failures that also occur on `main`.
+- **Not covered.** BetterLeaks v2 was not tested; its report format may change, and the helper then refuses. Windows was not run.
+
+## Papercut second review fixes — 2026-11-26
+
+A second read-only Codex review (GPT-6.2-Astra, high effort, hc `alt-harness-review-codex` template) of `5592126` reported 13 findings. Eight of them were reproduced locally. The user chose to split the scrub instead of patching each case:
+
+- **Recording** removes only credentials with an exact format: known token formats, an `Authorization` value that starts with an auth scheme (quoted or not), `Cookie` header `name=value` pairs, and URL user info. The Cookie rule goes beyond the approved design, which named only `Authorization`. An earlier draft also cut everything after `Authorization:`, `Cookie:`, or `X-Api-Key:`. A probe showed it erased prose such as `authorization: steps, then /baton pass failed` while missing a JSON `"Authorization": "Basic ..."`, so it was narrowed. `a basic NullPointerException`, `Passwordless=true`, `token: authentication failed`, and `--token-budget=high` now stay in saved reports. The cost is that a guessed secret such as `password=hunter` also stays in the private saved report.
+- **Export** redacts aggressively:
+  - Credentials: Digest headers, a short Basic value, `token=` and quoted or escaped passwords, and quoted JSON session IDs.
+  - Hosts: every `name:port` except a file reference.
+  - Paths: paths whose later folder names have spaces, and a `skills/` tail unless it names a file this install ships.
+  - URLs: a URL whose user info recording had already replaced. URLs are now settled before any other rule, so an allowlisted repository link containing a commit SHA is kept whole.
+  - Passwords: an unquoted value after a password-like key is cut to the end of the line, so `password: correct horse battery` loses all three words.
+  - Not caught: a bare host name with no port.
+- **Store:** every command refuses a linked `reports/` or `drafts/`. Export and delete hold an `fcntl` lock (`msvcrt` on Windows) in the store, and export no longer deletes by name after writing. `delete` handles each ID on its own. A loaded report must have an integer schema, known host, kind, and capture values, string or null optional fields, and no unknown keys.
+- **Test fix:** the concurrency test read through `communicate()` after closing stdin, which raises on Python 3.12. It now reads each process's output directly.
+
+`scripts/test_papercut.py` now has 15 cases. Against `5592126`, eight failed and one errored. All 15 pass here on Python 3.15 and 3.12, with ResourceWarnings promoted to errors. The Python unittest discovery passed 193 tests. The validator, ruff, the Codex package build, and strict mypy on the helper also passed, with only the existing `test_pr_watcher.py` mypy error and the three `install.test.mjs` failures that also occur on `main`. A new lock test holds the store lock, checks that `export` waits without writing, then releases the lock and checks that export succeeds. No test forces the exact export-and-delete interleavings the reviewer described. Windows locking was not run. The Codex reviewer's read-only sandbox could not create uv's cache lock, so in such a sandbox the helper fails before it starts. The skill's not-saved path covers that case.
+
+## Papercut review fixes — 2026-11-26
+
+A read-only Codex reviewer (GPT-6.2-Astra, high effort), launched through the hc `alt-harness-review-codex` template, reviewed commit `2b22075`. It reported eleven findings. Ten were fixed. For the Windows half of the permissions finding, the limit is documented rather than fixed:
+
+- Basic, Digest, and Negotiate credentials, short assigned or quoted passwords, labeled session IDs without digits, dotted `host:port` endpoints, and bracketed IPv6 URLs are now scrubbed.
+- Paths with spaces, quoted paths, and Windows network paths are now scrubbed. A `/skills/` tail survives only when it names a skill in this install.
+- `Dockerfile:12`, `token: authentication failed`, and other references and prose now survive.
+- A forced export renames a complete temporary file over the old draft.
+- Every store location, including the `XDG_STATE_HOME` and `LOCALAPPDATA` defaults, gets the checkout guard. The guard skips the home directory and its parents, so a dotfiles repository does not block the default store. A relative `LOCALAPPDATA` falls back to the home-based default.
+- Existing directories keep their mode. A symbolic-linked `reports/` or `drafts/` is refused. Windows file modes are documented as not enforced.
+- Every command runs with `uv run --offline --no-python-downloads`, and the shebang uses the same flags. The import check now parses the helper's imports with `ast`.
+- `delete` removes the draft before the report, so a retry finishes a partial delete. An export whose report was deleted meanwhile removes its draft and fails; no test covers that race.
+- `list` skips a report file that lacks required fields or has the wrong types.
+- The concurrency test now feeds all eight processes before closing any stdin, so their writes can overlap.
+
+`scripts/test_papercut.py` now has 13 cases. Copied into a clean clone at `2b22075`, seven of them failed against the old helper. The concurrency test passed there too; it checks overlapping writes, not a reported bug. Here all thirteen pass. The forced-export failure case uses a read-only drafts directory and is skipped when run as root.
+
+A second probe found that the first round of fixes over-redacted saved evidence, so the rules were narrowed:
+
+- `a basic README.md check`, `token SessionStart hook`, `digest sha256:abc`, and `--token-budget=high` were redacted at record time; they now survive.
+- Basic, Digest, and Negotiate values are now redacted only after an `Authorization` key or when the value is base64-shaped and at least 16 characters. A value for a password-like key is always redacted. A token, cookie, or authorization key's value is redacted only when it is quoted or looks secret.
+- Two leaks were fixed: `password: hunter` (colon form) and a quoted password with spaces.
+- Export adds a second long-token pass that allows slashes, so AWS-style secret keys are caught. Saved reports keep such keys.
+- A quoted slash command such as `` `/baton catch docs/plan.md` `` now survives export.
+
+The probe strings are in the scrub test. The Windows behavior and the live host checks listed in the next entry were not run.
+
+## Papercut — 2026-11-26
+
+Checked on macOS ARM64 with uv 0.13.10, from an unsandboxed Claude Code session.
+
+- `uv run scripts/validate.py` passed. The Python unittest discovery passed 185 tests, including seven new `scripts/test_papercut.py` cases. Every case runs the helper through a symlink, from an unrelated working directory, with a temporary `ZSTACK_PAPERCUT_DIR`. GitHub variables are stripped, and the proxy points at a closed local port.
+- The cases cover the round trip from record to delete, with owner-only modes on the store, `reports/`, and each file. Eight concurrent records all survived with no leftover temporary files. A store whose parent is a regular file printed `not saved` with empty stdout. Oversized, multi-line, unknown, and mistyped fields were refused, and so was a store inside this checkout. An ID with `../` was refused. Export refuses to replace an edited draft without `--force`. The helper imports no network, browser, or subprocess module.
+- A synthetic privacy case seeds a GitHub-style token, the home path, a UUID session ID, a private URL with a query token, an `api_key=` value, an email, a `host:port`, and an IP. The values go in both the summary, which feeds the suggested title, and the body. One report goes through `record`, and one is written straight to the store to bypass record-time scrubbing. Neither draft kept any seeded value, and the recorded file kept no credential. A second case records the denied-write text from #65 with a home path, plugin data path, UUID, and `host:port`. The saved report kept that text exactly, except for the seeded token. Its draft dropped the private parts and kept the zstack-relative skill path, this repository's public URL, a Git SHA, a `file:line` reference, and ordinary prose.
+- Node suites: the docs, helpers, and statechart tests passed. Three `install.test.mjs` cases also failed on a clean clone of `main` at `6ffd2f9`, so this change did not cause them; their cause was not investigated. Ruff and strict mypy passed for the helper and its test. Repo-wide, `ruff check` and `ruff format --check` flag only untouched files (`test_codex_hooks.py`, `test_hermes_hooks.py`, `test_triage_upstream.py`, `triage_upstream.py`), and the project-wide mypy run reports one existing error in `scripts/test_pr_watcher.py`.
+- The Codex package was built from a scratch clone with the change staged, so this checkout's index was untouched. `skills/papercut` matched the source byte for byte, and its `openai.yaml` disables implicit invocation. The packaged helper read version `0.32.0` from `.codex-plugin/plugin.json`. `claude plugin validate .` passed and listed 62 skills, including zstack:papercut. Calling the Hermes plugin entrypoint with a test registry registered 62 skills, including papercut at its shared path.
+- A write to the default `~/.local/state/zstack/papercuts` succeeded from this unsandboxed session. That does not show that a sandboxed Claude Code or Codex session can write there (see #65). The skill handles a denied write by reporting `not saved`. Opted-in capture also puts the unsaved report in the final report.
+- Not run: native `/papercut`, `$papercut`, and Hermes `skill_view` invocations on fresh installs; opt-in and opt-out during a live z-mode workflow; retrieval after a session restart and a plugin refresh; and a sandboxed Claude Code session. These acceptance criteria from #91 remain open.
+
 ## Baton — 2026-11-24
 
 Checked on macOS ARM64 with Atuin 18.25.1, thread capture on, and the Atuin MCP server in Claude Code.
