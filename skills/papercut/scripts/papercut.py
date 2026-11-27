@@ -252,10 +252,9 @@ def remove(text: str, found: list[str]) -> str:
     return text
 
 
-def closing_quote(value: str, quote: str) -> int:
-    """Index of the closing quote, or -1. A backslash escapes a double quote (JSON, shell) but not a single one,
-    because it is literal inside a shell single-quoted argument."""
-    if quote == "'":
+def closing_quote(value: str, quote: str, *, escapes: bool) -> int:
+    """Index of the closing quote, or -1. With escapes, a quote after a backslash belongs to the value."""
+    if not escapes:
         return value.find(quote)
     escaped = False
     for index, char in enumerate(value):
@@ -268,7 +267,10 @@ def closing_quote(value: str, quote: str) -> int:
 def redact_header(match: re.Match[str]) -> str:
     outer, name, separator, inner, value = match.groups()
     quote = inner or outer
-    end = closing_quote(value, quote) if quote else -1
+    # A quote around the value is a string literal (JSON, Python, JavaScript), where a backslash escapes it. A quote
+    # around the whole header is a shell argument, where a backslash escapes a double quote but not a single one.
+    escapes = bool(inner) or outer == '"'
+    end = closing_quote(value, quote, escapes=escapes) if quote else -1
     return f"{outer}{name}{separator}{inner}<redacted>{value[end:] if end >= 0 else ''}"
 
 

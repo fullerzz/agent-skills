@@ -478,6 +478,7 @@ class PapercutTests(unittest.TestCase):
             # A backslash is literal inside a shell single-quoted argument, so the next quote still closes it.
             "curl -H 'Cookie: id=test\\' localhost, exit 7": "curl -H 'Cookie: <redacted>' localhost, exit 7",
             '{"Cookie": "a=\\"b\\"; sid=c"} then exit 9': '{"Cookie": "<redacted>"} then exit 9',
+            "{'Cookie': 'a=it\\'s; sid=private-tail'} then exit 5": "{'Cookie': '<redacted>'} then exit 5",
         }
         report_id = self.record(sample(actual="\n".join(cases)))
         saved = json.loads(self.run_helper("show", report_id).stdout)["actual"]
